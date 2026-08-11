@@ -1,0 +1,53 @@
+name: hypofit
+
+services:
+  api:
+    container_name: hypofit-api
+    image: ${HYPOFIT_API_IMAGE:?HYPOFIT_API_IMAGE is required}
+    init: true
+    restart: unless-stopped
+    env_file:
+      - /opt/hypofit/config/api.env
+    environment:
+      ENV: production
+      SPRING_PROFILES_ACTIVE: production,push-worker
+      SERVER_PORT: "8080"
+      PUSH_WORKER_ENABLED: "true"
+      AI_SUMMARY_ENABLED: "false"
+      AI_SUMMARY_WORKER_ENABLED: "false"
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "3"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "1"
+      PUSH_APNS_PRIVATE_KEY_PATH: /run/secrets/apns-auth-key.p8
+      PUSH_FCM_SERVICE_ACCOUNT_JSON_PATH: /run/secrets/fcm-service-account.json
+      JAVA_TOOL_OPTIONS: >-
+        -Xms128m
+        -Xmx320m
+        -XX:+ExitOnOutOfMemoryError
+        -Djava.io.tmpdir=/tmp
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /opt/hypofit/secrets/apns-auth-key.p8:/run/secrets/apns-auth-key.p8:ro
+      - /opt/hypofit/secrets/fcm-service-account.json:/run/secrets/fcm-service-account.json:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 700m
+    stop_grace_period: 45s
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --show-error
+        - http://127.0.0.1:8080/api/v1/health/ready
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s

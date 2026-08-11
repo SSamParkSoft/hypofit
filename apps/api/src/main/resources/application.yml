@@ -1,0 +1,93 @@
+spring:
+  application:
+    name: hypofit-api
+  mvc:
+    problemdetails:
+      enabled: false
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+  jackson:
+    default-property-inclusion: always
+  datasource:
+    hikari:
+      initialization-fail-timeout: 0
+  jpa:
+    open-in-view: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        boot:
+          allow_jdbc_metadata_access: false
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:24}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+      group:
+        liveness:
+          include: livenessState,ping
+        readiness:
+          include: readinessState,db,ping
+hypofit:
+  env: ${ENV:local}
+  database-url: ${DATABASE_URL:postgresql://postgres:postgres@127.0.0.1:5432/hypofit}
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  admin-emails: ${ADMIN_EMAILS:}
+  supabase-url: ${SUPABASE_URL:}
+  supabase-service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+  supabase-jwt-secret: ${SUPABASE_JWT_SECRET:}
+  supabase-jwks-url: ${SUPABASE_JWKS_URL:}
+  supabase-jwks-cache-seconds: ${SUPABASE_JWKS_CACHE_SECONDS:300}
+  jwt-audience: ${JWT_AUDIENCE:authenticated}
+  kakao-rest-api-key: ${KAKAO_REST_API_KEY:}
+  support-email: ${SUPPORT_EMAIL:ssamso8282@gmail.com}
+  resend-api-key: ${RESEND_API_KEY:}
+  resend-from-email: ${RESEND_FROM_EMAIL:}
+  account-deletion-hash-pepper: ${ACCOUNT_DELETION_HASH_PEPPER:}
+  apple-sign-in:
+    app-id: ${APPLE_SIGN_IN_APP_ID:}
+    jwks-url: ${APPLE_SIGN_IN_JWKS_URL:https://appleid.apple.com/auth/keys}
+    jwks-cache-seconds: ${APPLE_SIGN_IN_JWKS_CACHE_SECONDS:300}
+  social-auth-enabled: ${SOCIAL_AUTH_ENABLED:false}
+  social-auth-attempt-pepper: ${SOCIAL_AUTH_ATTEMPT_PEPPER:}
+  social-auth-identity-pepper: ${SOCIAL_AUTH_IDENTITY_PEPPER:}
+  social-auth-apple-state: ${SOCIAL_AUTH_APPLE_STATE:disabled}
+  social-auth-apple-ios-state: ${SOCIAL_AUTH_APPLE_IOS_STATE:}
+  social-auth-apple-web-state: ${SOCIAL_AUTH_APPLE_WEB_STATE:}
+  social-auth-google-state: ${SOCIAL_AUTH_GOOGLE_STATE:disabled}
+  social-auth-kakao-state: ${SOCIAL_AUTH_KAKAO_STATE:disabled}
+  social-auth-naver-state: ${SOCIAL_AUTH_NAVER_STATE:disabled}
+  push:
+    enabled: ${PUSH_ENABLED:false}
+    push-worker-enabled: ${PUSH_WORKER_ENABLED:false}
+    push-worker-batch-size: ${PUSH_WORKER_BATCH_SIZE:20}
+    push-worker-active-sleep-seconds: ${PUSH_WORKER_ACTIVE_SLEEP_SECONDS:2.0}
+    push-worker-idle-sleep-seconds: ${PUSH_WORKER_IDLE_SLEEP_SECONDS:30.0}
+    push-worker-error-sleep-seconds: ${PUSH_WORKER_ERROR_SLEEP_SECONDS:30.0}
+    push-max-attempts: ${PUSH_MAX_ATTEMPTS:3}
+    push-batch-size: ${PUSH_BATCH_SIZE:100}
+    push-sending-timeout-seconds: ${PUSH_SENDING_TIMEOUT_SECONDS:300}
+    push-apns-enabled: ${PUSH_APNS_ENABLED:false}
+    push-apns-env: ${PUSH_APNS_ENV:production}
+    push-apns-team-id: ${PUSH_APNS_TEAM_ID:}
+    push-apns-key-id: ${PUSH_APNS_KEY_ID:}
+    push-apns-bundle-id: ${PUSH_APNS_BUNDLE_ID:com.contentruck.hypofit}
+    push-apns-private-key-path: ${PUSH_APNS_PRIVATE_KEY_PATH:}
+    push-fcm-enabled: ${PUSH_FCM_ENABLED:false}
+    push-fcm-project-id: ${PUSH_FCM_PROJECT_ID:}
+    push-fcm-service-account-json-path: ${PUSH_FCM_SERVICE_ACCOUNT_JSON_PATH:}

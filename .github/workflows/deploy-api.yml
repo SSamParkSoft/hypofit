@@ -1,0 +1,163 @@
+name: API CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - apps/api/**
+      - infra/lightsail/**
+      - .github/workflows/deploy-api.yml
+  push:
+    branches:
+      - main
+    paths:
+      - apps/api/**
+      - infra/lightsail/**
+      - .github/workflows/deploy-api.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/ssamparksoft/hypofit-api
+  LIGHTSAIL_HOST: 54.116.198.195
+  LIGHTSAIL_USER: deploy
+
+jobs:
+  verify:
+    name: Verify Spring API
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Java 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            apps/api/*.gradle.kts
+            apps/api/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Verify and package
+        working-directory: apps/api
+        run: ./gradlew --no-daemon check integrationTest bootJar
+
+  publish:
+    name: Publish immutable image
+    if: github.event_name != 'pull_request'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Log in to GHCR
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Build and push linux/amd64 image
+        id: push
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: apps/api
+          file: apps/api/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:main
+          build-args: |
+            OCI_REVISION=${{ github.sha }}
+            OCI_SOURCE=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+  deploy:
+    name: Deploy to Lightsail
+    if: >-
+      needs.publish.result == 'success' &&
+      vars.LIGHTSAIL_DEPLOY_ENABLED == 'true'
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    env:
+      IMAGE_REF: ghcr.io/ssamparksoft/hypofit-api@${{ needs.publish.outputs.digest }}
+      SSH_KEY_PATH: /tmp/hypofit-lightsail-deploy
+      GHCR_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Prepare pinned SSH identity
+        env:
+          LIGHTSAIL_SSH_PRIVATE_KEY: ${{ secrets.LIGHTSAIL_SSH_PRIVATE_KEY }}
+        run: |
+          test -n "$LIGHTSAIL_SSH_PRIVATE_KEY"
+          install -m 0700 -d ~/.ssh
+          printf '%s\n' "$LIGHTSAIL_SSH_PRIVATE_KEY" > "$SSH_KEY_PATH"
+          chmod 0600 "$SSH_KEY_PATH"
+          install -m 0600 infra/lightsail/known_hosts ~/.ssh/known_hosts
+
+      - name: Sync deployment assets
+        run: |
+          tar -C infra/lightsail -cf - compose.yml deploy.sh \
+            | ssh -i "$SSH_KEY_PATH" -o IdentitiesOnly=yes \
+                "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" \
+                'set -e; mkdir -p /opt/hypofit/runtime; tar -xf - -C /opt/hypofit/runtime; chmod 0755 /opt/hypofit/runtime/deploy.sh; chmod 0644 /opt/hypofit/runtime/compose.yml'
+
+      - name: Authenticate Lightsail to GHCR
+        run: |
+          printf '%s' "$GHCR_TOKEN" \
+            | ssh -i "$SSH_KEY_PATH" -o IdentitiesOnly=yes \
+                "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" \
+                "docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin"
+
+      - name: Deploy immutable image
+        run: |
+          ssh -i "$SSH_KEY_PATH" -o IdentitiesOnly=yes \
+            "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" \
+            "/opt/hypofit/runtime/deploy.sh '$IMAGE_REF'"
+
+      - name: Verify deployed revision
+        run: |
+          ssh -i "$SSH_KEY_PATH" -o IdentitiesOnly=yes \
+            "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" \
+            "test \"\$(cat /opt/hypofit/runtime/DEPLOYED_IMAGE)\" = '$IMAGE_REF' && curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health/ready"
+
+      - name: Remove temporary registry and SSH credentials
+        if: always()
+        run: |
+          if [ -f "$SSH_KEY_PATH" ]; then
+            ssh -i "$SSH_KEY_PATH" -o IdentitiesOnly=yes \
+              "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" \
+              'docker logout ghcr.io >/dev/null 2>&1 || true' || true
+            rm -f "$SSH_KEY_PATH"
+          fi

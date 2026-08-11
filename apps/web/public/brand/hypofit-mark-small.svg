@@ -1,0 +1,8 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <path id="fit-side-small" d="M113 108H173C185 108 192 113 199 123L231 168C241 182 241 199 231 213C218 231 211 242 211 256C211 270 218 281 231 299C241 313 241 330 231 344L199 389C192 399 185 404 173 404H113C99 404 91 396 91 382V130C91 116 99 108 113 108Z"/>
+  </defs>
+  <use href="#fit-side-small" fill="#176B5D"/>
+  <use href="#fit-side-small" transform="translate(512 0) scale(-1 1)" fill="#176B5D"/>
+  <circle cx="256" cy="256" r="38" fill="#F5A623"/>
+</svg>

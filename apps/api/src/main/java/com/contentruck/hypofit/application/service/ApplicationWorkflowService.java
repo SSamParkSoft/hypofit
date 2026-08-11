@@ -1,0 +1,290 @@
+package com.contentruck.hypofit.application.service;
+
+import com.contentruck.hypofit.application.domain.ApplicationReadModel;
+import com.contentruck.hypofit.application.domain.ApplicationUserAccount;
+import com.contentruck.hypofit.application.domain.ApplicationWorkflowContext;
+import com.contentruck.hypofit.application.domain.InterviewPostOwnership;
+import com.contentruck.hypofit.audit.application.AuditEventCommand;
+import com.contentruck.hypofit.audit.application.AuditWriteService;
+import com.contentruck.hypofit.chat.application.ApplicationChatLifecycleService;
+import com.contentruck.hypofit.notification.application.NotificationWriteService;
+import com.contentruck.hypofit.user.application.UserAccountDeactivatedException;
+import com.contentruck.hypofit.user.application.UserAccountDeletedException;
+import com.contentruck.hypofit.user.application.UserProfileMissingException;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ApplicationWorkflowService {
+
+    private static final Set<String> PARTICIPANT_ROLES = Set.of("founder", "respondent", "both");
+    private static final Set<String> FOUNDER_ROLES = Set.of("founder", "both");
+    private static final Set<String> WITHDRAWABLE_APPLICATION_STATUSES = Set.of("applied", "selected");
+    private static final Set<String> SELECT_ALLOWED_PREVIOUS_STATUSES = Set.of("applied");
+    private static final Set<String> REJECT_ALLOWED_PREVIOUS_STATUSES = Set.of("applied");
+    private static final Set<String> CANCEL_ALLOWED_PREVIOUS_STATUSES = Set.of("applied", "selected");
+
+    private final ApplicationWorkflowRepository repository;
+    private final ApplicationChatLifecycleService chatLifecycleService;
+    private final NotificationWriteService notificationWriteService;
+    private final AuditWriteService auditWriteService;
+
+    public ApplicationWorkflowService(
+            ApplicationWorkflowRepository repository,
+            ApplicationChatLifecycleService chatLifecycleService,
+            NotificationWriteService notificationWriteService,
+            AuditWriteService auditWriteService
+    ) {
+        this.repository = repository;
+        this.chatLifecycleService = chatLifecycleService;
+        this.notificationWriteService = notificationWriteService;
+        this.auditWriteService = auditWriteService;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApplicationReadModel> listApplications(UUID userId) {
+        requireActiveUser(userId);
+        return repository.listVisibleApplicationsForUser(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public ApplicationReadModel getApplicationDetail(UUID userId, UUID applicationId) {
+        requireActiveUser(userId);
+        return repository.findVisibleApplicationDetail(applicationId, userId)
+                .orElseThrow(() -> new ApplicationNotFoundException("Application not found"));
+    }
+
+    @Transactional
+    public ApplicationReadModel createApplication(
+            UUID userId,
+            UUID interviewPostId,
+            java.util.Map<String, String> answers,
+            java.util.List<String> availableTimes
+    ) {
+        ApplicationUserAccount actor = requireActiveUser(userId);
+        ensureParticipantRole(actor);
+
+        InterviewPostOwnership post = repository.findInterviewPost(interviewPostId)
+                .orElseThrow(() -> new ApplicationNotFoundException("Interview post not found"));
+        if (post.founderId().equals(userId)) {
+            throw new ApplicationPermissionDeniedException("Cannot apply to your own interview");
+        }
+        if (repository.hasActiveBlockBetween(post.founderId(), userId)) {
+            throw new ApplicationPermissionDeniedException("Blocked users cannot interact");
+        }
+        if (repository.existsApplicationForPostAndRespondent(interviewPostId, userId)) {
+            throw new ApplicationConflictException("Already applied to this interview");
+        }
+
+        try {
+            ApplicationReadModel application = repository.createApplication(interviewPostId, userId, answers, availableTimes);
+            chatLifecycleService.ensureRoomForApplication(
+                    application.id(),
+                    post.id(),
+                    post.founderId(),
+                    application.respondentId()
+            );
+            notificationWriteService.createNotification(
+                    post.founderId(),
+                    "application_created",
+                    "새 신청이 도착했어요",
+                    "모집글에 새 인터뷰 신청이 들어왔어요.",
+                    "application",
+                    application.id(),
+                    Map.of(
+                            "interview_post_id", post.id().toString(),
+                            "interview_title", post.title()
+                    )
+            );
+            return application;
+        } catch (DataIntegrityViolationException exception) {
+            throw new ApplicationConflictException("Already applied to this interview");
+        }
+    }
+
+    @Transactional
+    public ApplicationReadModel withdrawApplication(UUID userId, UUID applicationId) {
+        ApplicationUserAccount actor = requireActiveUser(userId);
+        ensureParticipantRole(actor);
+
+        ApplicationWorkflowContext context = repository.lockVisibleApplicationContext(applicationId)
+                .orElseThrow(() -> new ApplicationNotFoundException("Application not found"));
+        if (!context.respondentId().equals(userId)) {
+            throw new ApplicationPermissionDeniedException("Forbidden");
+        }
+        if (!WITHDRAWABLE_APPLICATION_STATUSES.contains(context.status())) {
+            throw new ApplicationConflictException("Only applied or selected applications can be withdrawn");
+        }
+        if ("selected".equals(context.status()) && repository.hasScheduledVisibleSession(applicationId)) {
+            throw new ApplicationConflictException("Cannot withdraw after the interview is scheduled");
+        }
+
+        ApplicationReadModel application = repository.updateStatusIfCurrent(
+                        applicationId,
+                        "canceled",
+                        WITHDRAWABLE_APPLICATION_STATUSES,
+                        null
+                )
+                .orElseThrow(() -> new ApplicationConflictException("Application status has already changed"));
+        chatLifecycleService.markCanceledForApplication(
+                application.id(),
+                context.interviewPostId(),
+                context.founderId(),
+                application.respondentId()
+        );
+        notificationWriteService.createNotification(
+                context.founderId(),
+                "application_withdrawn",
+                "신청이 철회됐어요",
+                "selected".equals(context.status())
+                        ? "선정된 신청자가 인터뷰 참여를 철회했어요."
+                        : "지원자가 인터뷰 신청을 철회했어요.",
+                "application",
+                application.id(),
+                Map.of(
+                        "interview_post_id", context.interviewPostId().toString(),
+                        "previous_status", context.status()
+                )
+        );
+        auditWriteService.record(new AuditEventCommand(
+                userId,
+                "user",
+                "application_withdrawn",
+                "application",
+                application.id(),
+                Map.of("status", context.status()),
+                Map.of("status", application.status()),
+                null,
+                Map.of(
+                        "interview_post_id", context.interviewPostId().toString(),
+                        "founder_id", context.founderId().toString(),
+                        "respondent_id", application.respondentId().toString()
+                )
+        ));
+        return application;
+    }
+
+    @Transactional
+    public ApplicationReadModel updateApplicationStatus(
+            UUID userId,
+            UUID applicationId,
+            String nextStatus,
+            String rejectionReason
+    ) {
+        ApplicationUserAccount actor = requireActiveUser(userId);
+        ensureFounderRole(actor);
+
+        ApplicationWorkflowContext context = repository.findVisibleApplicationContext(applicationId)
+                .orElseThrow(() -> new ApplicationNotFoundException("Application not found"));
+        if (!context.founderId().equals(userId)) {
+            throw new ApplicationPermissionDeniedException("Forbidden");
+        }
+
+        Set<String> allowedStatuses = switch (nextStatus) {
+            case "selected" -> SELECT_ALLOWED_PREVIOUS_STATUSES;
+            case "rejected" -> REJECT_ALLOWED_PREVIOUS_STATUSES;
+            case "canceled" -> CANCEL_ALLOWED_PREVIOUS_STATUSES;
+            default -> throw new ApplicationConflictException(
+                    "Application status can only be selected, rejected, or canceled here"
+            );
+        };
+        String normalizedReason = rejectionReason == null ? null : rejectionReason.trim();
+        if (normalizedReason != null && normalizedReason.isBlank()) {
+            normalizedReason = null;
+        }
+
+        ApplicationReadModel application = repository.updateStatusIfCurrent(
+                        applicationId,
+                        nextStatus,
+                        allowedStatuses,
+                        normalizedReason
+                )
+                .orElseThrow(() -> new ApplicationConflictException("Application status has already changed"));
+        if ("selected".equals(nextStatus)) {
+            chatLifecycleService.markSelectedForApplication(
+                    application.id(),
+                    context.interviewPostId(),
+                    context.founderId(),
+                    application.respondentId()
+            );
+            notificationWriteService.createNotification(
+                    context.respondentId(),
+                    "application_selected",
+                    "인터뷰 대상자로 선정됐어요",
+                    "채팅에서 일정과 진행 방식을 조율해보세요.",
+                    "application",
+                    application.id(),
+                    Map.of(
+                            "interview_post_id", context.interviewPostId().toString(),
+                            "interview_title", context.interviewTitle()
+                    )
+            );
+        } else if ("rejected".equals(nextStatus)) {
+            chatLifecycleService.markRejectedForApplication(
+                    application.id(),
+                    context.interviewPostId(),
+                    context.founderId(),
+                    application.respondentId(),
+                    normalizedReason != null ? normalizedReason : "사유가 입력되지 않았어요."
+            );
+            notificationWriteService.createNotification(
+                    context.respondentId(),
+                    "application_rejected",
+                    "신청이 반려됐어요",
+                    normalizedReason != null ? normalizedReason : "이번 인터뷰 신청은 반려됐어요.",
+                    "application",
+                    application.id(),
+                    Map.of(
+                            "interview_post_id", context.interviewPostId().toString(),
+                            "interview_title", context.interviewTitle()
+                    )
+            );
+        } else if ("canceled".equals(nextStatus)) {
+            chatLifecycleService.markCanceledForApplication(
+                    application.id(),
+                    context.interviewPostId(),
+                    context.founderId(),
+                    application.respondentId()
+            );
+            notificationWriteService.createNotification(
+                    context.respondentId(),
+                    "application_canceled",
+                    "인터뷰 신청이 취소됐어요",
+                    "인터뷰 신청 상태가 취소로 변경됐어요.",
+                    "application",
+                    application.id(),
+                    Map.of("interview_post_id", context.interviewPostId().toString())
+            );
+        }
+        return application;
+    }
+
+    private ApplicationUserAccount requireActiveUser(UUID userId) {
+        ApplicationUserAccount account = repository.findUserAccount(userId)
+                .orElseThrow(UserProfileMissingException::new);
+        if (account.deleted()) {
+            throw new UserAccountDeletedException();
+        }
+        if (account.deactivated()) {
+            throw new UserAccountDeactivatedException();
+        }
+        return account;
+    }
+
+    private void ensureParticipantRole(ApplicationUserAccount account) {
+        if (!PARTICIPANT_ROLES.contains(account.role())) {
+            throw new ApplicationPermissionDeniedException("Interview participant role required");
+        }
+    }
+
+    private void ensureFounderRole(ApplicationUserAccount account) {
+        if (!FOUNDER_ROLES.contains(account.role())) {
+            throw new ApplicationPermissionDeniedException("Founder role required");
+        }
+    }
+}

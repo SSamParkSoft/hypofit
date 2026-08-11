@@ -1,0 +1,12 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@hypofit/contracts": ["../../packages/contracts/src/index.ts"],
+      "@hypofit/contracts/*": ["../../packages/contracts/src/*"]
+    }
+  },
+  "include": ["app", "src", "nativewind-env.d.ts", "../../packages/contracts/src"]
+}

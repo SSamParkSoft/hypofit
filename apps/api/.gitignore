@@ -1,0 +1,7 @@
+.gradle/
+.gradle-home/
+build/
+out/
+scripts/__pycache__/
+contracts/generated/*.json
+!contracts/generated/.gitkeep

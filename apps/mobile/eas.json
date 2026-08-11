@@ -1,0 +1,49 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyC5IhKJvVul0Gm3s6TgaEAGz9QNdDrv0xg",
+        "EXPO_PUBLIC_API_BASE_URL": "https://hypofit-api.bukae.co.kr",
+        "EXPO_PUBLIC_WEB_BASE_URL": "https://hypofit.bukae.co.kr",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rpmddtobulnagpdzdkbl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwbWRkdG9idWxuYWdwZHpka2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTE3MTQsImV4cCI6MjA5NDcyNzcxNH0.sT9e9lWyZJXsb22Fz3v26qh6co9G-kfdTfy4IckG3s8",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "ssamso8282@gmail.com"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyC5IhKJvVul0Gm3s6TgaEAGz9QNdDrv0xg",
+        "EXPO_PUBLIC_API_BASE_URL": "https://hypofit-api.bukae.co.kr",
+        "EXPO_PUBLIC_WEB_BASE_URL": "https://hypofit.bukae.co.kr",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://rpmddtobulnagpdzdkbl.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwbWRkdG9idWxuYWdwZHpka2JsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNTE3MTQsImV4cCI6MjA5NDcyNzcxNH0.sT9e9lWyZJXsb22Fz3v26qh6co9G-kfdTfy4IckG3s8",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "ssamso8282@gmail.com"
+      }
+    },
+    "production": {
+      "autoIncrement": false,
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyC5IhKJvVul0Gm3s6TgaEAGz9QNdDrv0xg",
+        "EXPO_PUBLIC_WEB_BASE_URL": "https://hypofit.bukae.co.kr"
+      },
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.2"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6775675046"
+      }
+    }
+  }
+}

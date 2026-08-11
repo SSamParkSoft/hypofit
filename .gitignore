@@ -1,0 +1,56 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Node
+.corepack/
+.gradle-home/
+.gradle-home-spring-candidate/
+node_modules/
+dist/
+build/
+.vite/
+.expo/
+coverage/
+*.tsbuildinfo
+apps/web/vite.config.js
+apps/web/vite.config.d.ts
+
+# Logs and runtime
+logs/
+tmp/
+*.log
+current-blue
+current-green
+current-spring-blue
+current-spring-green
+current-spring-candidate
+deploy/
+deploy-spring/
+releases/
+releases-spring/
+*.server-backup-*
+
+# Mobile build artifacts
+*.ipa
+*.aab
+*.apk
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+.vercel

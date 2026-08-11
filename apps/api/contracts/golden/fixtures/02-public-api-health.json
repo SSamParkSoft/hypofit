@@ -1,0 +1,29 @@
+{
+  "compare": {
+    "headers": [
+      "content-type"
+    ],
+    "json_exact_paths": [
+      "/scope",
+      "/service",
+      "/status"
+    ],
+    "json_shape": true
+  },
+  "expect": {
+    "headers": {
+      "content-type": "application/json"
+    },
+    "json_exact_paths": {
+      "/scope": "api-v1",
+      "/service": "hypofit-api",
+      "/status": "ok"
+    },
+    "status": 200
+  },
+  "name": "public-api-v1-health",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/health"
+  }
+}

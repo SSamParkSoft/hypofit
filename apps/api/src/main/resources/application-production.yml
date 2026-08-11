@@ -1,0 +1,37 @@
+spring:
+  config:
+    activate:
+      on-profile: production
+  datasource:
+    hikari:
+      initialization-fail-timeout: 1
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  shutdown: graceful
+
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        environment: ${ENV:production}
+    json:
+      stacktrace:
+        root: first
+        max-length: 16384
+        max-throwable-depth: 40
+        include-common-frames: false
+  level:
+    root: INFO
+    com.contentruck.hypofit: INFO
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized

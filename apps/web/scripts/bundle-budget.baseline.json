@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "measuredAt": "2026-07-16",
+  "metrics": {
+    "largestDynamicJsChunkGzipBytes": 11880,
+    "largestDynamicJsChunkRawBytes": 49341,
+    "largestJsAssetGzipBytes": 147129,
+    "largestJsAssetRawBytes": 513111,
+    "totalCssGzipBytes": 16545,
+    "totalCssRawBytes": 98896
+  },
+  "notes": {
+    "largestDynamicJsChunkFile": "assets/LandingPage-pLltujPu.js",
+    "largestJsAssetFile": "assets/index-Cto-oydu.js",
+    "topCssFile": "assets/index-CSAfzbOJ.css"
+  },
+  "budgets": {
+    "largestDynamicJsChunkGzipBytes": {
+      "minExtraBytes": 2048,
+      "percent": 0.15
+    },
+    "largestDynamicJsChunkRawBytes": {
+      "minExtraBytes": 8192,
+      "percent": 0.15
+    },
+    "largestJsAssetGzipBytes": {
+      "minExtraBytes": 8192,
+      "percent": 0.1
+    },
+    "largestJsAssetRawBytes": {
+      "minExtraBytes": 32768,
+      "percent": 0.1
+    },
+    "totalCssGzipBytes": {
+      "minExtraBytes": 2048,
+      "percent": 0.1
+    },
+    "totalCssRawBytes": {
+      "minExtraBytes": 8192,
+      "percent": 0.1
+    }
+  }
+}

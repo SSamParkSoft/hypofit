@@ -1,0 +1,29 @@
+{
+  "compare": {
+    "headers": [
+      "content-type",
+      "x-request-id"
+    ],
+    "json_exact_paths": [
+      "/error/code",
+      "/error/status"
+    ],
+    "json_shape": true
+  },
+  "expect": {
+    "headers": {
+      "content-type": "application/json",
+      "x-request-id": "<present>"
+    },
+    "json_exact_paths": {
+      "/error/code": "auth_required",
+      "/error/status": 401
+    },
+    "status": 401
+  },
+  "name": "auth-negative-notifications-list",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/notifications"
+  }
+}

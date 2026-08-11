@@ -1,0 +1,10 @@
+<svg width="1000" height="280" viewBox="0 0 1000 280" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Hypofit logo</title>
+  <desc id="desc">Hypofit wordmark with the Fit Node brand mark.</desc>
+  <g transform="translate(34 18) scale(0.4765625)">
+    <path d="M124 119H169C180 119 185 123 192 133L226 180C236 194 236 209 227 221C216 236 209 244 209 256C209 268 216 276 227 291C236 303 236 318 226 332L192 379C185 389 180 393 169 393H124C110 393 102 385 102 371V141C102 127 110 119 124 119Z" fill="#176B5D"/>
+    <path d="M388 119H343C332 119 327 123 320 133L286 180C276 194 276 209 285 221C296 236 303 244 303 256C303 268 296 276 285 291C276 303 276 318 286 332L320 379C327 389 332 393 343 393H388C402 393 410 385 410 371V141C410 127 402 119 388 119Z" fill="#176B5D"/>
+    <circle cx="256" cy="256" r="33" fill="#F5A623"/>
+  </g>
+  <text x="320" y="177" fill="#1D2522" font-family="Spoqa Han Sans Neo, Arial, sans-serif" font-size="104" font-weight="700" letter-spacing="0">Hypofit</text>
+</svg>

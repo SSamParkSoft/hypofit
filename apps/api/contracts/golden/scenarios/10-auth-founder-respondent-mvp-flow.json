@@ -1,0 +1,530 @@
+{
+  "name": "auth-founder-respondent-mvp-flow",
+  "steps": [
+    {
+      "name": "founder-create-open-online-post",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/interview-posts/",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_FOUNDER_TOKEN}"
+        },
+        "json": {
+          "title": "Golden founder interview ${env:GOLDEN_RUN_ID}",
+          "service_summary": "Golden contract founder flow ${env:GOLDEN_RUN_ID} validates Spring parity.",
+          "target_description": "Golden respondent target ${env:GOLDEN_RUN_ID} with recent product discovery experience.",
+          "reward_amount": 15000,
+          "duration_minutes": 30,
+          "recruit_count": 1,
+          "interview_mode": "online",
+          "schedule_options": [
+            "golden-slot-${env:GOLDEN_RUN_ID}"
+          ],
+          "status": "open"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/reward_amount": 15000,
+          "/duration_minutes": 30,
+          "/recruit_count": 1,
+          "/interview_mode": "online",
+          "/status": "open"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/title",
+          "/service_summary",
+          "/target_description",
+          "/reward_amount",
+          "/duration_minutes",
+          "/recruit_count",
+          "/interview_mode",
+          "/schedule_options/0",
+          "/status"
+        ],
+        "json_shape": true
+      },
+      "capture": {
+        "post_id": "/id"
+      }
+    },
+    {
+      "name": "respondent-apply-to-post",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/applications/",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_RESPONDENT_TOKEN}"
+        },
+        "json": {
+          "interview_post_id": "${var:post_id}",
+          "answers": {
+            "experience": "Golden respondent experience ${env:GOLDEN_RUN_ID}",
+            "motivation": "Golden respondent motivation ${env:GOLDEN_RUN_ID}"
+          },
+          "available_times": [
+            "golden-slot-${env:GOLDEN_RUN_ID}"
+          ]
+        }
+      },
+      "expect": {
+        "status": 201,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/status": "applied"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/answers/experience",
+          "/answers/motivation",
+          "/available_times/0",
+          "/status"
+        ],
+        "json_shape": true
+      },
+      "capture": {
+        "application_id": "/id"
+      }
+    },
+    {
+      "name": "founder-select-application",
+      "request": {
+        "method": "PATCH",
+        "path": "/api/v1/applications/${var:application_id}/status",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_FOUNDER_TOKEN}",
+          "Content-Type": "application/json"
+        },
+        "json": {
+          "status": "selected"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/status": "selected"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/status"
+        ],
+        "json_shape": true
+      }
+    },
+    {
+      "name": "respondent-list-rooms-and-capture-newest-room",
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/chat/rooms/",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_RESPONDENT_TOKEN}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [],
+        "json_shape": false
+      },
+      "capture": {
+        "room_id": {
+          "array_pointer": "",
+          "match_pointer": "/application/id",
+          "match_value": "${var:application_id}",
+          "value_pointer": "/id"
+        }
+      }
+    },
+    {
+      "name": "founder-send-first-message",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/chat/rooms/${var:room_id}/messages",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_FOUNDER_TOKEN}"
+        },
+        "json": {
+          "body": "Founder hello ${env:GOLDEN_RUN_ID}",
+          "client_message_id": "founder-${env:GOLDEN_RUN_ID}"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/message_type": "user"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/message_type",
+          "/body",
+          "/client_message_id"
+        ],
+        "json_shape": true
+      },
+      "capture": {
+        "message_id": "/id"
+      }
+    },
+    {
+      "name": "respondent-mark-room-read",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/chat/rooms/${var:room_id}/read",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_RESPONDENT_TOKEN}",
+          "Content-Type": "application/json"
+        },
+        "json": {
+          "last_read_message_id": "${var:message_id}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/is_muted": false,
+          "/is_hidden": false,
+          "/last_read_at": "<timestamp>"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/is_muted",
+          "/is_hidden",
+          "/last_read_at"
+        ],
+        "json_shape": true
+      }
+    },
+    {
+      "name": "founder-create-session",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_FOUNDER_TOKEN}"
+        },
+        "json": {
+          "application_id": "${var:application_id}",
+          "scheduled_at": "${env:GOLDEN_SCHEDULED_AT}",
+          "meeting_type": "online",
+          "meeting_url": "https://example.com/golden/${env:GOLDEN_RUN_ID}",
+          "place": null
+        }
+      },
+      "expect": {
+        "status": 201,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/scheduled_at": "<timestamp>",
+          "/meeting_type": "online",
+          "/status": "scheduled"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/scheduled_at",
+          "/meeting_type",
+          "/meeting_url",
+          "/status"
+        ],
+        "json_shape": true
+      },
+      "capture": {
+        "session_id": "/id"
+      }
+    },
+    {
+      "name": "founder-confirm-attendance",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/${var:session_id}/confirm-attendance",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_FOUNDER_TOKEN}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/session/status": "scheduled",
+          "/attendance/founder_confirmed": true,
+          "/attendance/respondent_confirmed": false
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/session/status",
+          "/attendance/founder_confirmed",
+          "/attendance/respondent_confirmed"
+        ],
+        "json_shape": true
+      }
+    },
+    {
+      "name": "respondent-confirm-attendance",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/${var:session_id}/confirm-attendance",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_RESPONDENT_TOKEN}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/session/status": "completed",
+          "/attendance/founder_confirmed": true,
+          "/attendance/respondent_confirmed": true,
+          "/attendance/completed_at": "<timestamp>"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/session/status",
+          "/attendance/founder_confirmed",
+          "/attendance/respondent_confirmed",
+          "/attendance/completed_at"
+        ],
+        "json_shape": true
+      }
+    },
+    {
+      "name": "founder-mark-reward-paid",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/${var:session_id}/reward/mark-paid",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_FOUNDER_TOKEN}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/amount": 15000,
+          "/status": "founder_marked_paid",
+          "/founder_marked_paid_at": "<timestamp>"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/amount",
+          "/status",
+          "/founder_marked_paid_at"
+        ],
+        "json_shape": true
+      }
+    },
+    {
+      "name": "respondent-confirm-reward",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/${var:session_id}/reward/confirm",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_RESPONDENT_TOKEN}"
+        }
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/amount": 15000,
+          "/status": "respondent_confirmed",
+          "/respondent_confirmed_at": "<timestamp>"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/amount",
+          "/status",
+          "/respondent_confirmed_at"
+        ],
+        "json_shape": true
+      }
+    },
+    {
+      "name": "founder-submit-review",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/${var:session_id}/reviews",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_FOUNDER_TOKEN}"
+        },
+        "json": {
+          "rating": 5,
+          "tags": [
+            "시간 준수",
+            "준비가 잘 됐어요"
+          ],
+          "comment": "Founder review ${env:GOLDEN_RUN_ID}"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/reviewer_role": "founder",
+          "/rating": 5,
+          "/tags/0": "시간 준수",
+          "/tags/1": "준비가 잘 됐어요",
+          "/visibility": "private"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/reviewer_role",
+          "/rating",
+          "/tags/0",
+          "/tags/1",
+          "/comment",
+          "/visibility"
+        ],
+        "json_shape": true
+      }
+    },
+    {
+      "name": "respondent-submit-review",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/${var:session_id}/reviews",
+        "headers": {
+          "Authorization": "Bearer ${env:GOLDEN_RESPONDENT_TOKEN}"
+        },
+        "json": {
+          "rating": 5,
+          "tags": [
+            "시간 준수",
+            "친절해요"
+          ],
+          "comment": "Respondent review ${env:GOLDEN_RUN_ID}"
+        }
+      },
+      "expect": {
+        "status": 201,
+        "headers": {
+          "content-type": "application/json",
+          "x-request-id": "<present>"
+        },
+        "json_exact_paths": {
+          "/reviewer_role": "respondent",
+          "/rating": 5,
+          "/tags/0": "시간 준수",
+          "/tags/1": "친절해요",
+          "/visibility": "private"
+        }
+      },
+      "compare": {
+        "headers": [
+          "content-type",
+          "x-request-id"
+        ],
+        "json_exact_paths": [
+          "/reviewer_role",
+          "/rating",
+          "/tags/0",
+          "/tags/1",
+          "/comment",
+          "/visibility"
+        ],
+        "json_shape": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "approved_exact_paths": [],
+  "approved_prefix_paths": [],
+  "notes": [
+    "Use JSON Pointer paths against the normalized OpenAPI documents.",
+    "Keep the approved list short and remove entries as soon as the canonical API matches the frozen legacy contract."
+  ]
+}

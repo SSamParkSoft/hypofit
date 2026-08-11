@@ -1,0 +1,11 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+  flyway:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.contentruck.hypofit: DEBUG
