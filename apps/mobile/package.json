@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.1",
   "description": "Hypofit Expo React Native application for iOS and Android",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "homepage": "https://hypofit.bukae.co.kr",
   "repository": {
     "type": "git",

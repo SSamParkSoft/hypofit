@@ -13,7 +13,7 @@
   <img alt="iOS 1.0.0 released" src="https://img.shields.io/badge/iOS-1.0.0%20released-176B5D?style=flat-square" />
   <img alt="Android release in progress" src="https://img.shields.io/badge/Android-release%20in%20progress-F5A623?style=flat-square" />
   <img alt="Auth social only" src="https://img.shields.io/badge/Auth-social%20only-1D2522?style=flat-square" />
-  <img alt="License UNLICENSED" src="https://img.shields.io/badge/License-UNLICENSED-4B5563?style=flat-square" />
+  <img alt="MIT License" src="https://img.shields.io/badge/License-MIT-4B5563?style=flat-square" />
 </p>
 
 <p>
@@ -106,82 +106,6 @@ hypofit/
   README.md
 ```
 
-## 시작하기
-
-### 1. 준비물
-
-- Node.js 20+
-- `pnpm@9`
-- Java 21
-- Docker Desktop
-
-### 2. 의존성 설치
-
-```bash
-corepack enable
-pnpm install
-```
-
-### 3. 환경값 준비
-
-필수 환경값은 루트의 [`.env.example`](.env.example)와
-[`infra/lightsail/api.env.example`](infra/lightsail/api.env.example)를 기준으로 맞춥니다.
-
-소셜 로그인, Supabase, 지도, 푸시 같은 통합 기능은 각 공급자 콘솔 설정과 환경값이 준비되어야 로컬에서 정상 동작합니다.
-
-### 4. 로컬 실행
-
-웹:
-
-```bash
-make dev-web
-```
-
-모바일:
-
-```bash
-make dev-mobile
-# 또는
-pnpm ios:mobile
-pnpm android:mobile
-```
-
-API:
-
-```bash
-docker compose -f infra/docker-compose.yml up -d
-make dev-api
-```
-
-## 검증 명령
-
-웹:
-
-```bash
-make lint-web
-make test-web
-pnpm --dir apps/web run typecheck
-pnpm --dir apps/web run bundle:check
-pnpm --dir apps/web run test:browser
-```
-
-모바일:
-
-```bash
-make test-mobile
-pnpm --dir apps/mobile run typecheck
-```
-
-API:
-
-```bash
-make lint-api
-make test-api
-make test-api-integration
-```
-
-`test-api-integration`은 Docker/Testcontainers가 필요합니다.
-
 ## 주요 문서
 
 - [Service Knowledge Base](docs/service/README.md)
@@ -197,4 +121,4 @@ make test-api-integration
 
 - Support: [ssamso8282@gmail.com](mailto:ssamso8282@gmail.com)
 - Security: 민감한 보안 이슈는 공개 이슈 대신 [보안 정책](SECURITY.md)에 따라 알려주세요.
-- License: 이 저장소는 [Contentruck 전용 소프트웨어](LICENSE.md)이며, 명시적 허가 없이 사용·복제·배포할 수 없습니다.
+- License: 이 프로젝트의 소스 코드는 [MIT License](LICENSE.md)를 따릅니다.

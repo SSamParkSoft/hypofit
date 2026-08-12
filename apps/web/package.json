@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.1",
   "description": "Hypofit public site and authenticated web application",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "homepage": "https://hypofit.bukae.co.kr",
   "repository": {
     "type": "git",

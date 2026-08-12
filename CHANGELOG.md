@@ -9,6 +9,8 @@ Hypofit.
 
 - GitHub repository health and community files for the private commercial
   repository baseline.
+- Adopted the MIT License and simplified the repository README around the
+  product rather than local setup instructions.
 
 ## Historical release note
 

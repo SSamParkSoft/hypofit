@@ -2,8 +2,8 @@
   "name": "hypofit",
   "private": true,
   "version": "1.0.1",
-  "description": "Paid customer discovery interviews for early-stage founders",
-  "license": "UNLICENSED",
+  "description": "초기 창업팀과 실제 타깃 고객을 연결하는 인터뷰 매칭 서비스",
+  "license": "MIT",
   "homepage": "https://hypofit.bukae.co.kr",
   "repository": {
     "type": "git",
