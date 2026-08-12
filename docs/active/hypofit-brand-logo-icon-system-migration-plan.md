@@ -41,6 +41,8 @@ Implemented in source as of 2026-07-29:
 - generated web outputs now include favicon SVG/PNG/ICO, regular and maskable
   PWA icons, Apple touch icon, and
   `brand/hypofit-social-1200x630.png`,
+- a GitHub-ready `1280 x 640` repository social-preview export exists at
+  `docs/store-assets/brand/export/github/hypofit-repository-social-preview-1280x640.png`,
 - generated mobile outputs now include `icon.png`,
   `adaptive-icon.png`, `adaptive-icon-monochrome.png`,
   `notification-icon.png`, `hypofit-mark.png`,
@@ -58,6 +60,7 @@ Still open in this active plan:
 - Android launcher-mask and real notification verification,
 - installed PWA update-behavior verification,
 - store-binary comparison and store upload follow-through,
+- GitHub repository settings upload of the prepared social-preview image,
 - final Figma synchronization,
 - optional review-sheet exports under `docs/store-assets/brand/review/`.
 

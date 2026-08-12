@@ -2,7 +2,7 @@
 
 Status: implementation-source
 
-Last updated: 2026-07-29
+Last updated: 2026-08-12
 
 ## Identity
 
@@ -84,9 +84,22 @@ The command regenerates and validates:
 - Google Play listing icon,
 - Kakao Developers 128 px service logo,
 - Open Graph image.
+- GitHub repository social preview image.
 
 Validation covers dimensions, alpha expectations, the Google Play icon
 file-size ceiling, and the Kakao service-logo 250 KB ceiling.
+
+GitHub repository preview upload asset:
+
+```text
+docs/store-assets/brand/export/github/hypofit-repository-social-preview-1280x640.png
+```
+
+This image uses the approved Hypofit logo lockup on a `1280 x 640` opaque
+canvas. Upload it through `Repository Settings -> General -> Social preview`.
+GitHub does not currently expose a supported REST or GraphQL mutation for this
+upload, so keeping the file in git and uploading it in repository settings are
+two separate steps.
 
 ## Usage Rules
 

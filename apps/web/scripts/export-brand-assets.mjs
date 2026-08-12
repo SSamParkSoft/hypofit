@@ -31,6 +31,7 @@ async function ensureDirectories() {
     mkdir(path.join(storeBrandDirectory, "export/google-play"), { recursive: true }),
     mkdir(path.join(storeBrandDirectory, "export/social-login"), { recursive: true }),
     mkdir(path.join(storeBrandDirectory, "export/social"), { recursive: true }),
+    mkdir(path.join(storeBrandDirectory, "export/github"), { recursive: true }),
     mkdir(path.join(storeBrandDirectory, "review"), { recursive: true }),
     mkdir(path.join(storeBrandDirectory, "source"), { recursive: true }),
   ]);
@@ -107,6 +108,32 @@ async function createSocialImage() {
     width: 1200,
     height: 630,
     alpha: false,
+  });
+
+  const githubOutput = path.join(
+    storeBrandDirectory,
+    "export/github/hypofit-repository-social-preview-1280x640.png",
+  );
+  const githubCanvas = await sharp(output)
+    .extend({
+      left: 30,
+      right: 30,
+      top: 0,
+      bottom: 0,
+      background: colors.warmWhite,
+    })
+    .toBuffer();
+  await sharp(githubCanvas)
+    .resize(1280, 640, { fit: "fill", kernel: sharp.kernel.lanczos3 })
+    .removeAlpha()
+    .png({ compressionLevel: 9, palette: false })
+    .toFile(githubOutput);
+  expectedOutputs.push({
+    output: githubOutput,
+    width: 1280,
+    height: 640,
+    alpha: false,
+    maxBytes: 1024 * 1024,
   });
 }
 

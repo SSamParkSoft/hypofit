@@ -17,6 +17,8 @@ Hypofit.
   current Spring Boot runtime.
 - Added real App Store product screenshots and a linked official App Store
   download badge to the service-focused README.
+- Prepared a GitHub repository social-preview image using the current Hypofit
+  logo system and documented the settings-only upload step.
 
 ## Historical release note
 
