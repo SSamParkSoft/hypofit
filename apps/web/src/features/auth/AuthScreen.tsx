@@ -32,7 +32,6 @@ export function AuthScreen() {
   });
   const {
     feedback: socialAuthFeedback,
-    isLoadingCapabilities,
     pendingProviderId,
     providers: socialAuthProviders,
     startSocialAuth,
@@ -116,7 +115,6 @@ export function AuthScreen() {
               ) : (
                 <AuthPublicSocialEntryStep
                   feedback={socialAuthFeedback}
-                  isLoadingSocialAuth={isLoadingCapabilities}
                   pendingSocialProviderId={pendingProviderId}
                   socialAuthProviders={socialAuthProviders}
                   onSocialStart={(providerId) => void startSocialAuth(providerId, "sign_in")}

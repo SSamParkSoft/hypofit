@@ -4,12 +4,10 @@ import com.contentruck.hypofit.common.error.AuthRequiredException;
 import com.contentruck.hypofit.socialauth.application.AppleSignInNotificationService;
 import com.contentruck.hypofit.socialauth.application.SocialAuthService;
 import com.contentruck.hypofit.socialauth.domain.SocialAuthReadModels;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Pattern;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,7 +17,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,16 +34,6 @@ public class SocialAuthController {
     ) {
         this.service = service;
         this.appleSignInNotificationService = appleSignInNotificationService;
-    }
-
-    @GetMapping("/capabilities")
-    public SocialAuthCapabilitiesResponse getCapabilities(
-            @RequestParam("platform")
-            @Parameter(schema = @Schema(allowableValues = {"web", "ios", "android"}))
-            @Pattern(regexp = "web|ios|android", message = "must match \"web|ios|android\"")
-            String platform
-    ) {
-        return SocialAuthCapabilitiesResponse.from(service.getCapabilities(platform));
     }
 
     @PostMapping("/apple/notifications")

@@ -16,6 +16,11 @@ Naver Developers
 
 Implementation checkpoints:
 
+- On 2026-08-11 the public provider-capability endpoint and its client loading
+  gates were removed. Web and mobile now render the approved platform provider
+  registry immediately, including account-link choices. Attempt creation
+  remains the server-side boundary that rejects an invalid, unsupported, or
+  operationally unavailable provider configuration with an actionable error.
 - On 2026-08-08 the public auth surface was reduced to social login only.
   Web and mobile email/password login, signup, signup-email-OTP, password
   recovery/change, and legacy email callback routes were removed. Provider
@@ -24,21 +29,22 @@ Implementation checkpoints:
   typecheck, lint and architecture boundaries, production build, bundle budget,
   browser smoke, mobile TypeScript typecheck, and Expo Doctor `18/18`.
 
-- historical commit `7e96157` was deployed to the GPU API blue slot. Alembic revision
-  `0022_social_auth_identity` is applied, and the public capability endpoint
-  returns HTTP 200.
+- historical commit `7e96157` was deployed to the former GPU API blue slot and
+  Alembic revision `0022_social_auth_identity` was applied. The public
+  capability endpoint mentioned in that historical deployment has since been
+  removed from the canonical Spring API.
 - the API social-auth master switch and both server-side peppers are
   configured. Google and Naver are `available`; Apple web and iOS are
   `available` through platform overrides; Kakao is `disabled` until its consent
   items are configured, while Android Apple remains `unsupported_platform`.
-- shared contracts, additive database schema, API capability/attempt/complete,
+- shared contracts, additive database schema, API attempt/complete,
   authenticated link-attempt, identity inventory/reconciliation, and readiness
   reporting are implemented.
-- web and mobile have capability-driven login entry, Supabase PKCE/browser
-  callback handling, API completion, return-path restoration, and read-only
-  linked-login visibility. Authenticated users can also start an explicit
-  provider link flow from account settings; the API link attempt is bound
-  to the current Supabase/App User before provider authorization begins.
+- web and mobile have static platform-approved login entry, Supabase
+  PKCE/browser callback handling, API completion, return-path restoration, and
+  read-only linked-login visibility. Authenticated users can also start an
+  explicit provider link flow from account settings; the API link attempt is
+  bound to the current Supabase/App User before provider authorization begins.
 - iOS uses native Sign in with Apple. Google/Kakao/Naver currently use the
   approved system-browser fallback path; official Google web/native adapters
   remain follow-up work.
@@ -156,10 +162,8 @@ Authoritative scope:
   errors out of the profile-creation path.
 - Web login renders its approved provider set immediately from the frontend
   registry instead of showing or replacing it with a capability-loading
-  response. Attempt creation remains the server-side enforcement boundary, and
-  the capability API remains available for account settings and operational
-  inspection. Current frontend visibility is Apple, Google, and Naver on;
-  Kakao off.
+  response. Account settings use the same registry, and attempt creation
+  remains the server-side enforcement boundary.
 - Local Vite development uses a same-origin `/api` proxy configured through
   `VITE_API_PROXY_TARGET`. The production API CORS allowlist remains limited to
   public web origins instead of admitting localhost solely for development.
@@ -501,8 +505,8 @@ Supabase Auth 책임:
 - iOS: Apple, Google, Kakao, Naver
 - Android: Google, Kakao, Naver
 - Android에서는 Apple 로그인 버튼, 메뉴, placeholder를 렌더링하지 않는다.
-- 플랫폼 판정은 화면의 user-agent 분기만 믿지 않고 API capability 응답을
-  기준으로 한다.
+- 플랫폼별 UI 목록은 native `Platform.OS`와 web entry registry로 결정하고,
+  API는 attempt 생성 시 platform/provider 조합을 다시 검증한다.
 - 오래된 Android binary가 Apple attempt를 직접 호출해도 API는
   `social_unsupported_platform`으로 거부한다.
 - 향후 Android Apple 로그인을 제품 요구로 다시 채택할 때만 feature flag와
@@ -555,7 +559,7 @@ PKCE: enabled
 - legacy password/signup/email-confirmation route와 context API를 제거했고
   social callback과 role onboarding만 유지한다.
 - AsyncStorage 기반 Supabase session persistence를 사용한다.
-- capability 기반 social provider adapter와 iOS native Apple/system-browser
+- 플랫폼별 정적 social provider adapter와 iOS native Apple/system-browser
   fallback이 구현되어 있다.
 - Expo Go가 아니라 development/release build가 필요한 native auth 모듈이
   생길 수 있다.
@@ -867,43 +871,17 @@ provider authorization
 
 ## 6. API API 설계
 
-### 6.1 공급자 capability
+### 6.1 공급자 목록과 서버 검증
 
-```http
-GET /api/v1/auth/social/capabilities?platform=web|ios|android
-```
-
-응답 예시:
-
-```json
-{
-  "platform": "web",
-  "providers": [
-    {
-      "provider": "google",
-      "enabled": true,
-      "state": "available"
-    },
-    {
-      "provider": "naver",
-      "enabled": false,
-      "state": "review_pending"
-    }
-  ]
-}
-```
-
-규칙:
-
-- client secret, issuer secret, key ID 이외의 민감 설정을 반환하지 않는다.
-- 공급자·플랫폼별 feature flag는 API 설정을 단일 소스로 사용한다.
-- 앱 binary에 버튼이 있어도 서버가 공급자를 즉시 비활성화할 수 있어야 한다.
-- `state`는 `available`, `disabled`, `review_pending`,
-  `unsupported_platform` 중 하나인 안정적인 machine code다.
-- UI는 `enabled=true`인 provider만 렌더링한다. `enabled=false` provider를
-  비활성 버튼으로 남겨 두지 않는다.
-- Android capability에는 Apple을 생략하거나
-  `enabled=false`, `disabled_reason=social_unsupported_platform`으로 반환한다.
+- 별도의 provider-capability 조회 API를 두지 않는다.
+- web은 Kakao, Apple, Google, Naver를 승인된 순서로 즉시 표시한다.
+- iOS는 Kakao, Apple, Google, Naver를, Android는 Kakao, Google, Naver를
+  즉시 표시한다.
+- 계정 연결 화면도 같은 플랫폼별 정적 목록을 사용한다.
+- 실제 로그인·연결 시도 생성 API가 provider, platform, 운영 설정을
+  검증한다. 사용할 수 없는 조합은 명시적 오류 코드로 거부한다.
+- 따라서 로그인 화면은 서버 조회 때문에 빈 상태나 capability loading
+  문구를 표시하지 않는다.
 
 ### 6.2 로그인 시도 생성
 
@@ -1646,7 +1624,7 @@ Exit gate:
 
 ### Phase 2. API social auth facade
 
-- [x] provider capability route
+- [x] provider/platform validation at attempt creation
 - [x] attempt create service
 - [x] Supabase Admin identity resolver
 - [x] social complete service와 idempotency
@@ -1816,7 +1794,7 @@ Exit gate:
 
 ### 18.2 rollback
 
-- remote capability에서 provider를 disable한다.
+- provider 운영 설정을 비활성화해 신규 attempt 생성을 거부한다.
 - 남아 있는 승인된 social provider만 유지하고 removed email/password/OTP
   public entry를 되살리지 않는다.
 - 기존 social session은 Supabase session으로 계속 보호 API를 사용할 수 있다.
@@ -1898,7 +1876,7 @@ Supabase:
 - [ ] Apple web rollout 전 server-to-server notification 수신·검증·처리가
   운영 HTTPS endpoint에서 동작한다.
 - [ ] callback에서 open redirect, replay, token leakage가 없다.
-- [ ] provider별 feature flag와 rollback이 동작한다.
+- [ ] provider별 시도 생성 검증과 운영 오류 처리가 동작한다.
 - [x] 현재 API/web/mobile targeted automated tests가 통과한다.
 - [ ] iOS TestFlight와 Android release-signed build smoke가 통과한다.
 - [ ] 개인정보처리방침, App Privacy, Data safety가 실제 구현과 일치한다.
@@ -1917,7 +1895,7 @@ Supabase:
 | 2026-07-20 | provider별 subject만 account key로 사용 | email·name·profile은 누락·변경·거부될 수 있음 | 확정 |
 | 2026-07-20 | 소셜 profile은 MVP 최소 항목만 요청 | 개인정보 최소 수집과 provider 검수 범위 축소 | 확정 |
 | 2026-07-20 | 공급자 age/CI/status를 성인·본인 인증으로 사용하지 않음 | 각 claim은 법적 본인확인 수단이 아님 | 확정 |
-| 2026-08-08 | 공급자 미설정 상태에서는 capability가 버튼을 숨김 | 미완성 provider를 노출하지 않고 social-only public entry를 유지 | 구현 완료 |
+| 2026-08-11 | provider 목록은 플랫폼별 정적 레지스트리로 즉시 노출하고 capability 조회 API를 제거 | 지원하기로 확정한 로그인 방법을 매 진입마다 조회하지 않고, 실제 시도 생성 API에서 설정과 플랫폼을 검증 | 구현 완료 |
 | 2026-07-20 | 기존 계정의 provider 추가는 보호된 link-attempt 이후 Supabase `linkIdentity`로 수행 | public login과 account linking을 분리하고 다른 사용자의 attempt 완료를 차단 | 구현 완료 |
 | 2026-07-20 | 소셜 전용 계정은 비밀번호 변경 UI를 노출하지 않음 | 실제 email identity가 없는 계정에 동작하지 않는 비밀번호 기능을 표시하지 않음 | 구현 완료 |
 | 2026-07-20 | 공개 attempt는 login만 허용하고 link는 보호 API에서 현재 user에 binding | 타 계정 연결 시도와 callback replay 방지 | 구현 완료 |

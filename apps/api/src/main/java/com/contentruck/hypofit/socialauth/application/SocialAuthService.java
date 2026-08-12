@@ -63,15 +63,6 @@ public class SocialAuthService {
         this.attemptTtlSeconds = attemptTtlSeconds;
     }
 
-    public SocialAuthReadModels.CapabilitiesReadModel getCapabilities(String platform) {
-        return new SocialAuthReadModels.CapabilitiesReadModel(
-                platform,
-                PROVIDERS.stream()
-                        .map(provider -> capability(provider, platform))
-                        .toList()
-        );
-    }
-
     @Transactional
     public SocialAuthReadModels.AttemptReadModel createAttempt(
             String provider,

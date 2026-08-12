@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { getApiErrorMessage } from "../../../shared/api/errorPresentation";
 import { getSupabaseClientOrThrow } from "../authSupabase";
@@ -9,21 +9,18 @@ import {
   clearStoredSocialAuthAttempt,
   writeStoredSocialAuthAttempt,
 } from "./lib/socialAuthStorage";
-import type { SocialProviderId } from "./model/providerRegistry";
-import { useSocialAuthCapabilities } from "./useSocialAuthCapabilities";
+import {
+  getVisibleWebSocialProviderOptions,
+  type SocialProviderId,
+} from "./model/providerRegistry";
 
 const accountSettingsReturnPath = "/profile/account";
+const availableProviders = getVisibleWebSocialProviderOptions();
 
 export function useSocialIdentityLinking() {
   const { accessToken } = useAuth();
-  const capabilitiesQuery = useSocialAuthCapabilities();
   const [pendingProvider, setPendingProvider] = useState<SocialProviderId | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-
-  const availableProviders = useMemo(
-    () => (capabilitiesQuery.data ?? []).filter((capability) => capability.enabled),
-    [capabilitiesQuery.data],
-  );
 
   const linkProvider = useCallback(
     async (provider: SocialProviderId) => {
@@ -82,13 +79,13 @@ export function useSocialIdentityLinking() {
         setPendingProvider(null);
       }
     },
-    [accessToken, availableProviders],
+    [accessToken],
   );
 
   return {
     availableProviders,
     feedback,
-    isLoading: capabilitiesQuery.isLoading,
+    isLoading: false,
     linkProvider,
     pendingProvider,
   };

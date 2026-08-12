@@ -8,23 +8,6 @@ export type SocialAuthPlatform = (typeof SOCIAL_AUTH_PLATFORMS)[number];
 
 export type SocialAuthFlow = "login" | "link";
 
-export type SocialAuthProviderState =
-  | "available"
-  | "disabled"
-  | "review_pending"
-  | "unsupported_platform";
-
-export interface SocialAuthProviderCapability {
-  enabled: boolean;
-  provider: SocialAuthProvider;
-  state: SocialAuthProviderState;
-}
-
-export interface SocialAuthCapabilitiesResponse {
-  platform: SocialAuthPlatform;
-  providers: SocialAuthProviderCapability[];
-}
-
 export interface SocialAuthAttemptCreateInput {
   flow: SocialAuthFlow;
   platform: SocialAuthPlatform;

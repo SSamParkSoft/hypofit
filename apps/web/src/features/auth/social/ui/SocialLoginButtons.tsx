@@ -1,15 +1,13 @@
 import { cn } from "../../../../shared/ui/cn";
 import type { AuthFeedback } from "../../authScreenModel";
-import type { SocialAuthCapability } from "../api/socialAuthApi";
-import type { SocialProviderId } from "../model/providerRegistry";
+import type { SocialProviderId, SocialProviderOption } from "../model/providerRegistry";
 import { SocialLoginButton } from "./SocialLoginButton";
 
 interface SocialLoginButtonsProps {
   feedback: AuthFeedback;
   intent: "sign_in" | "sign_up";
-  isLoading: boolean;
   pendingProviderId: SocialProviderId | null;
-  providers: SocialAuthCapability[];
+  providers: SocialProviderOption[];
   showDivider?: boolean;
   onStart: (providerId: SocialProviderId, intent: "sign_in" | "sign_up") => void;
 }
@@ -17,7 +15,6 @@ interface SocialLoginButtonsProps {
 export function SocialLoginButtons({
   feedback,
   intent,
-  isLoading,
   pendingProviderId,
   providers,
   showDivider = true,
@@ -40,7 +37,7 @@ export function SocialLoginButtons({
         </div>
       ) : null}
 
-      <div className="grid gap-2" aria-busy={isLoading}>
+      <div className="grid gap-2">
         {providers.map((provider) => (
           <SocialLoginButton
             key={provider.provider}

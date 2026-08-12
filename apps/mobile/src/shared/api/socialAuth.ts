@@ -1,23 +1,13 @@
 import type {
   SocialAuthAttemptCreateInput,
   SocialAuthAttemptRead,
-  SocialAuthCapabilitiesResponse,
   SocialAuthCompleteInput,
   SocialAuthCompleteResponse,
   SocialAuthLinkAttemptCreateInput,
-  SocialAuthPlatform,
   SocialIdentityListResponse,
   SocialIdentityReconcileResponse,
 } from "@hypofit/contracts";
 import { apiRequest } from "./client";
-
-function buildProvidersPath(platform: SocialAuthPlatform) {
-  return `/api/v1/auth/social/capabilities?platform=${encodeURIComponent(platform)}`;
-}
-
-export function getSocialAuthCapabilities(platform: SocialAuthPlatform) {
-  return apiRequest<SocialAuthCapabilitiesResponse>(buildProvidersPath(platform));
-}
 
 export function createSocialAuthAttempt(input: SocialAuthAttemptCreateInput) {
   return apiRequest<SocialAuthAttemptRead>("/api/v1/auth/social/attempts", {
@@ -59,7 +49,6 @@ export function reconcileSocialIdentities(accessToken: string) {
 }
 
 export const socialAuthApi = {
-  getCapabilities: getSocialAuthCapabilities,
   createAttempt: createSocialAuthAttempt,
   createLinkAttempt: createSocialAuthLinkAttempt,
   completeAttempt: completeSocialAuthAttempt,

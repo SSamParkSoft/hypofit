@@ -11,14 +11,10 @@ const mocks = vi.hoisted(() => ({
   replacePath: vi.fn(),
   socialEntry: {
     feedback: null as { message: string; tone: "error" | "success" } | null,
-    isLoadingCapabilities: false,
     pendingProviderId: null as "apple" | "google" | "kakao" | "naver" | null,
     providers: [] as Array<{
-      disabledReason: string | null;
-      enabled: boolean;
       provider: "apple" | "google" | "kakao" | "naver";
       providerIdentifier: "apple" | "google" | "kakao" | "custom:naver";
-      state: "available" | "disabled" | "review_pending" | "unsupported_platform";
     }>,
     startSocialAuth: vi.fn(),
   },
@@ -48,36 +44,23 @@ describe("AuthScreen", () => {
     mocks.replacePath.mockReset();
     mocks.socialEntry.startSocialAuth.mockReset();
     mocks.socialEntry.feedback = null;
-    mocks.socialEntry.isLoadingCapabilities = false;
     mocks.socialEntry.pendingProviderId = null;
     mocks.socialEntry.providers = [
       {
-        disabledReason: null,
-        enabled: true,
         provider: "kakao",
         providerIdentifier: "kakao",
-        state: "available",
       },
       {
-        disabledReason: null,
-        enabled: true,
         provider: "apple",
         providerIdentifier: "apple",
-        state: "available",
       },
       {
-        disabledReason: null,
-        enabled: true,
         provider: "google",
         providerIdentifier: "google",
-        state: "available",
       },
       {
-        disabledReason: null,
-        enabled: true,
         provider: "naver",
         providerIdentifier: "custom:naver",
-        state: "available",
       },
     ];
   });

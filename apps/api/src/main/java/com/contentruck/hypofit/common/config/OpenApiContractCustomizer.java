@@ -26,7 +26,7 @@ class OpenApiContractCustomizer {
             patchInterviewRequestContracts(openApi);
             patchAccountDeletionContracts(openApi);
             patchSessionContracts(openApi);
-            patchSocialAuthContracts(openApi);
+            patchAppleSignInNotificationAcceptedSchema(openApi);
         };
     }
 
@@ -282,11 +282,6 @@ class OpenApiContractCustomizer {
         patchAccountDeletionResponseEnums(openApi);
     }
 
-    private void patchSocialAuthContracts(OpenAPI openApi) {
-        patchAppleSignInNotificationAcceptedSchema(openApi);
-        patchSocialAuthCapabilityPlatformParameter(openApi);
-    }
-
     private void patchSessionContracts(OpenAPI openApi) {
         patchSessionRequestContracts(openApi);
         patchSessionSchemaFormats(openApi);
@@ -437,21 +432,6 @@ class OpenApiContractCustomizer {
             typedSchema.setDefault("accepted");
             typedSchema.setConst("accepted");
         }
-    }
-
-    private void patchSocialAuthCapabilityPlatformParameter(OpenAPI openApi) {
-        if (openApi.getPaths() == null) {
-            return;
-        }
-        var pathItem = openApi.getPaths().get("/api/v1/auth/social/capabilities");
-        if (pathItem == null || pathItem.getGet() == null || pathItem.getGet().getParameters() == null) {
-            return;
-        }
-        pathItem.getGet().getParameters().stream()
-                .filter(parameter -> "platform".equals(parameter.getName()))
-                .map(io.swagger.v3.oas.models.parameters.Parameter::getSchema)
-                .filter(java.util.Objects::nonNull)
-                .forEach(schema -> schema.setPattern(null));
     }
 
     private void patchSessionRequestContracts(OpenAPI openApi) {

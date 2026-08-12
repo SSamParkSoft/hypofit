@@ -16,6 +16,11 @@ export interface SocialProviderDefinition {
   label: string;
 }
 
+export interface SocialProviderOption {
+  provider: SocialProviderId;
+  providerIdentifier: SocialProviderIdentifier;
+}
+
 export const SOCIAL_PROVIDER_ORDER = ["apple", "google", "kakao", "naver"] as const satisfies ReadonlyArray<
   SocialProviderId
 >;
@@ -76,6 +81,13 @@ export function getSocialProviderDefinition(provider: SocialProviderId) {
 
 export function getVisibleWebSocialProviders() {
   return [...PUBLIC_WEB_SOCIAL_AUTH_PROVIDER_ORDER];
+}
+
+export function getVisibleWebSocialProviderOptions(): SocialProviderOption[] {
+  return getVisibleWebSocialProviders().map((provider) => ({
+    provider,
+    providerIdentifier: getSocialProviderDefinition(provider).authProvider,
+  }));
 }
 
 export function getSocialProviderIdFromIdentifier(

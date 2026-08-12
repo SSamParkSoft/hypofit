@@ -84,35 +84,6 @@ record SocialAuthCompleteRequest(
     }
 }
 
-record SocialAuthProviderCapabilityResponse(
-        @Schema(allowableValues = {"apple", "google", "kakao", "naver"})
-        String provider,
-        boolean enabled,
-        @Schema(allowableValues = {"available", "disabled", "review_pending", "unsupported_platform"})
-        String state
-) {
-    static SocialAuthProviderCapabilityResponse from(SocialAuthReadModels.ProviderCapability capability) {
-        return new SocialAuthProviderCapabilityResponse(
-                capability.provider(),
-                capability.enabled(),
-                capability.state()
-        );
-    }
-}
-
-record SocialAuthCapabilitiesResponse(
-        @Schema(allowableValues = {"web", "ios", "android"})
-        String platform,
-        List<SocialAuthProviderCapabilityResponse> providers
-) {
-    static SocialAuthCapabilitiesResponse from(SocialAuthReadModels.CapabilitiesReadModel model) {
-        return new SocialAuthCapabilitiesResponse(
-                model.platform(),
-                model.providers().stream().map(SocialAuthProviderCapabilityResponse::from).toList()
-        );
-    }
-}
-
 record SocialAuthAttemptResponse(
         @JsonProperty("attempt_id")
         UUID attempt_id,

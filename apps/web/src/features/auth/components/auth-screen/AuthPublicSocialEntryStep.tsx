@@ -1,19 +1,19 @@
 import type { AuthFeedback } from "../../authScreenModel";
-import type { SocialAuthCapability } from "../../social/api/socialAuthApi";
-import type { SocialProviderId } from "../../social/model/providerRegistry";
+import type {
+  SocialProviderId,
+  SocialProviderOption,
+} from "../../social/model/providerRegistry";
 import { SocialLoginButtons } from "../../social/ui/SocialLoginButtons";
 
 interface AuthPublicSocialEntryStepProps {
   feedback: AuthFeedback;
-  isLoadingSocialAuth: boolean;
   pendingSocialProviderId: SocialProviderId | null;
-  socialAuthProviders: SocialAuthCapability[];
+  socialAuthProviders: SocialProviderOption[];
   onSocialStart: (providerId: SocialProviderId) => void;
 }
 
 export function AuthPublicSocialEntryStep({
   feedback,
-  isLoadingSocialAuth,
   pendingSocialProviderId,
   socialAuthProviders,
   onSocialStart,
@@ -23,7 +23,6 @@ export function AuthPublicSocialEntryStep({
       <SocialLoginButtons
         feedback={feedback}
         intent="sign_in"
-        isLoading={isLoadingSocialAuth}
         pendingProviderId={pendingSocialProviderId}
         providers={socialAuthProviders}
         showDivider={false}

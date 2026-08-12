@@ -76,7 +76,6 @@ describe("useSocialAuthEntry", () => {
       wrapper: createWrapper(),
     });
 
-    expect(result.current.isLoadingCapabilities).toBe(false);
     expect(result.current.providers.map((provider) => provider.provider)).toEqual([
       "kakao",
       "apple",

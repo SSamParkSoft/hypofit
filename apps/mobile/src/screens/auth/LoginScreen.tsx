@@ -49,13 +49,6 @@ export function LoginScreen() {
             showDivider={false}
             onPress={(provider) => void socialAuth.start(provider, getSafeReturnPath(params.returnTo))}
           />
-          {!socialAuth.isLoadingProviders && !socialAuth.errorMessage && socialAuth.providers.length === 0 ? (
-            <View className="rounded-[16px] border border-[#E2DFD6] bg-[#F8F6F0] px-4 py-4">
-              <Text className="text-center text-[13px] leading-5 text-hypo-muted">
-                지금 사용할 수 있는 로그인 방법을 준비하고 있어요.
-              </Text>
-            </View>
-          ) : null}
           <View className="rounded-[16px] bg-hypo-brandSoft px-4 py-3">
             <Text className="text-[12px] leading-[18px] text-hypo-brand" style={{ fontFamily: "HypofitSansBold" }}>
               로그인 후 프로필과 역할, 약관 동의를 이어서 완료해요.

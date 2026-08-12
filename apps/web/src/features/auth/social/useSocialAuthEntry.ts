@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 
 import { getSupabaseClientOrThrow } from "../authSupabase";
 import type { AuthFeedback } from "../authScreenModel";
-import { createSocialAuthAttempt, type SocialAuthCapability } from "./api/socialAuthApi";
+import { createSocialAuthAttempt } from "./api/socialAuthApi";
 import { buildSocialAuthCallbackUrl, getApprovedSocialReturnTo } from "./lib/returnPath";
 import {
   clearStoredSocialAuthAttempt,
@@ -11,22 +11,11 @@ import {
 } from "./lib/socialAuthStorage";
 import { normalizeSocialEntryError } from "./model/socialAuthErrors";
 import {
-  getSocialProviderDefinition,
-  getVisibleWebSocialProviders,
+  getVisibleWebSocialProviderOptions,
   type SocialProviderId,
 } from "./model/providerRegistry";
 
-const visibleProviders = getVisibleWebSocialProviders().map((provider) => {
-  const definition = getSocialProviderDefinition(provider);
-
-  return {
-    disabledReason: null,
-    enabled: true,
-    provider,
-    providerIdentifier: definition.authProvider,
-    state: "available",
-  } satisfies SocialAuthCapability;
-});
+const visibleProviders = getVisibleWebSocialProviderOptions();
 
 function getCapabilityErrorFeedback(error: unknown): AuthFeedback {
   return {
@@ -47,7 +36,7 @@ export function useSocialAuthEntry() {
     async (providerId: SocialProviderId, intent: SocialAuthEntryIntent) => {
       const capability = visibleProviders.find((candidate) => candidate.provider === providerId);
 
-      if (!capability || !capability.enabled) {
+      if (!capability) {
         setFeedback({
           message: "지금은 이 로그인 방법을 사용할 수 없어요.",
           tone: "error",
@@ -128,7 +117,6 @@ export function useSocialAuthEntry() {
   return {
     clearFeedback,
     feedback,
-    isLoadingCapabilities: false,
     pendingProviderId,
     providers: visibleProviders,
     startSocialAuth,

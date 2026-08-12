@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiBaseUrl } from "../../../../shared/api/client";
 import {
   createSocialAuthLinkAttempt,
-  getSocialAuthCapabilities,
   reconcileSocialAuthIdentities,
 } from "./socialAuthApi";
 
@@ -31,81 +30,6 @@ describe("socialAuthApi", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
-  });
-
-  it("loads capabilities from the web contract and normalizes provider identifiers", async () => {
-    fetchMock.mockResolvedValue(
-      createResponse({
-        body: JSON.stringify({
-          providers: [
-            {
-              enabled: false,
-              id: "custom:naver",
-              state: "review_pending",
-            },
-            {
-              enabled: true,
-              provider: "google",
-              state: "available",
-            },
-            {
-              disabled_reason: "social_unsupported_platform",
-              enabled: false,
-              provider: "apple",
-            },
-          ],
-        }),
-        headers: { "Content-Type": "application/json" },
-        status: 200,
-      }),
-    );
-
-    await expect(getSocialAuthCapabilities()).resolves.toEqual([
-      {
-        disabledReason: "social_unsupported_platform",
-        enabled: false,
-        provider: "apple",
-        providerIdentifier: "apple",
-        state: "unsupported_platform",
-      },
-      {
-        disabledReason: null,
-        enabled: true,
-        provider: "google",
-        providerIdentifier: "google",
-        state: "available",
-      },
-      {
-        disabledReason: null,
-        enabled: false,
-        provider: "naver",
-        providerIdentifier: "custom:naver",
-        state: "review_pending",
-      },
-    ]);
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      `${apiBaseUrl}/api/v1/auth/social/capabilities?platform=web`,
-      expect.objectContaining({ method: "GET" }),
-    );
-  });
-
-  it("keeps email login available when the optional capability endpoint is not deployed", async () => {
-    fetchMock.mockResolvedValue(
-      createResponse({
-        body: JSON.stringify({
-          error: {
-            code: "not_found",
-            message: "요청한 정보를 찾지 못했어요.",
-            status: 404,
-          },
-        }),
-        headers: { "Content-Type": "application/json" },
-        status: 404,
-      }),
-    );
-
-    await expect(getSocialAuthCapabilities()).resolves.toEqual([]);
   });
 
   it("creates an authenticated account-link attempt for the current user", async () => {

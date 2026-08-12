@@ -27,7 +27,6 @@ public class SocialAuthSecurityConfiguration {
         http.cors(Customizer.withDefaults());
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.authorizeHttpRequests(authorize -> authorize
-                .requestMatchers(HttpMethod.GET, "/api/v1/auth/social/capabilities").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/social/apple/notifications").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/social/attempts").permitAll()
                 .anyRequest().authenticated()

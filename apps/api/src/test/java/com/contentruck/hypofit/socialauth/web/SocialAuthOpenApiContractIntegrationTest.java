@@ -31,7 +31,6 @@ class SocialAuthOpenApiContractIntegrationTest {
     private static final List<String> PROVIDERS = List.of("apple", "google", "kakao", "naver");
     private static final List<String> PLATFORMS = List.of("web", "ios", "android");
     private static final List<String> FLOWS = List.of("login", "link");
-    private static final List<String> CAPABILITY_STATES = List.of("available", "disabled", "review_pending", "unsupported_platform");
     private static final List<String> IDENTITY_STATUSES = List.of("active", "revocation_pending", "revoked");
     private static final List<String> NEXT_STEPS = List.of(
             "signed_in",
@@ -96,18 +95,10 @@ class SocialAuthOpenApiContractIntegrationTest {
         assertThat(root.at("/components/schemas/SocialAuthComplete/properties/attempt_secret/minLength").asInt()).isEqualTo(32);
         assertThat(root.at("/components/schemas/SocialAuthComplete/properties/attempt_secret/maxLength").asInt()).isEqualTo(256);
 
-        JsonNode capabilitiesPlatformSchema = findParameterSchema(root, "/api/v1/auth/social/capabilities", "get", "platform");
-        assertEnum(capabilitiesPlatformSchema, "", PLATFORMS);
-        assertThat(capabilitiesPlatformSchema.has("pattern")).isFalse();
-
         assertEnum(root, "/components/schemas/SocialAuthAttemptResponse/properties/provider", PROVIDERS);
         assertEnum(root, "/components/schemas/SocialAuthAttemptResponse/properties/platform", PLATFORMS);
         assertEnum(root, "/components/schemas/SocialAuthAttemptResponse/properties/flow", FLOWS);
         assertType(root, "/components/schemas/SocialAuthAttemptResponse/properties/return_path", "string");
-
-        assertEnum(root, "/components/schemas/SocialAuthCapabilitiesResponse/properties/platform", PLATFORMS);
-        assertEnum(root, "/components/schemas/SocialAuthProviderCapabilityResponse/properties/provider", PROVIDERS);
-        assertEnum(root, "/components/schemas/SocialAuthProviderCapabilityResponse/properties/state", CAPABILITY_STATES);
 
         assertEnum(root, "/components/schemas/SocialIdentityResponse/properties/provider", PROVIDERS);
         assertType(root, "/components/schemas/SocialIdentityResponse/properties/email", "string");
@@ -147,18 +138,4 @@ class SocialAuthOpenApiContractIntegrationTest {
         assertThat(enumNode).extracting(JsonNode::asText).containsExactlyElementsOf(values);
     }
 
-    private static JsonNode findParameterSchema(JsonNode root, String path, String method, String parameterName) {
-        JsonNode parameters = root.at("/paths/" + encodePointer(path) + "/" + method + "/parameters");
-        assertThat(parameters.isArray()).isTrue();
-        for (JsonNode parameter : parameters) {
-            if (parameterName.equals(parameter.path("name").asText())) {
-                return parameter.path("schema");
-            }
-        }
-        throw new AssertionError("Parameter not found: " + parameterName);
-    }
-
-    private static String encodePointer(String value) {
-        return value.replace("~", "~0").replace("/", "~1");
-    }
 }

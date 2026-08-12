@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import type { SocialAuthProvider, SocialAuthProviderCapability, SocialIdentityRead } from "@hypofit/contracts";
+import type { SocialAuthProvider, SocialIdentityRead } from "@hypofit/contracts";
 import { useAuth } from "@/features/auth/AuthProvider";
 import {
-  getPublicMobileSocialProviders,
+  getPublicMobileSocialProviderIds,
   getSocialAuthErrorMessage,
   getSocialIdentityLabel,
   getSocialIdentityStatusLabel,
-  loadSocialAuthCapabilities,
   loadSocialIdentities,
   socialProviderLabels,
   startSocialIdentityLink,
@@ -29,18 +28,17 @@ export function AccountInfoScreen() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [identities, setIdentities] = useState<SocialIdentityRead[]>([]);
-  const [socialCapabilities, setSocialCapabilities] = useState<SocialAuthProviderCapability[]>([]);
   const [isLoadingIdentities, setIsLoadingIdentities] = useState(false);
   const [pendingSocialProvider, setPendingSocialProvider] = useState<SocialAuthProvider | null>(null);
-  const visibleSocialCapabilities = useMemo(
+  const visibleSocialProviders = useMemo(
     () =>
-      getPublicMobileSocialProviders(socialCapabilities).filter(
-        (capability) =>
+      getPublicMobileSocialProviderIds().filter(
+        (provider) =>
           !identities.some(
-            (identity) => identity.provider === capability.provider && identity.status !== "revoked",
+            (identity) => identity.provider === provider && identity.status !== "revoked",
           ),
       ),
-    [identities, socialCapabilities],
+    [identities],
   );
 
   useEffect(() => {
@@ -51,17 +49,15 @@ export function AccountInfoScreen() {
     let isMounted = true;
     setIsLoadingIdentities(true);
 
-    void Promise.all([loadSocialIdentities(accessToken), loadSocialAuthCapabilities()])
-      .then(([nextIdentities, capabilities]) => {
+    void loadSocialIdentities(accessToken)
+      .then((nextIdentities) => {
         if (isMounted) {
           setIdentities(nextIdentities);
-          setSocialCapabilities(capabilities.providers);
         }
       })
       .catch(() => {
         if (isMounted) {
           setIdentities([]);
-          setSocialCapabilities([]);
         }
       })
       .finally(() => {
@@ -211,19 +207,19 @@ export function AccountInfoScreen() {
             ) : (
               <Text className="py-2 text-sm font-bold text-hypo-muted">연결된 소셜 로그인은 아직 없어요.</Text>
             )}
-            {visibleSocialCapabilities.map((capability) => (
+            {visibleSocialProviders.map((provider) => (
               <Pressable
-                key={capability.provider}
+                key={provider}
                 accessibilityRole="button"
                 disabled={pendingSocialProvider !== null}
                 className="min-h-[50px] flex-row items-center justify-between gap-4 py-2.5"
-                onPress={() => void handleSocialIdentityLink(capability.provider)}
+                onPress={() => void handleSocialIdentityLink(provider)}
               >
                 <Text className="text-sm font-black text-hypo-text">
-                  {socialProviderLabels[capability.provider]}
+                  {socialProviderLabels[provider]}
                 </Text>
                 <Text className="text-sm font-black text-hypo-brand">
-                  {pendingSocialProvider === capability.provider ? "연결 중" : "연결하기"}
+                  {pendingSocialProvider === provider ? "연결 중" : "연결하기"}
                 </Text>
               </Pressable>
             ))}

@@ -56,20 +56,6 @@ class SocialAuthServiceTest {
     }
 
     @Test
-    void getCapabilitiesAppliesApplePlatformRules() {
-        SocialAuthReadModels.CapabilitiesReadModel result = service.getCapabilities("android");
-
-        assertThat(result.providers())
-                .extracting(SocialAuthReadModels.ProviderCapability::provider, SocialAuthReadModels.ProviderCapability::state)
-                .contains(
-                        tuple("apple", "unsupported_platform"),
-                        tuple("google", "available"),
-                        tuple("kakao", "disabled"),
-                        tuple("naver", "available")
-                );
-    }
-
-    @Test
     void createAttemptRejectsNonLoginFlow() {
         assertThatThrownBy(() -> service.createAttempt("google", "web", "link", "/app"))
                 .isInstanceOf(HypofitException.class)

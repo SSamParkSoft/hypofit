@@ -8,7 +8,6 @@ import type {
   SocialAuthCompleteResponse,
   SocialAuthPlatform,
   SocialAuthProvider,
-  SocialAuthProviderCapability,
   SocialIdentityRead,
 } from "@hypofit/contracts";
 import type { Href } from "expo-router";
@@ -89,10 +88,6 @@ export function getSocialAuthPlatform(): SocialAuthPlatform {
 
 export function getSocialCallbackRedirectUri() {
   return socialCallbackRedirectUri;
-}
-
-export async function loadSocialAuthCapabilities() {
-  return socialAuthApi.getCapabilities(getSocialAuthPlatform());
 }
 
 export async function loadSocialIdentities(accessToken: string) {
@@ -256,24 +251,6 @@ export async function completeSocialAuthFromCallback(url?: string): Promise<Soci
     await clearPendingAttempt();
     throw normalizeSocialAuthError(error, "supabase_token_exchange");
   }
-}
-
-export function getSupportedSocialProviders(capabilities: SocialAuthProviderCapability[]) {
-  return capabilities.filter((capability) => capability.enabled);
-}
-
-export function getPublicMobileSocialProviders(
-  capabilities: SocialAuthProviderCapability[],
-  platform: SocialAuthPlatform = getSocialAuthPlatform(),
-) {
-  const orderedProviders = getPublicMobileSocialProviderIds(platform);
-  const enabledProviders = new Map(
-    capabilities.filter((capability) => capability.enabled).map((capability) => [capability.provider, capability]),
-  );
-
-  return orderedProviders
-    .map((provider) => enabledProviders.get(provider))
-    .filter((capability): capability is SocialAuthProviderCapability => Boolean(capability));
 }
 
 export function getPublicMobileSocialProviderIds(

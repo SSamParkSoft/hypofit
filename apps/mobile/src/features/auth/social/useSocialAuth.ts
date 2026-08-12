@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { SocialAuthProvider } from "@hypofit/contracts";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -6,9 +6,7 @@ import {
   getSocialAuthDiagnosticCode,
   getSocialAuthErrorMessage,
   getPublicMobileSocialProviderIds,
-  getPublicMobileSocialProviders,
   getUnsupportedSocialNextStepMessage,
-  loadSocialAuthCapabilities,
   resolveSocialAuthRoute,
   startSocialAuth,
 } from "./socialAuthService";
@@ -16,45 +14,10 @@ import {
 export function useSocialAuth() {
   const auth = useAuth();
   const router = useRouter();
-  const [providers, setProviders] = useState<SocialAuthProvider[]>(() =>
-    getPublicMobileSocialProviderIds(),
-  );
-  const [isLoadingProviders, setIsLoadingProviders] = useState(true);
+  const providers = useMemo(() => getPublicMobileSocialProviderIds(), []);
   const [busyProvider, setBusyProvider] = useState<SocialAuthProvider | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function load() {
-      try {
-        const response = await loadSocialAuthCapabilities();
-        if (!isMounted) {
-          return;
-        }
-        setProviders(getPublicMobileSocialProviders(response.providers).map((capability) => capability.provider));
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-        // Keep the approved platform methods visible. Attempt creation remains
-        // the server-side capability boundary and provides the actionable error.
-        setErrorMessage(getSocialAuthErrorMessage(error, "다른 로그인 방법을 불러오지 못했어요."));
-        setErrorCode(getSocialAuthDiagnosticCode(error));
-      } finally {
-        if (isMounted) {
-          setIsLoadingProviders(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const start = useCallback(
     async (provider: SocialAuthProvider, returnPath?: unknown) => {
@@ -90,13 +53,12 @@ export function useSocialAuth() {
   return useMemo(
     () => ({
       providers,
-      isLoadingProviders,
       busyProvider,
       isBusy: busyProvider !== null,
       errorMessage,
       errorCode,
       start,
     }),
-    [busyProvider, errorCode, errorMessage, isLoadingProviders, providers, start],
+    [busyProvider, errorCode, errorMessage, providers, start],
   );
 }

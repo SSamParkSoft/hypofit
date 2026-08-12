@@ -29,20 +29,6 @@ class SocialAuthControllerTest {
     private AppleSignInNotificationService appleSignInNotificationService;
 
     @Test
-    void getCapabilitiesUsesQueryPlatform() {
-        when(service.getCapabilities("web")).thenReturn(new SocialAuthReadModels.CapabilitiesReadModel(
-                "web",
-                List.of(new SocialAuthReadModels.ProviderCapability("google", true, "available"))
-        ));
-
-        SocialAuthController controller = new SocialAuthController(service, appleSignInNotificationService);
-        SocialAuthCapabilitiesResponse result = controller.getCapabilities("web");
-
-        assertThat(result.platform()).isEqualTo("web");
-        assertThat(result.providers().getFirst().provider()).isEqualTo("google");
-    }
-
-    @Test
     void createAttemptMapsBodyToService() {
         when(service.createAttempt("google", "web", null, "/app")).thenReturn(new SocialAuthReadModels.AttemptReadModel(
                 UUID.randomUUID(),

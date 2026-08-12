@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   getSupabaseClientOrThrow: vi.fn(),
   linkIdentity: vi.fn(),
   useAuth: vi.fn(),
-  useSocialAuthCapabilities: vi.fn(),
 }));
 
 vi.mock("../useAuth", () => ({
@@ -18,10 +17,6 @@ vi.mock("../useAuth", () => ({
 
 vi.mock("../authSupabase", () => ({
   getSupabaseClientOrThrow: () => mocks.getSupabaseClientOrThrow(),
-}));
-
-vi.mock("./useSocialAuthCapabilities", () => ({
-  useSocialAuthCapabilities: () => mocks.useSocialAuthCapabilities(),
 }));
 
 vi.mock("./api/socialAuthApi", async () => {
@@ -50,18 +45,6 @@ describe("useSocialIdentityLinking", () => {
       auth: { linkIdentity: mocks.linkIdentity },
     });
     mocks.useAuth.mockReturnValue({ accessToken: "user-access-token" });
-    mocks.useSocialAuthCapabilities.mockReturnValue({
-      data: [
-        {
-          disabledReason: null,
-          enabled: true,
-          provider: "google",
-          providerIdentifier: "google",
-          state: "available",
-        },
-      ],
-      isLoading: false,
-    });
   });
 
   afterEach(() => {
@@ -91,19 +74,6 @@ describe("useSocialIdentityLinking", () => {
   });
 
   it("starts Apple web identity linking with the Apple provider identifier and social callback redirect", async () => {
-    mocks.useSocialAuthCapabilities.mockReturnValue({
-      data: [
-        {
-          disabledReason: null,
-          enabled: true,
-          provider: "apple",
-          providerIdentifier: "apple",
-          state: "available",
-        },
-      ],
-      isLoading: false,
-    });
-
     const { result } = renderHook(() => useSocialIdentityLinking());
 
     await act(async () => {
@@ -124,19 +94,6 @@ describe("useSocialIdentityLinking", () => {
   });
 
   it("starts Kakao account linking with the Kakao Supabase provider while preserving the link attempt and callback redirect", async () => {
-    mocks.useSocialAuthCapabilities.mockReturnValue({
-      data: [
-        {
-          disabledReason: null,
-          enabled: true,
-          provider: "kakao",
-          providerIdentifier: "kakao",
-          state: "available",
-        },
-      ],
-      isLoading: false,
-    });
-
     const { result } = renderHook(() => useSocialIdentityLinking());
 
     await act(async () => {
@@ -161,19 +118,6 @@ describe("useSocialIdentityLinking", () => {
   });
 
   it("starts Naver account linking with the custom Supabase provider while preserving the link attempt and callback redirect", async () => {
-    mocks.useSocialAuthCapabilities.mockReturnValue({
-      data: [
-        {
-          disabledReason: null,
-          enabled: true,
-          provider: "naver",
-          providerIdentifier: "custom:naver",
-          state: "available",
-        },
-      ],
-      isLoading: false,
-    });
-
     const { result } = renderHook(() => useSocialIdentityLinking());
 
     await act(async () => {

@@ -16,12 +16,6 @@ public final class SocialAuthReadModels {
     ) {
     }
 
-    public record CapabilitiesReadModel(
-            String platform,
-            List<ProviderCapability> providers
-    ) {
-    }
-
     public record AttemptReadModel(
             UUID attemptId,
             String attemptSecret,

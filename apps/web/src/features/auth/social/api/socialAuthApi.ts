@@ -1,4 +1,4 @@
-import { ApiError, apiRequest, type ApiRequestInit } from "../../../../shared/api/client";
+import { apiRequest, type ApiRequestInit } from "../../../../shared/api/client";
 import {
   getSocialProviderIdFromIdentifier,
   normalizeSocialProviderIdentifier,
@@ -7,14 +7,6 @@ import {
   type SocialProviderIdentifier,
 } from "../model/providerRegistry";
 import type { SocialAuthEntryIntent } from "../lib/socialAuthStorage";
-
-export interface SocialAuthCapability {
-  disabledReason: string | null;
-  enabled: boolean;
-  provider: SocialProviderId;
-  providerIdentifier: SocialProviderIdentifier;
-  state: "available" | "disabled" | "review_pending" | "unsupported_platform";
-}
 
 export interface SocialAuthAttempt {
   attemptId: string;
@@ -49,48 +41,6 @@ function readString(record: Record<string, unknown>, key: string) {
   return typeof record[key] === "string" && record[key].trim() ? record[key] : null;
 }
 
-function normalizeCapabilityState(
-  enabled: boolean,
-  state: string | null,
-  disabledReason: string | null,
-): SocialAuthCapability["state"] {
-  if (enabled) {
-    return "available";
-  }
-
-  if (state === "review_pending" || disabledReason === "provider_review_pending") {
-    return "review_pending";
-  }
-
-  if (state === "unsupported_platform" || disabledReason === "social_unsupported_platform") {
-    return "unsupported_platform";
-  }
-
-  return "disabled";
-}
-
-function normalizeCapability(record: Record<string, unknown>): SocialAuthCapability | null {
-  const rawProvider = readString(record, "provider") ?? readString(record, "id");
-  const provider = getSocialProviderIdFromIdentifier(rawProvider);
-  const providerIdentifier = normalizeSocialProviderIdentifier(rawProvider);
-
-  if (!provider || !providerIdentifier) {
-    return null;
-  }
-
-  const state = readString(record, "state");
-  const disabledReason = readString(record, "disabled_reason");
-  const enabled = readBoolean(record, "enabled") ?? state === "available";
-
-  return {
-    disabledReason,
-    enabled,
-    provider,
-    providerIdentifier,
-    state: normalizeCapabilityState(enabled, state, disabledReason),
-  };
-}
-
 function normalizeIdentity(record: Record<string, unknown>): SocialAuthIdentity | null {
   const rawProvider = readString(record, "provider") ?? readString(record, "id");
   const provider = getSocialProviderIdFromIdentifier(rawProvider);
@@ -112,34 +62,6 @@ function normalizeIdentity(record: Record<string, unknown>): SocialAuthIdentity 
     status:
       rawStatus === "revocation_pending" || rawStatus === "revoked" ? rawStatus : "active",
   };
-}
-
-export async function getSocialAuthCapabilities() {
-  let response: unknown;
-
-  try {
-    response = await apiRequest<unknown>("/api/v1/auth/social/capabilities?platform=web");
-  } catch (error) {
-    // The capability endpoint is optional until social auth is deployed.
-    if (error instanceof ApiError && error.status === 404) {
-      return [] satisfies SocialAuthCapability[];
-    }
-
-    throw error;
-  }
-
-  const responseRecord = asRecord(response);
-  const rawProviders = responseRecord?.providers;
-
-  if (!Array.isArray(rawProviders)) {
-    return [] satisfies SocialAuthCapability[];
-  }
-
-  return sortBySocialProviderOrder(
-    rawProviders
-      .map((item) => normalizeCapability(asRecord(item) ?? {}))
-      .filter((item): item is SocialAuthCapability => Boolean(item)),
-  );
 }
 
 export async function createSocialAuthAttempt(input: {
