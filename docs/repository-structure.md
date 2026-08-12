@@ -76,6 +76,7 @@ hypofit/
     lightsail/          # production Spring container deployment
 
   docs/
+    README.md
     service/
     active/
     reference/
@@ -181,7 +182,9 @@ Product and engineering documentation.
 
 Current root documents:
 
+- `README.md`
 - `architecture.md`
+- `development.md`
 - `deployment.md`
 - `mvp-scope.md`
 - `repository-structure.md`

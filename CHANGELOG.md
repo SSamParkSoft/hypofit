@@ -11,6 +11,10 @@ Hypofit.
   repository baseline.
 - Adopted the MIT License and simplified the repository README around the
   product rather than local setup instructions.
+- Expanded the root README into a service-only introduction and separated
+  local development, architecture, and contribution guidance by purpose.
+- Added a development-document index and aligned local API examples with the
+  current Spring Boot runtime.
 
 ## Historical release note
 
