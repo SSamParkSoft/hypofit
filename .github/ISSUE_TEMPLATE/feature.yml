@@ -1,0 +1,44 @@
+name: Feature request
+description: Propose a pragmatic product or engineering improvement
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or operator problem should this solve?
+      placeholder: Describe the current pain point.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest useful change.
+      placeholder: What should change?
+    validations:
+      required: true
+  - type: checkboxes
+    id: surfaces
+    attributes:
+      label: Affected surfaces
+      options:
+        - label: Web
+        - label: Mobile
+        - label: API
+        - label: Docs
+        - label: Deployment
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance notes
+      description: What would make this done?
+      placeholder: Define the practical outcome.
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints or risks
+      description: List notable limits, rollout concerns, or dependencies.
+      placeholder: Optional.

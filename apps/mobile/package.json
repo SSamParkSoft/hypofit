@@ -2,6 +2,14 @@
   "name": "@hypofit/mobile",
   "private": true,
   "version": "1.0.1",
+  "description": "Hypofit Expo React Native application for iOS and Android",
+  "license": "UNLICENSED",
+  "homepage": "https://hypofit.bukae.co.kr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SSamParkSoft/hypofit.git",
+    "directory": "apps/mobile"
+  },
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",

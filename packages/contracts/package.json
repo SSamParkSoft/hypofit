@@ -2,6 +2,13 @@
   "name": "@hypofit/contracts",
   "private": true,
   "version": "1.0.0",
+  "description": "Shared Hypofit API contracts and pure domain helpers",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SSamParkSoft/hypofit.git",
+    "directory": "packages/contracts"
+  },
   "type": "module",
   "main": "./src/index.ts",
   "module": "./src/index.ts",

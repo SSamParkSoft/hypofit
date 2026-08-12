@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible defect in Hypofit
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      description: Where did the bug happen?
+      options:
+        - Web
+        - Mobile
+        - API
+        - Deployment
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the problem in one or two sentences.
+      placeholder: What broke?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide exact reproduction steps.
+      placeholder: |
+        1. Go to ...
+        2. Tap or click ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Add screenshots, logs, request IDs, or crash details if available.
+      placeholder: Paste any useful evidence here.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Impact
+      description: Who is affected and how severe is it?
+      placeholder: Affects all mobile users on login, blocks onboarding, etc.

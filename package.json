@@ -2,6 +2,16 @@
   "name": "hypofit",
   "private": true,
   "version": "1.0.1",
+  "description": "Paid customer discovery interviews for early-stage founders",
+  "license": "UNLICENSED",
+  "homepage": "https://hypofit.bukae.co.kr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SSamParkSoft/hypofit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SSamParkSoft/hypofit/issues"
+  },
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev:web": "pnpm --dir apps/web dev",

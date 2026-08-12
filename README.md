@@ -1,132 +1,200 @@
 # Hypofit
 
-Hypofit is an interview matching service for pre-founders and early-stage founders. Founders post paid customer interview opportunities, and respondents apply after checking whether their experience, location, availability, and expected reward match the request.
+<p align="left">
+  <img src="apps/web/public/brand/hypofit-logo.svg" alt="Hypofit" width="220" />
+</p>
 
-The first product goal is not to build a large research platform. The MVP should quickly validate whether founders are willing to pay for customer interviews, whether real target customers are willing to participate, and whether the matching and attendance flow can reduce friction and no-shows.
+<p>
+  초기 창업팀이 실제 타깃 고객을 빠르게 모집하고,
+  사례비 기반 고객 인터뷰를 끝까지 완료하도록 돕는 인터뷰 매칭 서비스입니다.
+</p>
 
-## Current Architecture Decision
+<p>
+  <img alt="iOS 1.0.0 released" src="https://img.shields.io/badge/iOS-1.0.0%20released-176B5D?style=flat-square" />
+  <img alt="Android release in progress" src="https://img.shields.io/badge/Android-release%20in%20progress-F5A623?style=flat-square" />
+  <img alt="Auth social only" src="https://img.shields.io/badge/Auth-social%20only-1D2522?style=flat-square" />
+  <img alt="License UNLICENSED" src="https://img.shields.io/badge/License-UNLICENSED-4B5563?style=flat-square" />
+</p>
 
-The repository is a monorepo because the React web app, Expo React Native mobile app, shared contracts, and Spring Boot backend are developed together during the MVP phase.
+<p>
+  <img src="apps/web/public/brand/hypofit-social-1200x630.png" alt="Hypofit brand preview" width="100%" />
+</p>
+
+## 무엇을 해결하나
+
+가설 검증이 필요한 예비 창업자와 초기 창업자는 인터뷰 대상자를 찾는 데 시간을 많이 씁니다.
+Hypofit은 이 과정을 `모집글 작성 -> 지원 접수 -> 선정/반려 -> 채팅 조율 -> 인터뷰 완료`로 정리해,
+실제 고객 인터뷰를 더 빠르게 성사시키는 데 집중합니다.
+
+현재 MVP는 대규모 리서치 플랫폼이나 AI 매칭 서비스가 아니라,
+유료 고객 인터뷰 매칭 루프가 실제로 작동하는지 검증하는 제품입니다.
+
+## 핵심 제품 루프
+
+```text
+창업자 모집글 작성
+  -> 인터뷰어 지원
+  -> 창업자 검토 및 선정/반려
+  -> 채팅으로 일정과 방식 조율
+  -> 인터뷰 진행
+  -> 완료 / 문제 / 노쇼 기록
+```
+
+## 현재 제품 표면
+
+### `apps/mobile`
+
+실제 iOS/Android 제품 앱입니다.
+
+- 소셜 로그인 중심 인증 진입
+- 홈, 인터뷰, 지도, 채팅, 프로필 탭
+- 모집글 작성, 지원, 선정/반려, 일정 조율, 후기/신뢰 흐름
+- 위치, 푸시, 이미지 선택 같은 네이티브 기능
+
+### `apps/web`
+
+공개 웹과 데스크톱 보조 표면입니다.
+
+- 랜딩 페이지와 로그인 진입
+- 법률 문서, 지원/문의, 계정 삭제 웹 경로
+- 설치/PWA fallback
+- 데스크톱용 운영형 고객 웹 화면
+
+### `apps/api`
+
+Java 21 Spring Boot API입니다.
+
+- 인터뷰 모집글, 지원, 세션, 채팅, 알림, 신고/문의, 계정 삭제
+- Supabase Auth bearer token 검증
+- OpenAPI 계약, Flyway 마이그레이션, 운영 readiness 경로
+
+### `packages/contracts`
+
+웹과 모바일이 함께 쓰는 타입, enum, 포맷터, 법률/문구 상수입니다.
+
+## 현재 아키텍처와 상태
+
+- 모노레포 구조를 유지합니다.
+- 웹은 React + Vite로 운영합니다.
+- 모바일은 Expo React Native가 정식 배포 경로입니다.
+- API는 Spring Boot가 단일 기준 구현입니다.
+- 웹은 Vercel, API는 Lightsail, 영속 데이터와 Auth는 Supabase를 사용합니다.
+- 공개 인증 진입은 현재 소셜 로그인 전용입니다.
+- iOS `1.0.0`은 출시 기준선이고, Android/Google Play는 현재 진행 중입니다.
+
+## 기술 스택
+
+- Web: React, Vite, TypeScript, TanStack Query, Tailwind CSS
+- Mobile: Expo, React Native, Expo Router, NativeWind, TanStack Query
+- API: Java 21, Spring Boot, Spring Security Resource Server, JPA/JDBC, Flyway
+- Data/Auth: Supabase Postgres, Supabase Auth
+- Infra: Vercel, Amazon Lightsail, Docker, GitHub Actions
+
+## 저장소 구조
 
 ```text
 hypofit/
   apps/
-    web/        # React/Vite web app and public legal/install pages, deployed to Vercel
-    mobile/     # Expo React Native app for native iOS and Android releases
-    api/        # Java 21 Spring Boot API
-  infra/        # local Postgres and Lightsail deployment assets
-  docs/         # Product, architecture, deployment, and API notes
+    web/
+    mobile/
+    api/
+  packages/
+    contracts/
+  infra/
+  docs/
+  Makefile
+  README.md
 ```
 
-## Deployment Decision
+## 시작하기
 
-```text
-Browser / Web app or Expo mobile app
-  -> Vercel web hosting where applicable
-  -> https://hypofit-api.bukae.co.kr
-  -> Lightsail static IPv4 54.116.198.195
-  -> host Nginx on 80/443
-  -> Spring Boot container on 127.0.0.1:8080
-  -> Supabase Postgres/Auth
+### 1. 준비물
+
+- Node.js 20+
+- `pnpm@9`
+- Java 21
+- Docker Desktop
+
+### 2. 의존성 설치
+
+```bash
+corepack enable
+pnpm install
 ```
 
-The school GPU server has been returned and is not a runtime or rollback target.
-As of 2026-08-11, the topology above is active. The immutable Spring image,
-production secrets, Flyway baseline, Nginx, TLS, and canonical DNS are deployed.
-Public health, readiness, CORS, and authentication boundaries are verified;
-authenticated product-flow smoke and stabilization remain. Supabase remains
-the durable system of record.
+### 3. 환경값 준비
 
-Native mobile distribution is handled through `apps/mobile` with Expo React
-Native. iOS `1.0.0` is the reviewed/released baseline, and follow-up mobile
-uploads should use `1.0.1` or later. Android/Google Play readiness remains an
-active release track.
+필수 환경값은 루트의 [`.env.example`](.env.example)와
+[`infra/lightsail/api.env.example`](infra/lightsail/api.env.example)를 기준으로 맞춥니다.
 
-## Documentation
+소셜 로그인, Supabase, 지도, 푸시 같은 통합 기능은 각 공급자 콘솔 설정과 환경값이 준비되어야 로컬에서 정상 동작합니다.
+
+### 4. 로컬 실행
+
+웹:
+
+```bash
+make dev-web
+```
+
+모바일:
+
+```bash
+make dev-mobile
+# 또는
+pnpm ios:mobile
+pnpm android:mobile
+```
+
+API:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+make dev-api
+```
+
+## 검증 명령
+
+웹:
+
+```bash
+make lint-web
+make test-web
+pnpm --dir apps/web run typecheck
+pnpm --dir apps/web run bundle:check
+pnpm --dir apps/web run test:browser
+```
+
+모바일:
+
+```bash
+make test-mobile
+pnpm --dir apps/mobile run typecheck
+```
+
+API:
+
+```bash
+make lint-api
+make test-api
+make test-api-integration
+```
+
+`test-api-integration`은 Docker/Testcontainers가 필요합니다.
+
+## 주요 문서
 
 - [Service Knowledge Base](docs/service/README.md)
 - [Agent Start Here](docs/service/00-agent-start-here.md)
 - [Current MVP Execution Roadmap](docs/active/current-mvp-execution-roadmap.md)
-- [Cross-Platform Social Login and Identity Governance Plan](docs/active/cross-platform-social-login-authentication-plan.md)
-- [AI-Assisted Design Workflow](docs/service/15-ai-assisted-design-workflow.md)
-- [Brand Logo and Icon System Migration Plan](docs/active/hypofit-brand-logo-icon-system-migration-plan.md)
-- [FastAPI to Spring Boot Backend Migration History](docs/completed/fastapi-to-spring-boot-backend-migration-plan.md)
-- [AI Interview and Applicant Summary Plan](docs/active/ai-interview-and-applicant-summary-plan.md)
-- [Desktop Web Service UI Advancement Plan](docs/active/desktop-web-service-ui-advancement-plan.md)
-- [React Web Architecture and Modularization Refactoring Plan](docs/completed/react-web-architecture-modularization-refactoring-plan.md)
 - [Architecture](docs/architecture.md)
-- [MVP Scope](docs/mvp-scope.md)
 - [Deployment](docs/deployment.md)
 - [Repository Structure](docs/repository-structure.md)
+- [Reference Documents](docs/reference/README.md)
+- [Cross-Platform Social Login Authentication Plan](docs/active/cross-platform-social-login-authentication-plan.md)
 
-## Local Development
+## 지원 / 보안 / 라이선스
 
-The scaffold is intentionally split by app.
-
-Frontend:
-
-```bash
-cd apps/web
-pnpm install
-pnpm dev
-```
-
-Mobile:
-
-```bash
-cd apps/mobile
-pnpm install
-pnpm ios
-pnpm android
-pnpm typecheck
-```
-
-Backend:
-
-```bash
-docker compose -f infra/docker-compose.yml up -d
-make dev-api
-```
-
-The initial API exposes:
-
-```text
-GET  /health
-GET  /api/v1/health
-POST /api/v1/me/sync
-GET  /api/v1/interview-posts/
-POST /api/v1/interview-posts/
-GET  /api/v1/applications/
-POST /api/v1/applications/
-GET  /api/v1/sessions/
-POST /api/v1/sessions/
-```
-
-Create operations that depend on user ownership expect a Supabase bearer token.
-
-Local Postgres:
-
-```bash
-docker compose -f infra/docker-compose.yml up -d
-```
-
-Repository integration tests use Testcontainers and require Docker:
-
-```bash
-make test-api-integration
-```
-
-The root compose file remains for local integration development. The Lightsail
-production runtime uses a separate minimal compose definition for one Spring
-container and must bind the application only to `127.0.0.1:8080` behind Nginx.
-
-Root helper commands are also available through `make` once dependencies are installed:
-
-```bash
-make dev-web
-make dev-mobile
-make dev-api
-make build-web
-make test-mobile
-make test-api
-```
+- Support: [ssamso8282@gmail.com](mailto:ssamso8282@gmail.com)
+- Security: 민감한 보안 이슈는 공개 이슈 대신 [보안 정책](SECURITY.md)에 따라 알려주세요.
+- License: 이 저장소는 [Contentruck 전용 소프트웨어](LICENSE.md)이며, 명시적 허가 없이 사용·복제·배포할 수 없습니다.
