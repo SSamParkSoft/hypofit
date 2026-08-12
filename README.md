@@ -34,11 +34,11 @@
 <table>
   <tr>
     <td align="center" width="33%">
-      <img src="docs/store-assets/marketing/export/app-store/apple-ko-01-1320x2868.png" alt="실제 고객과 검증 인터뷰를 시작하는 Hypofit 서비스 대표 이미지" width="250" />
+      <img src="docs/assets/readme/app-screens/home-current-brand.png" alt="최근 인터뷰와 진행 상황을 확인하는 새 브랜드의 Hypofit 홈 화면" width="250" />
       <br />
-      <strong>검증 인터뷰 시작</strong>
+      <strong>홈</strong>
       <br />
-      <sub>실제 고객을 찾고 인터뷰 과정을 한곳에서 이어갑니다.</sub>
+      <sub>내 진행 상황과 최근 인터뷰를 한눈에 확인합니다.</sub>
     </td>
     <td align="center" width="33%">
       <img src="docs/assets/readme/app-screens/interviews.jpg" alt="인터뷰 모집글을 검색하고 필터링하는 하이포핏 인터뷰 화면" width="250" />
