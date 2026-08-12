@@ -16,7 +16,7 @@
 </p>
 
 <p>
-  <img src="docs/store-assets/marketing/export/readme/hypofit-product-showcase-1200x630.png" alt="고객 인터뷰 모집, 지도 탐색과 채팅 조율 화면을 담은 Hypofit 서비스 소개 이미지" width="100%" />
+  <img src="docs/store-assets/marketing/export/readme/hypofit-product-showcase-2400x1260.png" alt="고객 인터뷰 모집, 지도 탐색과 채팅 조율 화면을 담은 Hypofit 서비스 소개 이미지" width="100%" />
 </p>
 
 <p align="center">
