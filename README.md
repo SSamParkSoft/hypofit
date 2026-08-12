@@ -19,6 +19,67 @@
   <img src="apps/web/public/brand/hypofit-social-1200x630.png" alt="Hypofit 서비스 소개 이미지" width="100%" />
 </p>
 
+<p align="center">
+  <a href="https://apps.apple.com/kr/app/%ED%95%98%EC%9D%B4%ED%8F%AC%ED%95%8F/id6775675046">
+    <img src="apps/web/public/brand/download-on-app-store.svg" alt="App Store에서 하이포핏 다운로드" height="52" />
+  </a>
+</p>
+
+<p align="center">
+  iPhone에서 지금 이용할 수 있습니다. Android 앱은 Google Play 출시를 준비하고 있습니다.
+</p>
+
+## 앱 미리보기
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/assets/readme/app-screens/home.jpg" alt="최근 인터뷰와 진행 상황을 확인하는 하이포핏 홈 화면" width="250" />
+      <br />
+      <strong>홈</strong>
+      <br />
+      <sub>내 진행 상황과 최근 인터뷰를 한눈에 확인합니다.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/assets/readme/app-screens/interviews.jpg" alt="인터뷰 모집글을 검색하고 필터링하는 하이포핏 인터뷰 화면" width="250" />
+      <br />
+      <strong>인터뷰 찾기</strong>
+      <br />
+      <sub>타깃, 지역과 조건에 맞는 인터뷰를 탐색합니다.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/assets/readme/app-screens/map.jpg" alt="현재 위치 주변의 대면 인터뷰를 보여주는 하이포핏 지도 화면" width="250" />
+      <br />
+      <strong>지도 탐색</strong>
+      <br />
+      <sub>현재 위치 주변의 대면 인터뷰를 지도에서 비교합니다.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/assets/readme/app-screens/interview-detail.jpg" alt="사례비와 일정, 모집자 정보를 확인하는 하이포핏 인터뷰 상세 화면" width="250" />
+      <br />
+      <strong>인터뷰 상세</strong>
+      <br />
+      <sub>사례비, 일정, 방식과 모집자 정보를 지원 전에 확인합니다.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/assets/readme/app-screens/chat.jpg" alt="선정 이후 일정과 방식을 조율하는 하이포핏 채팅 화면" width="250" />
+      <br />
+      <strong>채팅으로 조율</strong>
+      <br />
+      <sub>선정 이후 일정과 진행 방식을 대화로 맞춥니다.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/assets/readme/app-screens/profile.jpg" alt="계정과 역할, 알림과 지원 기능을 관리하는 하이포핏 프로필 화면" width="250" />
+      <br />
+      <strong>프로필과 설정</strong>
+      <br />
+      <sub>계정, 역할, 알림, 문의와 안전 기능을 관리합니다.</sub>
+    </td>
+  </tr>
+</table>
+
 ## 고객을 만나야 가설을 검증할 수 있습니다
 
 예비 창업자와 초기 창업팀은 제품을 만들기 전에 실제 고객의 문제와 행동을 확인해야 합니다.

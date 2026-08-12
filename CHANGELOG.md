@@ -15,6 +15,8 @@ Hypofit.
   local development, architecture, and contribution guidance by purpose.
 - Added a development-document index and aligned local API examples with the
   current Spring Boot runtime.
+- Added real App Store product screenshots and a linked official App Store
+  download badge to the service-focused README.
 
 ## Historical release note
 
