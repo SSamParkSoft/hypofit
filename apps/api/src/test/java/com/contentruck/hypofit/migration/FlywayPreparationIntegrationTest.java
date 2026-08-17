@@ -10,14 +10,14 @@ import org.testcontainers.containers.PostgreSQLContainer;
 class FlywayPreparationIntegrationTest {
 
     @Test
-    void cleanDatabaseIsCreatedFromVersion24Baseline() {
+    void cleanDatabaseIsCreatedFromVersion25Baseline() {
         try (PostgreSQLContainer<?> postgres = FlywayMigrationTestSupport.startPostgres()) {
             Flyway flyway = FlywayMigrationTestSupport.configureFlyway(postgres);
             MigrateResult migrateResult = flyway.migrate();
 
             assertThat(migrateResult.success).isTrue();
             assertThat(FlywayMigrationTestSupport.appliedVersions(flyway))
-                    .containsExactly("24");
+                    .containsExactly("25");
         }
     }
 
@@ -31,7 +31,7 @@ class FlywayPreparationIntegrationTest {
             assertThat(secondResult.success).isTrue();
             assertThat(secondResult.migrationsExecuted).isZero();
             assertThat(FlywayMigrationTestSupport.appliedVersions(flyway))
-                    .containsExactly("24");
+                    .containsExactly("25");
         }
     }
 }
