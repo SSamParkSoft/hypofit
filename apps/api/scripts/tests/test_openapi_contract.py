@@ -216,7 +216,7 @@ class OpenApiContractNormalizationTest(unittest.TestCase):
             ["application/json"],
         )
 
-    def test_strips_fastapi_generated_http_validation_422_responses(self) -> None:
+    def test_strips_framework_generated_http_validation_422_responses(self) -> None:
         document = {
             "openapi": "3.1.0",
             "paths": {

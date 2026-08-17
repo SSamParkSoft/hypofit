@@ -11,8 +11,28 @@ The canonical Hypofit backend is a Java 21 Spring Boot application.
 - one API container on Amazon Lightsail, including the exclusive push loop
 
 The API preserves the public `/api/v1` contract, standard error envelope,
-`X-Request-ID`, ownership checks, and domain state transitions established
-during the retired FastAPI implementation.
+`X-Request-ID`, ownership checks, and domain state transitions recorded by the
+frozen compatibility baseline.
+
+## Source Layout
+
+Product code is grouped by feature. Each feature uses the smallest applicable
+set of familiar Spring packages:
+
+```text
+feature/
+  controller/
+  dto/
+  service/
+  repository/
+  entity/
+  client/       # only for external providers
+```
+
+Services own business rules and transactions. Controllers remain transport
+adapters, repositories remain database-focused, and `common` contains only
+cross-cutting configuration, security, errors, and observability. Do not add
+DDD or hexagonal layers unless a concrete requirement justifies them.
 
 ## Local Development
 

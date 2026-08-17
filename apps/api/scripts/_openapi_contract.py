@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -413,7 +412,7 @@ def _normalize_responses_dict(
 ) -> dict[str, Any]:
     normalized_dict: dict[str, Any] = {}
     for key in sorted(value.keys()):
-        if key == "422" and _is_fastapi_validation_response(value[key], context):
+        if key == "422" and _is_framework_validation_response(value[key], context):
             continue
         if _should_strip_key(path, key):
             continue
@@ -562,7 +561,7 @@ def _is_integral_numeric_constraint(path: tuple[str, ...], value: float) -> bool
     }
 
 
-def _is_fastapi_validation_response(value: Any, context: dict[str, Any]) -> bool:
+def _is_framework_validation_response(value: Any, context: dict[str, Any]) -> bool:
     response_value = value
     ref = value.get("$ref") if isinstance(value, dict) else None
     if isinstance(ref, str):
@@ -677,13 +676,3 @@ def _is_object_schema(value: dict[str, Any]) -> bool:
 
 def _stable_json_key(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def import_fastapi_openapi() -> dict[str, Any]:
-    api_root = repo_root() / "apps" / "api"
-    if str(api_root) not in sys.path:
-        sys.path.insert(0, str(api_root))
-    from app.main import create_app  # pylint: disable=import-outside-toplevel
-
-    app = create_app()
-    return app.openapi()

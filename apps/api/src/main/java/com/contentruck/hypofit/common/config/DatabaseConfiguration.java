@@ -16,7 +16,8 @@ public class DatabaseConfiguration {
     DataSource dataSource(
             HypofitProperties properties,
             @Value("${spring.datasource.hikari.maximum-pool-size:10}") int maximumPoolSize,
-            @Value("${spring.datasource.hikari.minimum-idle:10}") int minimumIdle
+            @Value("${spring.datasource.hikari.minimum-idle:10}") int minimumIdle,
+            @Value("${spring.datasource.hikari.initialization-fail-timeout:0}") long initializationFailTimeout
     ) {
         DatabaseUrlComponents components = DatabaseUrlComponents.parse(properties.getDatabaseUrl());
         HikariDataSource dataSource = new HikariDataSource();
@@ -27,7 +28,7 @@ public class DatabaseConfiguration {
         if (StringUtils.hasText(components.password())) {
             dataSource.setPassword(components.password());
         }
-        dataSource.setInitializationFailTimeout(0);
+        dataSource.setInitializationFailTimeout(initializationFailTimeout);
         dataSource.setMaximumPoolSize(maximumPoolSize);
         dataSource.setMinimumIdle(minimumIdle);
         dataSource.setPoolName("hypofit-api");

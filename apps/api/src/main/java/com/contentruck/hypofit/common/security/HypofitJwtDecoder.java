@@ -2,6 +2,7 @@ package com.contentruck.hypofit.common.security;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -72,7 +73,25 @@ public class HypofitJwtDecoder implements JwtDecoder {
                     new OAuth2Error("invalid_token", "Missing required audience", null)
             );
         };
-        return new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefault(), withAudience);
+        OAuth2TokenValidator<Jwt> withUserIdSubject = jwt -> {
+            try {
+                UUID.fromString(jwt.getSubject());
+                return OAuth2TokenValidatorResult.success();
+            } catch (IllegalArgumentException | NullPointerException exception) {
+                return OAuth2TokenValidatorResult.failure(
+                        new OAuth2Error("invalid_token", "Invalid user subject", null)
+                );
+            }
+        };
+        String issuer = properties.getResolvedSupabaseJwtIssuer();
+        OAuth2TokenValidator<Jwt> standardValidators = StringUtils.hasText(issuer)
+                ? JwtValidators.createDefaultWithIssuer(issuer)
+                : JwtValidators.createDefault();
+        return new DelegatingOAuth2TokenValidator<>(
+                standardValidators,
+                withAudience,
+                withUserIdSubject
+        );
     }
 
 }

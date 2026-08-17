@@ -1,8 +1,7 @@
 # API Contract Tooling
 
-This directory retains the reviewed API surface from the retired FastAPI
-implementation as a frozen compatibility baseline for the canonical Spring
-API.
+This directory retains the reviewed pre-Spring API surface as a frozen
+compatibility baseline for the canonical Spring API.
 
 Tracked files:
 

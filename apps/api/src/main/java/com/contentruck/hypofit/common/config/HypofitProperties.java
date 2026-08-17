@@ -19,6 +19,7 @@ public class HypofitProperties {
     private String supabaseServiceRoleKey = "";
     private String supabaseJwtSecret = "";
     private String supabaseJwksUrl = "";
+    private String supabaseJwtIssuer = "";
     private int supabaseJwksCacheSeconds = 300;
     private String jwtAudience = "authenticated";
     private String kakaoRestApiKey = "";
@@ -99,6 +100,14 @@ public class HypofitProperties {
 
     public void setSupabaseJwksUrl(String supabaseJwksUrl) {
         this.supabaseJwksUrl = supabaseJwksUrl;
+    }
+
+    public String getSupabaseJwtIssuer() {
+        return supabaseJwtIssuer;
+    }
+
+    public void setSupabaseJwtIssuer(String supabaseJwtIssuer) {
+        this.supabaseJwtIssuer = supabaseJwtIssuer;
     }
 
     public int getSupabaseJwksCacheSeconds() {
@@ -245,6 +254,16 @@ public class HypofitProperties {
             return "";
         }
         return supabaseUrl.replaceAll("/+$", "") + "/auth/v1/.well-known/jwks.json";
+    }
+
+    public String getResolvedSupabaseJwtIssuer() {
+        if (StringUtils.hasText(supabaseJwtIssuer)) {
+            return supabaseJwtIssuer.trim().replaceAll("/+$", "");
+        }
+        if (!StringUtils.hasText(supabaseUrl)) {
+            return "";
+        }
+        return supabaseUrl.trim().replaceAll("/+$", "") + "/auth/v1";
     }
 
     public Map<String, Object> outboundEmailReadiness() {

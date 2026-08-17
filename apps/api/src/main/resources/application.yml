@@ -1,6 +1,9 @@
 spring:
   application:
     name: hypofit-api
+  threads:
+    virtual:
+      enabled: false
   mvc:
     problemdetails:
       enabled: false
@@ -52,6 +55,7 @@ hypofit:
   supabase-service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
   supabase-jwt-secret: ${SUPABASE_JWT_SECRET:}
   supabase-jwks-url: ${SUPABASE_JWKS_URL:}
+  supabase-jwt-issuer: ${SUPABASE_JWT_ISSUER:}
   supabase-jwks-cache-seconds: ${SUPABASE_JWKS_CACHE_SECONDS:300}
   jwt-audience: ${JWT_AUDIENCE:authenticated}
   kakao-rest-api-key: ${KAKAO_REST_API_KEY:}
@@ -59,6 +63,9 @@ hypofit:
   resend-api-key: ${RESEND_API_KEY:}
   resend-from-email: ${RESEND_FROM_EMAIL:}
   account-deletion-hash-pepper: ${ACCOUNT_DELETION_HASH_PEPPER:}
+  http:
+    connect-timeout: ${HTTP_CONNECT_TIMEOUT:5s}
+    read-timeout: ${HTTP_READ_TIMEOUT:10s}
   apple-sign-in:
     app-id: ${APPLE_SIGN_IN_APP_ID:}
     jwks-url: ${APPLE_SIGN_IN_JWKS_URL:https://appleid.apple.com/auth/keys}

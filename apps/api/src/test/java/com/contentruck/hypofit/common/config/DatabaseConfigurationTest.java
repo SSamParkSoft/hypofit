@@ -13,7 +13,7 @@ class DatabaseConfigurationTest {
         properties.setDatabaseUrl("postgresql://user:password@127.0.0.1:5432/hypofit");
 
         try (HikariDataSource dataSource = (HikariDataSource) new DatabaseConfiguration()
-                .dataSource(properties, 3, 1)) {
+                .dataSource(properties, 3, 1, 0)) {
             assertThat(dataSource.getMaximumPoolSize()).isEqualTo(3);
             assertThat(dataSource.getMinimumIdle()).isEqualTo(1);
         }

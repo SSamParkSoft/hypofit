@@ -1,0 +1,73 @@
+package com.contentruck.hypofit.applicant.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "app_users")
+public class UserRecordEntity {
+
+    @Id
+    @Column(name = "id", nullable = false)
+    private UUID id;
+
+    @Column(name = "email", nullable = false, length = 320)
+    private String email;
+
+    @Column(name = "name", nullable = false, length = 100)
+    private String name;
+
+    @Column(name = "bio", length = 120)
+    private String bio;
+
+    @Column(name = "role", nullable = false, length = 30)
+    private String role;
+
+    @Column(name = "profile_image_url", length = 1000)
+    private String profileImageUrl;
+
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
+
+    @Column(name = "deactivated_at")
+    private OffsetDateTime deactivatedAt;
+
+    protected UserRecordEntity() {
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public OffsetDateTime getDeactivatedAt() {
+        return deactivatedAt;
+    }
+}

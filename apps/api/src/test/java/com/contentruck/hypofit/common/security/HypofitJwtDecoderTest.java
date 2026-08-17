@@ -26,6 +26,7 @@ class HypofitJwtDecoderTest {
     private static final String AUDIENCE = "authenticated";
     private static final String SIGNING_SECRET = "test-secret-test-secret-test-secret-1234";
     private static final String DIFFERENT_SECRET = "different-secret-different-secret-123";
+    private static final String USER_ID = "11111111-1111-1111-1111-111111111111";
     private static final Instant VALID_ISSUED_AT = Instant.parse("2030-08-04T02:59:00Z");
     private static final Instant VALID_EXPIRES_AT = Instant.parse("2030-08-04T03:10:00Z");
     private static final Instant EXPIRED_ISSUED_AT = Instant.parse("2020-08-04T02:00:00Z");
@@ -42,7 +43,7 @@ class HypofitJwtDecoderTest {
                 VALID_EXPIRES_AT
         ));
 
-        assertEquals("user-123", decoded.getSubject());
+        assertEquals(USER_ID, decoded.getSubject());
         assertEquals(List.of(AUDIENCE), decoded.getAudience());
         assertEquals("authenticated", decoded.getClaimAsString("role"));
     }
@@ -104,6 +105,48 @@ class HypofitJwtDecoderTest {
     }
 
     @Test
+    void rejectsTokenWhoseSubjectIsNotAUserId() throws Exception {
+        HypofitJwtDecoder decoder = new HypofitJwtDecoder(propertiesWithSecret(SIGNING_SECRET));
+
+        JwtValidationException exception = assertThrows(
+                JwtValidationException.class,
+                () -> decoder.decode(token(
+                        SIGNING_SECRET,
+                        List.of(AUDIENCE),
+                        VALID_ISSUED_AT,
+                        VALID_EXPIRES_AT,
+                        "not-a-uuid"
+                ))
+        );
+
+        assertTrue(exception.getErrors().stream()
+                .map(error -> error.getDescription())
+                .anyMatch("Invalid user subject"::equals));
+    }
+
+    @Test
+    void rejectsTokenFromUnexpectedIssuer() throws Exception {
+        HypofitJwtDecoder decoder = new HypofitJwtDecoder(propertiesWithSecret(SIGNING_SECRET));
+
+        JwtValidationException exception = assertThrows(
+                JwtValidationException.class,
+                () -> decoder.decode(token(
+                        SIGNING_SECRET,
+                        List.of(AUDIENCE),
+                        VALID_ISSUED_AT,
+                        VALID_EXPIRES_AT,
+                        USER_ID,
+                        "https://other-project.supabase.co/auth/v1"
+                ))
+        );
+
+        assertTrue(exception.getErrors().stream()
+                .map(error -> error.getDescription())
+                .filter(description -> description != null)
+                .anyMatch(description -> description.toLowerCase(java.util.Locale.ROOT).contains("iss")));
+    }
+
+    @Test
     void failsFastWhenNoJwtVerificationConfigurationExists() {
         HypofitProperties properties = new HypofitProperties();
         properties.setJwtAudience(AUDIENCE);
@@ -118,6 +161,7 @@ class HypofitJwtDecoderTest {
         HypofitProperties properties = new HypofitProperties();
         properties.setJwtAudience(AUDIENCE);
         properties.setSupabaseJwtSecret(secret);
+        properties.setSupabaseJwtIssuer("https://hypofit.supabase.test/auth/v1");
         return properties;
     }
 
@@ -127,12 +171,40 @@ class HypofitJwtDecoderTest {
             Instant issuedAt,
             Instant expiresAt
     ) throws JOSEException {
+        return token(signingSecret, audience, issuedAt, expiresAt, USER_ID);
+    }
+
+    private String token(
+            String signingSecret,
+            List<String> audience,
+            Instant issuedAt,
+            Instant expiresAt,
+            String subject
+    ) throws JOSEException {
+        return token(
+                signingSecret,
+                audience,
+                issuedAt,
+                expiresAt,
+                subject,
+                "https://hypofit.supabase.test/auth/v1"
+        );
+    }
+
+    private String token(
+            String signingSecret,
+            List<String> audience,
+            Instant issuedAt,
+            Instant expiresAt,
+            String subject,
+            String issuer
+    ) throws JOSEException {
         SignedJWT signedJwt = new SignedJWT(
                 new JWSHeader(JWSAlgorithm.HS256),
                 new JWTClaimsSet.Builder()
-                        .subject("user-123")
+                        .subject(subject)
                         .audience(audience)
-                        .issuer("https://hypofit.supabase.test/auth/v1")
+                        .issuer(issuer)
                         .issueTime(Date.from(issuedAt))
                         .expirationTime(Date.from(expiresAt))
                         .claim("role", "authenticated")

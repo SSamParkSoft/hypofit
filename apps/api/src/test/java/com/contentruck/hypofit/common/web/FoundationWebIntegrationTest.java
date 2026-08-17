@@ -1,5 +1,6 @@
 package com.contentruck.hypofit.common.web;
 
+
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Map;
@@ -218,7 +219,7 @@ class FoundationWebIntegrationTest {
         SignedJWT jwt = new SignedJWT(
                 new JWSHeader(JWSAlgorithm.HS256),
                 new JWTClaimsSet.Builder()
-                        .subject("expired-user")
+                        .subject("25c2fd5d-12ab-4b31-b50d-8cd4f9321e54")
                         .audience("authenticated")
                         .expirationTime(java.util.Date.from(Instant.now().minusSeconds(60)))
                         .build()

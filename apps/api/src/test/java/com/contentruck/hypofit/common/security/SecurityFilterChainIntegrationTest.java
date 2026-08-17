@@ -66,6 +66,7 @@ class SecurityFilterChainIntegrationTest {
 
     private static final String SIGNING_SECRET = "test-secret-test-secret-test-secret-1234";
     private static final String AUDIENCE = "authenticated";
+    private static final String USER_ID = "b6fba951-155d-4597-a9a3-156a7ebcc8b1";
     private static final Instant VALID_ISSUED_AT = Instant.parse("2030-08-04T02:59:00Z");
     private static final Instant VALID_EXPIRES_AT = Instant.parse("2030-08-04T03:10:00Z");
     private static final Instant EXPIRED_ISSUED_AT = Instant.parse("2020-08-04T02:00:00Z");
@@ -117,7 +118,7 @@ class SecurityFilterChainIntegrationTest {
                         )))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.route").value("private"))
-                .andExpect(jsonPath("$.subject").value("user-123"));
+                .andExpect(jsonPath("$.subject").value(USER_ID));
     }
 
     @Test
@@ -207,7 +208,7 @@ class SecurityFilterChainIntegrationTest {
         SignedJWT signedJwt = new SignedJWT(
                 new JWSHeader(JWSAlgorithm.HS256),
                 new JWTClaimsSet.Builder()
-                        .subject("user-123")
+                        .subject(USER_ID)
                         .audience(audience)
                         .issuer("https://hypofit.supabase.test/auth/v1")
                         .issueTime(Date.from(issuedAt))

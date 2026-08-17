@@ -1,7 +1,7 @@
 package com.contentruck.hypofit.push.worker;
 
 import com.contentruck.hypofit.common.config.HypofitProperties;
-import com.contentruck.hypofit.push.application.PushDispatchService;
+import com.contentruck.hypofit.push.service.PushDispatchService;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -28,7 +28,6 @@ public class PushWorkerCoordinator implements SmartLifecycle {
 
     private volatile boolean running;
     private volatile Thread workerThread;
-    private Connection leaseConnection;
 
     public PushWorkerCoordinator(
             PushDispatchService dispatchService,
@@ -64,7 +63,6 @@ public class PushWorkerCoordinator implements SmartLifecycle {
                 Thread.currentThread().interrupt();
             }
         }
-        releaseLease();
         workerThread = null;
     }
 
@@ -79,13 +77,21 @@ public class PushWorkerCoordinator implements SmartLifecycle {
     }
 
     boolean runOnce() {
-        if (!ensureLease()) {
-            return false;
+        try (Connection connection = dataSource.getConnection()) {
+            if (!tryAcquireLease(connection)) {
+                return false;
+            }
+            try {
+                PushDispatchService.PushDispatchResult result = dispatchService.dispatchPendingDeliveries(
+                        properties.getPush().getPushWorkerBatchSize()
+                );
+                return result.processed() > 0;
+            } finally {
+                releaseLease(connection);
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not acquire the push worker lease", exception);
         }
-        PushDispatchService.PushDispatchResult result = dispatchService.dispatchPendingDeliveries(
-                properties.getPush().getPushWorkerBatchSize()
-        );
-        return result.processed() > 0;
     }
 
     private void runLoop() {
@@ -97,53 +103,26 @@ public class PushWorkerCoordinator implements SmartLifecycle {
                         : properties.getPush().getPushWorkerIdleSleepSeconds());
             } catch (RuntimeException exception) {
                 logger.error("push_worker_iteration_failed", exception);
-                releaseLease();
                 sleepSeconds(properties.getPush().getPushWorkerErrorSleepSeconds());
             }
         }
-        releaseLease();
     }
 
-    private synchronized boolean ensureLease() {
-        try {
-            if (leaseConnection != null && leaseConnection.isValid(2)) {
-                return true;
+    private boolean tryAcquireLease(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("select pg_try_advisory_lock(?)")) {
+            statement.setLong(1, WORKER_LOCK_ID);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() && resultSet.getBoolean(1);
             }
-            releaseLease();
-            Connection candidate = dataSource.getConnection();
-            boolean leaseAcquired = false;
-            try (PreparedStatement statement = candidate.prepareStatement("select pg_try_advisory_lock(?)")) {
-                statement.setLong(1, WORKER_LOCK_ID);
-                try (ResultSet resultSet = statement.executeQuery()) {
-                    if (resultSet.next() && resultSet.getBoolean(1)) {
-                        leaseConnection = candidate;
-                        leaseAcquired = true;
-                        logger.info("push_worker_lease_acquired");
-                        return true;
-                    }
-                }
-            } finally {
-                if (!leaseAcquired) {
-                    candidate.close();
-                }
-            }
-            return false;
-        } catch (SQLException exception) {
-            releaseLease();
-            throw new IllegalStateException("Could not acquire the push worker lease", exception);
         }
     }
 
-    private synchronized void releaseLease() {
-        if (leaseConnection == null) {
-            return;
-        }
-        try {
-            leaseConnection.close();
+    private void releaseLease(Connection connection) {
+        try (PreparedStatement statement = connection.prepareStatement("select pg_advisory_unlock(?)")) {
+            statement.setLong(1, WORKER_LOCK_ID);
+            statement.execute();
         } catch (SQLException exception) {
             logger.warn("push_worker_lease_release_failed", exception);
-        } finally {
-            leaseConnection = null;
         }
     }
 
