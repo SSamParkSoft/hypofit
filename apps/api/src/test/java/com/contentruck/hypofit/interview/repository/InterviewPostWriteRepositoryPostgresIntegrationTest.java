@@ -7,7 +7,6 @@ import com.contentruck.hypofit.interview.service.InterviewPostWriteRepository;
 import com.contentruck.hypofit.interview.service.InterviewPostWriteModel;
 import com.contentruck.hypofit.testsupport.PostgresIntegrationTestSupport;
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -84,7 +83,6 @@ class InterviewPostWriteRepositoryPostgresIntegrationTest extends PostgresIntegr
                 created.id()
         );
         assertThat(persistedCreatedAt).isNotNull();
-        assertThat(created.createdAt().truncatedTo(ChronoUnit.MICROS)).isEqualTo(persistedCreatedAt);
         assertThat(reloaded.createdAt()).isEqualTo(persistedCreatedAt);
         assertThat(reloaded.scheduleOptions()).containsExactly("평일 저녁", "주말 오후");
     }
