@@ -501,8 +501,8 @@ Frontend deployment rules:
   `COREPACK_HOME=/Users/sehyeon/hypofit/.corepack corepack pnpm --dir apps/web build`.
 - After an explicit web deployment, verify the Vercel production deployment
   reaches `Ready` and that the canonical domain `https://hypofit.bukae.co.kr`
-  points at the intended deployment. Keep `https://hypofit.vercel.app` only as
-  a compatibility deployment URL, not as the canonical public URL.
+  points at the intended deployment. Keep `https://hypofit-web.vercel.app`
+  only as a compatibility deployment URL, not as the canonical public URL.
 - Vite `VITE_` environment variables are build-time values. If Vercel environment variables change, trigger a new deployment after the env update.
 - Browser-exposed values such as `VITE_KAKAO_MAP_APP_KEY` may be present in Vercel frontend env, but backend secrets such as Supabase service role keys must never be added to frontend env.
 

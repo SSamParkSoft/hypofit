@@ -60,9 +60,9 @@ Flyway is the only schema migration authority.
 
 ## Web Deployment
 
-`apps/web` deploys to Vercel. Git auto-deploy is intentionally disabled in
-`apps/web/vercel.json`; pushing GitHub source does not release the web app.
-Deploy only when explicitly requested.
+`apps/web` deploys to the Vercel project `hypofit-web`. Git auto-deploy is
+intentionally disabled in `apps/web/vercel.json`; pushing GitHub source does
+not release the web app. Deploy only when explicitly requested.
 
 Before deployment:
 
@@ -72,6 +72,8 @@ COREPACK_HOME=/Users/sehyeon/hypofit/.corepack \
 ```
 
 Canonical public web domain: `https://hypofit.bukae.co.kr`.
+
+Compatibility deployment URL: `https://hypofit-web.vercel.app`.
 
 Browser-exposed `VITE_*` values may include public API, Supabase anon, and
 Kakao JavaScript keys. Never put database passwords or service-role keys in

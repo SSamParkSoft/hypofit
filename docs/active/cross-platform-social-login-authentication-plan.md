@@ -271,7 +271,7 @@ provider console
   Supabase callback을 사용한다.
 - Supabase Redirect URLs에는 Hypofit이 최종 복귀할 web/local/native URL을
   exact URL로 등록한다.
-- `https://hypofit.vercel.app/auth/social/callback`은 기존 Vercel 도메인을 실제
+- `https://hypofit-web.vercel.app/auth/social/callback`은 Vercel 도메인을 실제
   fallback으로 유지할 때만 남긴다. 신규 기준 도메인은
   `https://hypofit.bukae.co.kr`이다.
 - 현재 모바일 release 계약은 Expo `scheme: hypofit`을 사용하는 custom
