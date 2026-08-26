@@ -79,6 +79,24 @@ hypofit:
   social-auth-google-state: ${SOCIAL_AUTH_GOOGLE_STATE:disabled}
   social-auth-kakao-state: ${SOCIAL_AUTH_KAKAO_STATE:disabled}
   social-auth-naver-state: ${SOCIAL_AUTH_NAVER_STATE:disabled}
+  survey-recruitment-creation-enabled: ${SURVEY_RECRUITMENT_CREATION_ENABLED:false}
+  beta-test-recruitment-creation-enabled: ${BETA_TEST_RECRUITMENT_CREATION_ENABLED:false}
+  extended-recruitment-creation-enabled: ${EXTENDED_RECRUITMENT_CREATION_ENABLED:false}
+  ai-summary-enabled: ${AI_SUMMARY_ENABLED:false}
+  ai-interview-summary-enabled: ${AI_INTERVIEW_SUMMARY_ENABLED:false}
+  ai-applicant-summary-enabled: ${AI_APPLICANT_SUMMARY_ENABLED:false}
+  ai-summary-worker-enabled: ${AI_SUMMARY_WORKER_ENABLED:false}
+  ai-summary-provider: ${AI_SUMMARY_PROVIDER:disabled}
+  ai-summary-model: ${AI_SUMMARY_MODEL:}
+  ai-summary-timeout-seconds: ${AI_SUMMARY_TIMEOUT_SECONDS:30}
+  ai-summary-worker-batch-size: ${AI_SUMMARY_WORKER_BATCH_SIZE:5}
+  ai-summary-worker-active-sleep-seconds: ${AI_SUMMARY_WORKER_ACTIVE_SLEEP_SECONDS:2.0}
+  ai-summary-worker-idle-sleep-seconds: ${AI_SUMMARY_WORKER_IDLE_SLEEP_SECONDS:20.0}
+  ai-summary-worker-error-sleep-seconds: ${AI_SUMMARY_WORKER_ERROR_SLEEP_SECONDS:30.0}
+  ai-summary-processing-timeout-seconds: ${AI_SUMMARY_PROCESSING_TIMEOUT_SECONDS:300}
+  ai-summary-max-attempts: ${AI_SUMMARY_MAX_ATTEMPTS:3}
+  gemini-api-key: ${GEMINI_API_KEY:${AI_SUMMARY_API_KEY:}}
+  gemini-api-base-url: ${GEMINI_API_BASE_URL:https://generativelanguage.googleapis.com}
   push:
     enabled: ${PUSH_ENABLED:false}
     push-worker-enabled: ${PUSH_WORKER_ENABLED:false}

@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.OffsetDateTime;
 import java.util.List;
+import com.contentruck.hypofit.interview.service.PostingCompensation;
 
 @Schema(hidden = true)
 public record InterviewPostCreateRequest(Object rawBody) {
@@ -16,6 +18,11 @@ public record InterviewPostCreateRequest(Object rawBody) {
 
     @Schema(name = "InterviewPostCreate")
     public record OpenApiSchema(
+            @JsonProperty("recruitment_type")
+            @Schema(defaultValue = "interview", allowableValues = {
+                    "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
+            })
+            String recruitmentType,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minLength = 2, maxLength = 120)
             String title,
             @JsonProperty("service_summary")
@@ -27,6 +34,7 @@ public record InterviewPostCreateRequest(Object rawBody) {
             @JsonProperty("reward_amount")
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "0")
             Integer rewardAmount,
+            List<PostingCompensation> compensations,
             @JsonProperty("duration_minutes")
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "10", maximum = "240")
             Integer durationMinutes,
@@ -34,8 +42,29 @@ public record InterviewPostCreateRequest(Object rawBody) {
             @Schema(defaultValue = "0", minimum = "0", maximum = "999")
             Integer recruitCount,
             @JsonProperty("interview_mode")
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"offline", "online", "both"})
+            @Schema(nullable = true, allowableValues = {"offline", "online", "both"})
             String interviewMode,
+            @JsonProperty("external_provider")
+            @Schema(nullable = true, allowableValues = {"google_forms"})
+            String externalProvider,
+            @JsonProperty("external_url")
+            @Schema(nullable = true, maxLength = 2000)
+            String externalUrl,
+            @JsonProperty("participation_deadline_at")
+            @Schema(nullable = true)
+            OffsetDateTime participationDeadlineAt,
+            @JsonProperty("external_data_notice")
+            @Schema(nullable = true, maxLength = 2000)
+            String externalDataNotice,
+            @JsonProperty("beta_test_platforms")
+            @ArraySchema(schema = @Schema(type = "string"))
+            List<String> betaTestPlatforms,
+            @JsonProperty("beta_test_starts_at")
+            @Schema(nullable = true)
+            OffsetDateTime betaTestStartsAt,
+            @JsonProperty("beta_test_ends_at")
+            @Schema(nullable = true)
+            OffsetDateTime betaTestEndsAt,
             @Schema(nullable = true)
             String location,
             @JsonProperty("location_text")

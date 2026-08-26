@@ -8,6 +8,7 @@ public record ApplicationWorkflowContext(
         UUID applicationId,
         UUID interviewPostId,
         String interviewTitle,
+        String recruitmentType,
         UUID founderId,
         UUID respondentId,
         Map<String, String> answers,

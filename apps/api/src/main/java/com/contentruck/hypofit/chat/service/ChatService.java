@@ -5,7 +5,6 @@ import com.contentruck.hypofit.chat.entity.ChatMessageEntity;
 import com.contentruck.hypofit.chat.entity.ChatRoomEntity;
 import com.contentruck.hypofit.chat.entity.ChatRoomParticipantSettingEntity;
 import com.contentruck.hypofit.notification.service.NotificationWriteService;
-import com.contentruck.hypofit.session.service.SessionReadModels;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Comparator;
@@ -33,20 +32,26 @@ public class ChatService {
     private static final String SESSION_FINALIZED_DETAIL = "Interview session is finalized";
 
     private final ChatRepository chatRepository;
+    private final ChatMessageRepository chatMessageRepository;
+    private final ChatWorkflowQueryRepository workflowQueryRepository;
     private final NotificationWriteService notificationWriteService;
 
     public ChatService(
             ChatRepository chatRepository,
+            ChatMessageRepository chatMessageRepository,
+            ChatWorkflowQueryRepository workflowQueryRepository,
             NotificationWriteService notificationWriteService
     ) {
         this.chatRepository = chatRepository;
+        this.chatMessageRepository = chatMessageRepository;
+        this.workflowQueryRepository = workflowQueryRepository;
         this.notificationWriteService = notificationWriteService;
     }
 
     @Transactional(readOnly = true)
     public List<ChatRoomReadModel> listRooms(UUID currentUserId) {
         ChatRepository.CurrentUserAccountRecord currentUser = requireCurrentUser(currentUserId);
-        return chatRepository.findRoomsForUser(currentUserId, currentUser.role())
+        return chatRepository.findRoomsForUser(currentUserId)
                 .stream()
                 .map(this::maskHiddenLastMessage)
                 .sorted(Comparator
@@ -72,7 +77,7 @@ public class ChatService {
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         ensureRoomAccess(room.getFounderId(), room.getRespondentId(), currentUserId);
 
-        ChatRepository.ChatRoomWorkflowContextRecord context = chatRepository.findRoomWorkflowContext(roomId)
+        ChatWorkflowQueryRepository.ChatRoomWorkflowContextRecord context = workflowQueryRepository.findRoomWorkflowContext(roomId)
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         if (context.application() == null || context.interviewPostId() == null) {
             return closedWorkflow("진행 상태를 확인할 수 없어요");
@@ -80,7 +85,7 @@ public class ChatService {
 
         String actorRole = Objects.equals(room.getFounderId(), currentUserId) ? "founder" : "respondent";
         String applicationStatus = context.application().status();
-        SessionReadModels.InterviewSessionReadModel latestSession = context.latestSession();
+        ChatWorkflowModels.InterviewSessionReadModel latestSession = context.latestSession();
 
         if ("applied".equals(applicationStatus) && "founder".equals(actorRole)) {
             return new ChatWorkflowReadModel(
@@ -146,12 +151,12 @@ public class ChatService {
             return closedWorkflow("진행 중인 인터뷰가 없어요");
         }
 
-        SessionReadModels.AttendanceRecordReadModel attendance = chatRepository.findAttendanceRecord(latestSession.id())
+        ChatWorkflowModels.AttendanceRecordReadModel attendance = workflowQueryRepository.findAttendanceRecord(latestSession.id())
                 .orElse(null);
-        SessionReadModels.RewardConfirmationReadModel reward = chatRepository.findRewardConfirmation(latestSession.id())
+        ChatWorkflowModels.RewardConfirmationReadModel reward = workflowQueryRepository.findRewardConfirmation(latestSession.id())
                 .orElse(null);
-        List<SessionReadModels.InterviewReviewReadModel> reviews = chatRepository.findReviews(latestSession.id());
-        SessionReadModels.InterviewReviewReadModel myReview = reviews.stream()
+        List<ChatWorkflowModels.InterviewReviewReadModel> reviews = workflowQueryRepository.findReviews(latestSession.id());
+        ChatWorkflowModels.InterviewReviewReadModel myReview = reviews.stream()
                 .filter(review -> Objects.equals(review.reviewerId(), currentUserId))
                 .findFirst()
                 .orElse(null);
@@ -340,7 +345,7 @@ public class ChatService {
         ChatRoomEntity room = chatRepository.findRoomEntity(roomId)
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         ensureRoomAccess(room.getFounderId(), room.getRespondentId(), currentUserId);
-        return chatRepository.findMessages(roomId, limit, before, beforeId)
+        return chatMessageRepository.findMessages(roomId, limit, before, beforeId)
                 .stream()
                 .filter(message -> isVisibleToUser(message, room, currentUserId))
                 .map(this::maskHiddenMessage)
@@ -371,7 +376,7 @@ public class ChatService {
 
         String normalizedBody = body == null ? null : body.trim();
         if (clientMessageId != null && !clientMessageId.isBlank()) {
-            Optional<ChatMessageEntity> existing = chatRepository.findMessageByClientMessageId(
+            Optional<ChatMessageEntity> existing = chatMessageRepository.findMessageByClientMessageId(
                     roomId,
                     currentUserId,
                     clientMessageId
@@ -381,7 +386,7 @@ public class ChatService {
             }
         }
 
-        ChatRepository.CreateUserMessageResult creation = chatRepository.createUserMessage(
+        ChatMessageRepository.CreateUserMessageResult creation = chatMessageRepository.createUserMessage(
                 room,
                 currentUserId,
                 normalizedBody,
@@ -450,7 +455,7 @@ public class ChatService {
 
         OffsetDateTime readAt = OffsetDateTime.now(ZoneOffset.UTC);
         if (lastReadMessageId != null) {
-            ChatMessageEntity message = chatRepository.findMessage(roomId, lastReadMessageId)
+            ChatMessageEntity message = chatMessageRepository.findMessage(roomId, lastReadMessageId)
                     .orElseThrow(() -> notFound(READ_MARKER_NOT_FOUND_DETAIL));
             if (!isVisibleToUser(toReadModel(message), room, currentUserId)) {
                 throw notFound(READ_MARKER_NOT_FOUND_DETAIL);
@@ -458,7 +463,7 @@ public class ChatService {
             readAt = message.getCreatedAt();
         }
 
-        ChatRoomParticipantSettingEntity setting = chatRepository.markRoomRead(roomId, currentUserId, readAt);
+        ChatRoomParticipantSettingEntity setting = chatMessageRepository.markRoomRead(roomId, currentUserId, readAt);
         return toSettingsModel(setting);
     }
 
@@ -485,13 +490,13 @@ public class ChatService {
             throw conflict(ROOM_CLOSED_DETAIL);
         }
 
-        ChatRepository.ApplicationMessageabilityRecord application = chatRepository.findApplicationMessageability(room.getApplicationId())
+        ChatWorkflowQueryRepository.ApplicationMessageabilityRecord application = workflowQueryRepository.findApplicationMessageability(room.getApplicationId())
                 .orElseThrow(() -> conflict(APPLICATION_NOT_MESSAGEABLE_DETAIL));
         if (!List.of("applied", "selected", "completed").contains(application.status())) {
             throw conflict(APPLICATION_NOT_MESSAGEABLE_DETAIL);
         }
 
-        String latestVisibleSessionStatus = chatRepository.findLatestVisibleSessionStatus(room.getApplicationId()).orElse(null);
+        String latestVisibleSessionStatus = workflowQueryRepository.findLatestVisibleSessionStatus(room.getApplicationId()).orElse(null);
         if ("no_show".equals(latestVisibleSessionStatus)) {
             throw conflict(SESSION_FINALIZED_DETAIL);
         }
@@ -590,10 +595,10 @@ public class ChatService {
     private ChatWorkflowReadModel problemWorkflow(
             String title,
             String description,
-            SessionReadModels.InterviewSessionReadModel session,
-            SessionReadModels.AttendanceRecordReadModel attendance,
-            SessionReadModels.RewardConfirmationReadModel reward,
-            SessionReadModels.InterviewReviewReadModel myReview,
+            ChatWorkflowModels.InterviewSessionReadModel session,
+            ChatWorkflowModels.AttendanceRecordReadModel attendance,
+            ChatWorkflowModels.RewardConfirmationReadModel reward,
+            ChatWorkflowModels.InterviewReviewReadModel myReview,
             boolean counterpartReviewSubmitted
     ) {
         return new ChatWorkflowReadModel(
@@ -614,9 +619,9 @@ public class ChatService {
     private ChatWorkflowReadModel problemWorkflowWithDangerAction(
             String title,
             String description,
-            SessionReadModels.InterviewSessionReadModel session,
-            SessionReadModels.AttendanceRecordReadModel attendance,
-            SessionReadModels.RewardConfirmationReadModel reward,
+            ChatWorkflowModels.InterviewSessionReadModel session,
+            ChatWorkflowModels.AttendanceRecordReadModel attendance,
+            ChatWorkflowModels.RewardConfirmationReadModel reward,
             ChatWorkflowActionReadModel dangerAction,
             boolean counterpartReviewSubmitted
     ) {

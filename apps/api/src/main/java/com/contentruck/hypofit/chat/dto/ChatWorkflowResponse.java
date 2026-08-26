@@ -1,8 +1,8 @@
 package com.contentruck.hypofit.chat.dto;
 
 import com.contentruck.hypofit.chat.service.ChatWorkflowActionReadModel;
+import com.contentruck.hypofit.chat.service.ChatWorkflowModels;
 import com.contentruck.hypofit.chat.service.ChatWorkflowReadModel;
-import com.contentruck.hypofit.session.service.SessionReadModels;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -97,7 +97,7 @@ record ChatWorkflowUserSummaryResponse(
         String role,
         String profileImageUrl
 ) {
-    static ChatWorkflowUserSummaryResponse from(SessionReadModels.UserSummary model) {
+    static ChatWorkflowUserSummaryResponse from(ChatWorkflowModels.UserSummary model) {
         if (model == null) {
             return null;
         }
@@ -122,7 +122,7 @@ record ChatWorkflowApplicationResponse(
         String rejectionReason,
         ChatWorkflowUserSummaryResponse respondent
 ) {
-    static ChatWorkflowApplicationResponse from(SessionReadModels.ApplicationReadModel model) {
+    static ChatWorkflowApplicationResponse from(ChatWorkflowModels.ApplicationReadModel model) {
         if (model == null) {
             return null;
         }
@@ -151,7 +151,7 @@ record ChatWorkflowSessionResponse(
         String status,
         ChatWorkflowApplicationResponse application
 ) {
-    static ChatWorkflowSessionResponse from(SessionReadModels.InterviewSessionReadModel model) {
+    static ChatWorkflowSessionResponse from(ChatWorkflowModels.InterviewSessionReadModel model) {
         if (model == null) {
             return null;
         }
@@ -178,7 +178,7 @@ record ChatWorkflowAttendanceResponse(
         OffsetDateTime completedAt,
         String noShowParty
 ) {
-    static ChatWorkflowAttendanceResponse from(SessionReadModels.AttendanceRecordReadModel model) {
+    static ChatWorkflowAttendanceResponse from(ChatWorkflowModels.AttendanceRecordReadModel model) {
         if (model == null) {
             return null;
         }
@@ -217,7 +217,7 @@ record ChatWorkflowRewardResponse(
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
-    static ChatWorkflowRewardResponse from(SessionReadModels.RewardConfirmationReadModel model) {
+    static ChatWorkflowRewardResponse from(ChatWorkflowModels.RewardConfirmationReadModel model) {
         if (model == null) {
             return null;
         }
@@ -254,7 +254,7 @@ record ChatWorkflowReviewResponse(
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
-    static ChatWorkflowReviewResponse from(SessionReadModels.InterviewReviewReadModel model) {
+    static ChatWorkflowReviewResponse from(ChatWorkflowModels.InterviewReviewReadModel model) {
         if (model == null) {
             return null;
         }

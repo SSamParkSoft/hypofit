@@ -20,6 +20,9 @@ public class InterviewPostRecordEntity {
     @Column(name = "title", nullable = false)
     private String title;
 
+    @Column(name = "recruitment_type", nullable = false, length = 30)
+    private String recruitmentType;
+
     protected InterviewPostRecordEntity() {
     }
 
@@ -33,5 +36,9 @@ public class InterviewPostRecordEntity {
 
     public String getTitle() {
         return title;
+    }
+
+    public String getRecruitmentType() {
+        return recruitmentType;
     }
 }

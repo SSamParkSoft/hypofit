@@ -2,14 +2,18 @@ package com.contentruck.hypofit.interview.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.contentruck.hypofit.ai.service.AiSummaryEnqueueService;
 import com.contentruck.hypofit.audit.service.AuditWriteService;
+import com.contentruck.hypofit.common.config.HypofitProperties;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -31,11 +35,19 @@ class InterviewPostWriteServiceTest {
     @Mock
     private AuditWriteService auditWriteService;
 
+    @Mock
+    private AiSummaryEnqueueService aiSummaryEnqueueService;
+
     private InterviewPostWriteService service;
 
     @BeforeEach
     void setUp() {
-        service = new InterviewPostWriteService(repository, auditWriteService);
+        service = new InterviewPostWriteService(
+                repository,
+                auditWriteService,
+                new HypofitProperties(),
+                aiSummaryEnqueueService
+        );
     }
 
     @Test
@@ -52,6 +64,7 @@ class InterviewPostWriteServiceTest {
                 postId,
                 new InterviewPostUpdateCommand(
                         Set.of("title", "interviewMode", "status"),
+                        null,
                         "온라인 인터뷰로 전환",
                         null,
                         null,
@@ -71,6 +84,8 @@ class InterviewPostWriteServiceTest {
                         "open"
                 )
         );
+
+        verify(aiSummaryEnqueueService).enqueueInterviewSummary(postId);
 
         verify(repository).updatePost(eq(postId), argThat(changes ->
                 "온라인 인터뷰로 전환".equals(changes.get("title"))
@@ -147,20 +162,23 @@ class InterviewPostWriteServiceTest {
         assertThatThrownBy(() -> service.updatePost(
                 actorUserId,
                 postId,
-                new InterviewPostUpdateCommand(Set.of("title"), "수정", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null)
+                new InterviewPostUpdateCommand(Set.of("title"), null, "수정", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null)
         ))
                 .isInstanceOf(InterviewPostPermissionDeniedException.class)
                 .hasMessageContaining("Forbidden");
     }
 
     @Test
-    void createPostRequiresFounderRole() {
+    void createPostAllowsRespondentRoleWhenAccountIsActive() {
         UUID actorUserId = UUID.randomUUID();
+        InterviewPostWriteModel created = writePost(UUID.randomUUID(), actorUserId, "open", "online");
         when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "respondent")));
+        when(repository.createPost(eq(actorUserId), any())).thenReturn(created);
 
-        assertThatThrownBy(() -> service.createPost(
+        InterviewPostReadModel result = service.createPost(
                 actorUserId,
                 new InterviewPostCreateCommand(
+                        "interview",
                         "인터뷰 모집",
                         "초기 서비스 문제를 검증하려는 인터뷰입니다.",
                         "최근 3개월 내 관련 경험자",
@@ -179,9 +197,201 @@ class InterviewPostWriteServiceTest {
                         List.of("평일 저녁"),
                         "open"
                 )
+        );
+
+        assertThat(result.id()).isEqualTo(created.id());
+        assertThat(result.founderId()).isEqualTo(actorUserId);
+        verify(aiSummaryEnqueueService).enqueueInterviewSummary(created.id());
+    }
+
+    @Test
+    void createOnlineInterviewClearsLocationPayload() {
+        UUID actorUserId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "both")));
+        when(repository.createPost(eq(actorUserId), argThat(command ->
+                "online".equals(command.interviewMode())
+                        && command.location() == null
+                        && command.locationText() == null
+                        && command.locationAddress() == null
+                        && command.locationPlaceName() == null
+                        && command.locationLatitude() == null
+                        && command.locationLongitude() == null
+                        && command.locationPrecision() == null
+                        && command.locationSource() == null
+        ))).thenReturn(writePost(UUID.randomUUID(), actorUserId, "draft", "online"));
+
+        service.createPost(actorUserId, new InterviewPostCreateCommand(
+                "interview", "온라인 인터뷰", "사용 경험을 확인해요.", "최근 사용 경험자",
+                15000, 30, 3,
+                "online", "강남역", "강남역", "서울 강남구", "강남역",
+                37.4979, 127.0276, "exact", "manual", List.of("평일 저녁"), "draft"
+        ));
+    }
+
+    @Test
+    void createPostRejectsNonInterviewRecruitmentType() {
+        UUID actorUserId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
+
+        assertThatThrownBy(() -> service.createPost(
+                actorUserId,
+                new InterviewPostCreateCommand(
+                        "survey",
+                        "설문 모집",
+                        "서비스 사용 경험을 짧게 확인해요.",
+                        "최근 3개월 내 관련 경험자",
+                        0,
+                        10,
+                        0,
+                        "online",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of(),
+                        "draft"
+                )
         ))
-                .isInstanceOf(InterviewPostPermissionDeniedException.class)
-                .hasMessageContaining("Founder role required");
+                .isInstanceOf(InterviewPostRecruitmentTypeNotSupportedException.class)
+                .hasMessageContaining("survey");
+    }
+
+    @Test
+    void createSurveyPostNormalizesCompatibilityFieldsWhenEnabled() {
+        UUID actorUserId = UUID.randomUUID();
+        OffsetDateTime deadline = OffsetDateTime.of(2026, 9, 1, 9, 0, 0, 0, ZoneOffset.UTC);
+        HypofitProperties properties = new HypofitProperties();
+        properties.setSurveyRecruitmentCreationEnabled(true);
+        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService);
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
+        when(repository.createPost(eq(actorUserId), argThat(command ->
+                "survey".equals(command.recruitmentType())
+                        && "google_forms".equals(command.externalProvider())
+                        && "https://docs.google.com/forms/d/e/example/viewform".equals(command.externalUrl())
+                        && deadline.equals(command.participationDeadlineAt())
+                        && "Google Forms에서 응답을 처리해요.".equals(command.externalDataNotice())
+                        && "online".equals(command.interviewMode())
+                        && command.location() == null
+                        && command.scheduleOptions().isEmpty()
+        ))).thenReturn(writePost(UUID.randomUUID(), actorUserId, "draft", "online"));
+
+        service.createPost(actorUserId, new InterviewPostCreateCommand(
+                "survey", "설문 참여자 모집", "서비스 이용 경험을 확인해요.", "최근 사용 경험자",
+                0, 10, 20,
+                " google_forms ", " https://docs.google.com/forms/d/e/example/viewform ", deadline,
+                " Google Forms에서 응답을 처리해요. ",
+                List.of("unused"), null, null,
+                null, "unused", "unused", null, null, null, null, null, null,
+                List.of("unused"), "draft"
+        ));
+    }
+
+    @Test
+    void createSurveyPostRejectsUnapprovedExternalUrl() {
+        UUID actorUserId = UUID.randomUUID();
+        HypofitProperties properties = new HypofitProperties();
+        properties.setSurveyRecruitmentCreationEnabled(true);
+        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService);
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
+
+        assertThatThrownBy(() -> service.createPost(actorUserId, new InterviewPostCreateCommand(
+                "survey", "설문 참여자 모집", "서비스 이용 경험을 확인해요.", "최근 사용 경험자",
+                0, 10, 20,
+                "google_forms", "https://example.com/forms/1",
+                OffsetDateTime.of(2026, 9, 1, 9, 0, 0, 0, ZoneOffset.UTC),
+                "외부 설문 서비스에서 응답을 처리해요.",
+                List.of(), null, null,
+                null, null, null, null, null, null, null, null, null,
+                List.of(), "draft"
+        )))
+                .isInstanceOf(com.contentruck.hypofit.common.error.HypofitValidationException.class)
+                .hasMessageContaining("approved Google Forms URL");
+    }
+
+    @Test
+    void createBetaTestPostRejectsWhenFeatureFlagIsDisabled() {
+        UUID actorUserId = UUID.randomUUID();
+        OffsetDateTime startsAt = OffsetDateTime.of(2026, 9, 2, 9, 0, 0, 0, ZoneOffset.UTC);
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
+
+        assertThatThrownBy(() -> service.createPost(actorUserId, new InterviewPostCreateCommand(
+                "beta_test", "베타테스터 모집", "출시 전 사용성을 확인해요.", "모바일 앱 사용자",
+                10000, 30, 10,
+                null, null, null, null,
+                List.of("ios"), startsAt, startsAt.plusDays(7),
+                null, null, null, null, null, null, null, null, null,
+                List.of(), "draft"
+        )))
+                .isInstanceOf(InterviewPostRecruitmentTypeNotSupportedException.class)
+                .hasMessageContaining("beta_test");
+    }
+
+    @Test
+    void createBetaTestPostNormalizesPlatformsWhenEnabled() {
+        UUID actorUserId = UUID.randomUUID();
+        OffsetDateTime startsAt = OffsetDateTime.of(2026, 9, 2, 9, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime endsAt = startsAt.plusDays(7);
+        HypofitProperties properties = new HypofitProperties();
+        properties.setBetaTestRecruitmentCreationEnabled(true);
+        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService);
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
+        when(repository.createPost(eq(actorUserId), argThat(command ->
+                "beta_test".equals(command.recruitmentType())
+                        && command.betaTestPlatforms().equals(List.of("ios", "android"))
+                        && startsAt.equals(command.betaTestStartsAt())
+                        && endsAt.equals(command.betaTestEndsAt())
+                        && "online".equals(command.interviewMode())
+                        && command.scheduleOptions().isEmpty()
+        ))).thenReturn(writePost(UUID.randomUUID(), actorUserId, "draft", "online"));
+
+        service.createPost(actorUserId, new InterviewPostCreateCommand(
+                "beta_test", "베타테스터 모집", "출시 전 사용성을 확인해요.", "모바일 앱 사용자",
+                10000, 30, 10,
+                null, null, null, null,
+                List.of(" ios ", "android", "ios"), startsAt, endsAt,
+                null, null, null, null, null, null, null, null, null,
+                List.of("unused"), "draft"
+        ));
+    }
+
+    @Test
+    void updatePostRejectsNonInterviewRecruitmentType() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
+        when(repository.findPost(postId)).thenReturn(Optional.of(writePost(postId, actorUserId, "draft", "online")));
+
+        assertThatThrownBy(() -> service.updatePost(
+                actorUserId,
+                postId,
+                new InterviewPostUpdateCommand(
+                        Set.of("recruitmentType"),
+                        "beta_test",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                )
+        ))
+                .isInstanceOf(InterviewPostRecruitmentTypeNotSupportedException.class)
+                .hasMessageContaining("beta_test");
     }
 
     @Test
@@ -207,6 +417,7 @@ class InterviewPostWriteServiceTest {
         assertThat(response.founder()).isNull();
         assertThat(response.founderReviewSummary()).isNull();
         assertThat(response.distanceMeters()).isNull();
+        verify(aiSummaryEnqueueService, never()).enqueueInterviewSummary(postId);
     }
 
     @Test
@@ -226,6 +437,7 @@ class InterviewPostWriteServiceTest {
                         && "archived".equals(command.after().get("status"))
                         && actorUserId.toString().equals(command.metadata().get("founder_id"))
         ));
+        verify(aiSummaryEnqueueService, never()).enqueueInterviewSummary(postId);
     }
 
     @Test
@@ -244,6 +456,7 @@ class InterviewPostWriteServiceTest {
                         && "open".equals(command.after().get("status"))
                         && actorUserId.toString().equals(command.metadata().get("founder_id"))
         ));
+        verify(aiSummaryEnqueueService).enqueueInterviewSummary(postId);
     }
 
     private InterviewPostActorAccount activeFounder(UUID userId, String role) {
@@ -254,6 +467,7 @@ class InterviewPostWriteServiceTest {
         return new InterviewPostWriteModel(
                 postId,
                 founderId,
+                "interview",
                 "기존 모집글",
                 "사용자 검증을 위한 인터뷰를 진행합니다.",
                 "최근 3개월 내 유사 서비스 사용 경험자",

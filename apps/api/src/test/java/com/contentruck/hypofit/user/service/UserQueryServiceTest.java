@@ -137,7 +137,7 @@ class UserQueryServiceTest {
         assertThat(profile.name()).isEqualTo("세현");
         assertThat(profile.bio()).isEqualTo("초기 고객 검증 중");
         assertThat(profile.phone()).isEqualTo("010-1234-5678");
-        assertThat(profile.role()).isEqualTo("respondent");
+        assertThat(profile.role()).isEqualTo("both");
     }
 
     @Test
@@ -290,7 +290,7 @@ class UserQueryServiceTest {
         assertThat(updated.name()).isEqualTo("새 이름");
         assertThat(updated.bio()).isNull();
         assertThat(updated.phone()).isNull();
-        assertThat(updated.role()).isEqualTo("founder");
+        assertThat(updated.role()).isEqualTo("both");
         assertThat(updated.profileImagePath()).isEqualTo(existing.profileImagePath());
         assertThat(updated.profileImageUrl()).isEqualTo(existing.profileImageUrl());
         assertThat(updated.organizationType()).isEqualTo("company");
@@ -298,7 +298,52 @@ class UserQueryServiceTest {
     }
 
     @Test
-    void syncAndUpdateRejectInvalidPhoneOrMissingRole() {
+    void updateMeDefaultsRoleToBothWhenRoleIsOmitted() {
+        UUID userId = UUID.randomUUID();
+        UserReadRepository.UserProfileRecord existing = activeRecord(userId);
+        when(userReadRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userReadRepository.saveProfile(any())).thenAnswer(invocation -> {
+            UserReadRepository.UserProfileMutation mutation = invocation.getArgument(0);
+            return new UserReadRepository.UserProfileRecord(
+                    userId,
+                    mutation.email(),
+                    mutation.name(),
+                    mutation.bio(),
+                    mutation.phone(),
+                    mutation.role(),
+                    mutation.profileImagePath(),
+                    mutation.profileImageUrl(),
+                    mutation.organizationType(),
+                    mutation.organizationName(),
+                    false,
+                    false
+            );
+        });
+
+        var updated = userQueryService.updateMe(
+                userId,
+                new UpdateCommand(
+                        "세현",
+                        existing.bio(),
+                        existing.phone(),
+                        false,
+                        null,
+                        false,
+                        null,
+                        false,
+                        null,
+                        false,
+                        null,
+                        false,
+                        null
+                )
+        );
+
+        assertThat(updated.role()).isEqualTo("both");
+    }
+
+    @Test
+    void syncAndUpdateRejectInvalidPhoneOrInvalidRole() {
         UUID userId = UUID.randomUUID();
         when(userReadRepository.findById(userId)).thenReturn(Optional.of(activeRecord(userId)));
 
@@ -329,8 +374,8 @@ class UserQueryServiceTest {
                         "세현",
                         null,
                         null,
-                        false,
-                        null,
+                        true,
+                        "invalid-role",
                         false,
                         null,
                         false,

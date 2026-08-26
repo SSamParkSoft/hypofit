@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Schema(hidden = true)
@@ -16,6 +17,9 @@ public record InterviewPostUpdateRequest(Object rawBody) {
 
     @Schema(name = "InterviewPostUpdate")
     public record OpenApiSchema(
+            @JsonProperty("recruitment_type")
+            @Schema(nullable = true, allowableValues = {"interview", "survey", "beta_test"})
+            String recruitmentType,
             @Schema(nullable = true, minLength = 2, maxLength = 120)
             String title,
             @JsonProperty("service_summary")
@@ -36,6 +40,27 @@ public record InterviewPostUpdateRequest(Object rawBody) {
             @JsonProperty("interview_mode")
             @Schema(nullable = true, allowableValues = {"offline", "online", "both"})
             String interviewMode,
+            @JsonProperty("external_provider")
+            @Schema(nullable = true, allowableValues = {"google_forms"})
+            String externalProvider,
+            @JsonProperty("external_url")
+            @Schema(nullable = true, maxLength = 2000)
+            String externalUrl,
+            @JsonProperty("participation_deadline_at")
+            @Schema(nullable = true)
+            OffsetDateTime participationDeadlineAt,
+            @JsonProperty("external_data_notice")
+            @Schema(nullable = true, maxLength = 2000)
+            String externalDataNotice,
+            @JsonProperty("beta_test_platforms")
+            @ArraySchema(schema = @Schema(type = "string"))
+            List<String> betaTestPlatforms,
+            @JsonProperty("beta_test_starts_at")
+            @Schema(nullable = true)
+            OffsetDateTime betaTestStartsAt,
+            @JsonProperty("beta_test_ends_at")
+            @Schema(nullable = true)
+            OffsetDateTime betaTestEndsAt,
             @Schema(nullable = true)
             String location,
             @JsonProperty("location_text")

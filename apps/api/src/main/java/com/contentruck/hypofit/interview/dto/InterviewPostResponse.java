@@ -1,7 +1,9 @@
 package com.contentruck.hypofit.interview.dto;
 
 import com.contentruck.hypofit.interview.service.InterviewPostReadModel;
+import com.contentruck.hypofit.interview.service.PostingCompensation;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -11,6 +13,11 @@ public record InterviewPostResponse(
         UUID id,
         @JsonProperty("founder_id")
         UUID founderId,
+        @JsonProperty("recruitment_type")
+        @Schema(allowableValues = {
+                "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
+        })
+        String recruitmentType,
         String title,
         @JsonProperty("service_summary")
         @Schema(minLength = 10, maxLength = 2000)
@@ -21,12 +28,34 @@ public record InterviewPostResponse(
         @JsonProperty("reward_amount")
         @Schema(minimum = "0")
         int rewardAmount,
+        List<PostingCompensation> compensations,
         @JsonProperty("duration_minutes")
         @Schema(minimum = "10", maximum = "240")
         int durationMinutes,
         @JsonProperty("recruit_count")
         @Schema(minimum = "0", maximum = "999", defaultValue = "0")
         int recruitCount,
+        @JsonProperty("external_provider")
+        @Schema(nullable = true, allowableValues = {"google_forms"})
+        String externalProvider,
+        @JsonProperty("external_url")
+        @Schema(nullable = true, maxLength = 2000)
+        String externalUrl,
+        @JsonProperty("participation_deadline_at")
+        @Schema(nullable = true)
+        OffsetDateTime participationDeadlineAt,
+        @JsonProperty("external_data_notice")
+        @Schema(nullable = true, maxLength = 2000)
+        String externalDataNotice,
+        @JsonProperty("beta_test_platforms")
+        @ArraySchema(schema = @Schema(type = "string"))
+        List<String> betaTestPlatforms,
+        @JsonProperty("beta_test_starts_at")
+        @Schema(nullable = true)
+        OffsetDateTime betaTestStartsAt,
+        @JsonProperty("beta_test_ends_at")
+        @Schema(nullable = true)
+        OffsetDateTime betaTestEndsAt,
         @JsonProperty("interview_mode")
         @Schema(allowableValues = {"offline", "online", "both"})
         String interviewMode,
@@ -73,12 +102,21 @@ public record InterviewPostResponse(
         return new InterviewPostResponse(
                 model.id(),
                 model.founderId(),
+                model.recruitmentType(),
                 model.title(),
                 model.serviceSummary(),
                 model.targetDescription(),
                 model.rewardAmount(),
+                model.compensations(),
                 model.durationMinutes(),
                 model.recruitCount(),
+                model.externalProvider(),
+                model.externalUrl(),
+                model.participationDeadlineAt(),
+                model.externalDataNotice(),
+                model.betaTestPlatforms(),
+                model.betaTestStartsAt(),
+                model.betaTestEndsAt(),
                 model.interviewMode(),
                 model.location(),
                 model.locationText(),

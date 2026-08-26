@@ -1,7 +1,5 @@
 package com.contentruck.hypofit.chat.service;
 
-import com.contentruck.hypofit.session.service.SessionReadModels;
-
 public record ChatWorkflowReadModel(
         String step,
         String title,
@@ -9,10 +7,10 @@ public record ChatWorkflowReadModel(
         ChatWorkflowActionReadModel primaryAction,
         ChatWorkflowActionReadModel secondaryAction,
         ChatWorkflowActionReadModel dangerAction,
-        SessionReadModels.InterviewSessionReadModel session,
-        SessionReadModels.AttendanceRecordReadModel attendance,
-        SessionReadModels.RewardConfirmationReadModel reward,
-        SessionReadModels.InterviewReviewReadModel myReview,
+        ChatWorkflowModels.InterviewSessionReadModel session,
+        ChatWorkflowModels.AttendanceRecordReadModel attendance,
+        ChatWorkflowModels.RewardConfirmationReadModel reward,
+        ChatWorkflowModels.InterviewReviewReadModel myReview,
         boolean counterpartReviewSubmitted
 ) {
 }

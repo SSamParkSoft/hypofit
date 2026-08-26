@@ -6,6 +6,8 @@ import com.contentruck.hypofit.interview.service.FounderReviewSummary;
 import com.contentruck.hypofit.interview.service.FounderSummary;
 import com.contentruck.hypofit.interview.service.InterviewAiSummaryReadModel;
 import com.contentruck.hypofit.interview.service.InterviewPostReadModel;
+import com.contentruck.hypofit.interview.service.PostingCompensation;
+import com.contentruck.hypofit.interview.service.PostingCompensations;
 import com.contentruck.hypofit.interview.service.InterviewSummaryContentModel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +30,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepository {
 
+    private static final String INTERVIEW_RECRUITMENT_TYPE = "interview";
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
+    };
+    private static final TypeReference<List<PostingCompensation>> COMPENSATION_LIST_TYPE = new TypeReference<>() {
     };
     private static final TypeReference<InterviewSummaryContentModel> INTERVIEW_SUMMARY_CONTENT_TYPE = new TypeReference<>() {
     };
@@ -70,6 +75,11 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
         if (criteria.status() != null && !criteria.status().isBlank()) {
             whereClauses.add("p.status = :status");
             parameters.addValue("status", criteria.status());
+        }
+
+        if (!criteria.supportsRecruitmentTypes()) {
+            whereClauses.add("p.recruitment_type = :legacy_recruitment_type");
+            parameters.addValue("legacy_recruitment_type", INTERVIEW_RECRUITMENT_TYPE);
         }
 
         if (criteria.admin()) {
@@ -147,12 +157,21 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
                 select
                   p.id,
                   p.founder_id,
+                  p.recruitment_type,
                   p.title,
                   p.service_summary,
                   p.target_description,
                   p.reward_amount,
+                  p.compensations::text as compensations,
                   p.duration_minutes,
                   p.recruit_count,
+                  p.external_provider,
+                  p.external_url,
+                  p.participation_deadline_at,
+                  p.external_data_notice,
+                  p.beta_test_platforms,
+                  p.beta_test_starts_at,
+                  p.beta_test_ends_at,
                   p.interview_mode,
                   p.location,
                   p.location_text,
@@ -345,12 +364,21 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
         return (resultSet, rowNum) -> new InterviewPostReadModel(
                 readUuid(resultSet, "id"),
                 readUuid(resultSet, "founder_id"),
+                resultSet.getString("recruitment_type"),
                 resultSet.getString("title"),
                 resultSet.getString("service_summary"),
                 resultSet.getString("target_description"),
                 resultSet.getInt("reward_amount"),
+                readCompensations(resultSet.getString("compensations"), resultSet.getInt("reward_amount")),
                 resultSet.getInt("duration_minutes"),
                 resultSet.getInt("recruit_count"),
+                resultSet.getString("external_provider"),
+                resultSet.getString("external_url"),
+                toOffsetDateTime(resultSet.getTimestamp("participation_deadline_at")),
+                resultSet.getString("external_data_notice"),
+                readTextArray(resultSet, "beta_test_platforms"),
+                toOffsetDateTime(resultSet.getTimestamp("beta_test_starts_at")),
+                toOffsetDateTime(resultSet.getTimestamp("beta_test_ends_at")),
                 resultSet.getString("interview_mode"),
                 resultSet.getString("location"),
                 resultSet.getString("location_text"),
@@ -380,6 +408,18 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
                 "ready".equals(status) ? readSummaryContent(resultSet.getString("ai_summary_result")) : null,
                 toOffsetDateTime(resultSet.getTimestamp("ai_summary_updated_at"))
         );
+    }
+
+    private List<PostingCompensation> readCompensations(String rawJson, int legacyRewardAmount) {
+        if (rawJson == null || rawJson.isBlank()) {
+            return PostingCompensations.legacy(legacyRewardAmount);
+        }
+        try {
+            List<PostingCompensation> values = objectMapper.readValue(rawJson, COMPENSATION_LIST_TYPE);
+            return values == null || values.isEmpty() ? PostingCompensations.legacy(legacyRewardAmount) : List.copyOf(values);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to parse posting compensations JSON", exception);
+        }
     }
 
     private InterviewSummaryContentModel readSummaryContent(String rawJson) {
@@ -428,6 +468,24 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
         } catch (IOException exception) {
             throw new IllegalStateException("Failed to parse schedule_options JSON", exception);
         }
+    }
+
+    private List<String> readTextArray(ResultSet resultSet, String columnName) throws SQLException {
+        java.sql.Array array = resultSet.getArray(columnName);
+        if (array == null) {
+            return List.of();
+        }
+        Object raw = array.getArray();
+        if (!(raw instanceof Object[] values) || values.length == 0) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>(values.length);
+        for (Object value : values) {
+            if (value != null) {
+                result.add(String.valueOf(value));
+            }
+        }
+        return List.copyOf(result);
     }
 
     private UUID readUuid(ResultSet resultSet, String columnName) throws SQLException {

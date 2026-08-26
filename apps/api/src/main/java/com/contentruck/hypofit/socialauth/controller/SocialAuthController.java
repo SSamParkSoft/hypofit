@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @Validated
 @RequestMapping("/api/v1/auth/social")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "소셜 로그인")
 public class SocialAuthController {
 
     private final SocialAuthService service;

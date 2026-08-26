@@ -27,6 +27,7 @@ class InterviewPostWriteRepositoryPostgresIntegrationTest extends PostgresIntegr
         UUID founderId = UUID.randomUUID();
         insertUser(founderId, "founder");
         InterviewPostCreateCommand command = new InterviewPostCreateCommand(
+                "interview",
                 "인터뷰 모집",
                 "초기 서비스 문제를 검증하려는 인터뷰입니다.",
                 "최근 3개월 내 관련 경험자",

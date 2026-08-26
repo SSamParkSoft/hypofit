@@ -4,6 +4,7 @@ import com.contentruck.hypofit.applicant.dto.ApplicationCreateRequest;
 import com.contentruck.hypofit.applicant.dto.ApplicationResponse;
 import com.contentruck.hypofit.applicant.dto.ApplicationStatusUpdateRequest;
 import com.contentruck.hypofit.applicant.service.ApplicationWorkflowService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
         value = "/api/v1/applications",
         produces = MediaType.APPLICATION_JSON_VALUE
 )
+@io.swagger.v3.oas.annotations.tags.Tag(name = "지원")
 @SecurityRequirement(name = "HTTPBearer")
 public class ApplicationController {
 
@@ -36,6 +38,7 @@ public class ApplicationController {
     }
 
     @GetMapping("/{application_id}")
+    @Operation(summary = "지원 정보 조회")
     public ApplicationResponse getApplicationDetail(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("application_id") UUID applicationId
@@ -45,6 +48,7 @@ public class ApplicationController {
     }
 
     @GetMapping("/")
+    @Operation(summary = "지원 목록")
     public List<ApplicationResponse> listApplications(@AuthenticationPrincipal Jwt jwt) {
         UUID userId = UUID.fromString(jwt.getSubject());
         return applicationWorkflowService.listApplications(userId)
@@ -54,6 +58,7 @@ public class ApplicationController {
     }
 
     @PostMapping("/")
+    @Operation(summary = "인터뷰 지원")
     @ResponseStatus(HttpStatus.CREATED)
     public ApplicationResponse createApplication(
             @AuthenticationPrincipal Jwt jwt,
@@ -69,6 +74,7 @@ public class ApplicationController {
     }
 
     @PostMapping("/{application_id}/withdraw")
+    @Operation(summary = "지원 철회")
     public ApplicationResponse withdrawApplication(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("application_id") UUID applicationId
@@ -78,6 +84,7 @@ public class ApplicationController {
     }
 
     @PatchMapping("/{application_id}/status")
+    @Operation(summary = "지원 상태 변경")
     public ApplicationResponse updateApplicationStatus(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("application_id") UUID applicationId,

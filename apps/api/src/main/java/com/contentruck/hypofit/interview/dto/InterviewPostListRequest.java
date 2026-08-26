@@ -26,12 +26,13 @@ public record InterviewPostListRequest(
     private static final double MIN_LONGITUDE = -180.0;
     private static final double MAX_LONGITUDE = 180.0;
 
-    public InterviewPostListCriteria toCriteria(UUID viewerId, boolean isAdmin) {
+    public InterviewPostListCriteria toCriteria(UUID viewerId, boolean isAdmin, boolean supportsRecruitmentTypes) {
         validate();
         return new InterviewPostListCriteria(
                 status,
                 viewerId,
                 isAdmin,
+                supportsRecruitmentTypes,
                 mode,
                 founderId,
                 q,

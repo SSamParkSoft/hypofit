@@ -43,7 +43,8 @@ public final class SessionContexts {
             UUID id,
             UUID founderId,
             String title,
-            int rewardAmount
+            int rewardAmount,
+            String recruitmentType
     ) {
     }
 

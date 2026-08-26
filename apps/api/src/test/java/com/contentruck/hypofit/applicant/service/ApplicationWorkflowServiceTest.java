@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.contentruck.hypofit.ai.service.AiSummaryEnqueueService;
 import com.contentruck.hypofit.audit.service.AuditEventCommand;
 import com.contentruck.hypofit.audit.service.AuditWriteService;
 import com.contentruck.hypofit.chat.service.ApplicationChatLifecycleService;
@@ -41,6 +42,9 @@ class ApplicationWorkflowServiceTest {
 
     @Mock
     private AuditWriteService auditWriteService;
+
+    @Mock
+    private AiSummaryEnqueueService aiSummaryEnqueueService;
 
     @Test
     void listApplicationsRequiresActiveProfile() {
@@ -88,7 +92,7 @@ class ApplicationWorkflowServiceTest {
         UUID postId = UUID.randomUUID();
         when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "founder")));
         UUID founderId = UUID.randomUUID();
-        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(new InterviewPostOwnership(postId, founderId, "인터뷰 제목")));
+        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(post(postId, founderId, "interview")));
         when(repository.hasActiveBlockBetween(any(), any())).thenReturn(false);
         when(repository.existsApplicationForPostAndRespondent(postId, userId)).thenReturn(false);
         when(repository.createApplication(eq(postId), eq(userId), any(), any()))
@@ -109,6 +113,7 @@ class ApplicationWorkflowServiceTest {
                 eq(result.id()),
                 any()
         );
+        verify(aiSummaryEnqueueService).enqueueApplicationSummary(result.id());
     }
 
     @Test
@@ -117,7 +122,7 @@ class ApplicationWorkflowServiceTest {
         UUID postId = UUID.randomUUID();
         UUID founderId = UUID.randomUUID();
         when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
-        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(new InterviewPostOwnership(postId, founderId, "인터뷰 제목")));
+        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(post(postId, founderId, "interview")));
         when(repository.hasActiveBlockBetween(founderId, userId)).thenReturn(false);
         when(repository.existsApplicationForPostAndRespondent(postId, userId)).thenReturn(true);
 
@@ -127,6 +132,7 @@ class ApplicationWorkflowServiceTest {
                 .isInstanceOf(ApplicationConflictException.class)
                 .hasMessageContaining("Already applied to this interview");
         verify(repository, never()).createApplication(any(), any(), any(), any());
+        verify(aiSummaryEnqueueService, never()).enqueueApplicationSummary(any());
     }
 
     @Test
@@ -135,7 +141,7 @@ class ApplicationWorkflowServiceTest {
         UUID postId = UUID.randomUUID();
         UUID founderId = UUID.randomUUID();
         when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
-        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(new InterviewPostOwnership(postId, founderId, "인터뷰 제목")));
+        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(post(postId, founderId, "interview")));
         when(repository.hasActiveBlockBetween(founderId, userId)).thenReturn(false);
         when(repository.existsApplicationForPostAndRespondent(postId, userId)).thenReturn(false);
         when(repository.createApplication(eq(postId), eq(userId), any(), any()))
@@ -153,7 +159,7 @@ class ApplicationWorkflowServiceTest {
         UUID userId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
         when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "both")));
-        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(new InterviewPostOwnership(postId, userId, "인터뷰 제목")));
+        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(post(postId, userId, "interview")));
 
         ApplicationWorkflowService service = service();
 
@@ -168,7 +174,7 @@ class ApplicationWorkflowServiceTest {
         UUID postId = UUID.randomUUID();
         UUID founderId = UUID.randomUUID();
         when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
-        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(new InterviewPostOwnership(postId, founderId, "인터뷰 제목")));
+        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(post(postId, founderId, "interview")));
         when(repository.hasActiveBlockBetween(founderId, userId)).thenReturn(true);
 
         ApplicationWorkflowService service = service();
@@ -176,6 +182,53 @@ class ApplicationWorkflowServiceTest {
         assertThatThrownBy(() -> service.createApplication(userId, postId, Map.of(), List.of()))
                 .isInstanceOf(ApplicationPermissionDeniedException.class)
                 .hasMessageContaining("Blocked users cannot interact");
+    }
+
+    @Test
+    void createApplicationRejectsSurveyRecruitmentType() {
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        UUID founderId = UUID.randomUUID();
+        when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
+        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(post(postId, founderId, "survey")));
+
+        ApplicationWorkflowService service = service();
+
+        assertThatThrownBy(() -> service.createApplication(userId, postId, Map.of(), List.of()))
+                .isInstanceOf(ApplicationRecruitmentTypeActionNotAllowedException.class)
+                .extracting("code")
+                .isEqualTo("recruitment_type_action_not_allowed");
+        verify(repository, never()).createApplication(any(), any(), any(), any());
+        verify(chatLifecycleService, never()).ensureRoomForApplication(any(), any(), any(), any());
+    }
+
+    @Test
+    void createApplicationForBetaTestDoesNotCreateChatRoomUntilSelection() {
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        UUID founderId = UUID.randomUUID();
+        ApplicationReadModel created = readModel(UUID.randomUUID(), postId, userId, "applied", null);
+
+        when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
+        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(post(postId, founderId, "beta_test")));
+        when(repository.hasActiveBlockBetween(founderId, userId)).thenReturn(false);
+        when(repository.existsApplicationForPostAndRespondent(postId, userId)).thenReturn(false);
+        when(repository.createApplication(eq(postId), eq(userId), any(), any())).thenReturn(created);
+
+        ApplicationWorkflowService service = service();
+        ApplicationReadModel result = service.createApplication(userId, postId, Map.of("experience", "yes"), List.of("주말"));
+
+        assertThat(result).isEqualTo(created);
+        verify(chatLifecycleService, never()).ensureRoomForApplication(any(), any(), any(), any());
+        verify(notificationWriteService).createNotification(
+                eq(founderId),
+                eq("application_created"),
+                eq("새 신청이 도착했어요"),
+                eq("모집글에 새 인터뷰 신청이 들어왔어요."),
+                eq("application"),
+                eq(created.id()),
+                any()
+        );
     }
 
     @Test
@@ -199,7 +252,6 @@ class ApplicationWorkflowServiceTest {
         UUID applicationId = UUID.randomUUID();
         when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
         when(repository.lockVisibleApplicationContext(applicationId)).thenReturn(Optional.of(context(applicationId, userId, "selected")));
-        when(repository.hasScheduledVisibleSession(applicationId)).thenReturn(false);
         when(repository.updateStatusIfCurrent(applicationId, "canceled", Set.of("applied", "selected"), null))
                 .thenReturn(Optional.empty());
 
@@ -223,6 +275,7 @@ class ApplicationWorkflowServiceTest {
                 applicationId,
                 interviewPostId,
                 "인터뷰 제목",
+                "interview",
                 founderId,
                 userId,
                 Map.of("experience", "yes"),
@@ -234,7 +287,6 @@ class ApplicationWorkflowServiceTest {
 
         when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
         when(repository.lockVisibleApplicationContext(applicationId)).thenReturn(Optional.of(context));
-        when(repository.hasScheduledVisibleSession(applicationId)).thenReturn(false);
         when(repository.updateStatusIfCurrent(applicationId, "canceled", Set.of("applied", "selected"), null))
                 .thenReturn(Optional.of(updated));
 
@@ -285,6 +337,7 @@ class ApplicationWorkflowServiceTest {
                         applicationId,
                         UUID.randomUUID(),
                         "인터뷰 제목",
+                        "interview",
                         otherFounderId,
                         UUID.randomUUID(),
                         Map.of(),
@@ -298,6 +351,39 @@ class ApplicationWorkflowServiceTest {
         assertThatThrownBy(() -> service.updateApplicationStatus(founderId, applicationId, "selected", null))
                 .isInstanceOf(ApplicationPermissionDeniedException.class)
                 .hasMessageContaining("Forbidden");
+    }
+
+    @Test
+    void updateApplicationStatusAllowsRespondentRoleWhenUserOwnsPost() {
+        UUID founderId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "respondent")));
+        when(repository.findVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, respondentId, "applied", founderId, interviewPostId)));
+        when(repository.updateStatusIfCurrent(applicationId, "selected", Set.of("applied"), null))
+                .thenReturn(Optional.of(readModel(applicationId, interviewPostId, respondentId, "selected", null)));
+
+        ApplicationWorkflowService service = service();
+        ApplicationReadModel result = service.updateApplicationStatus(founderId, applicationId, "selected", null);
+
+        assertThat(result.status()).isEqualTo("selected");
+        verify(chatLifecycleService).markSelectedForApplication(
+                applicationId,
+                interviewPostId,
+                founderId,
+                respondentId
+        );
+        verify(notificationWriteService).createNotification(
+                eq(respondentId),
+                eq("application_selected"),
+                eq("인터뷰 대상자로 선정됐어요"),
+                eq("채팅에서 일정과 진행 방식을 조율해보세요."),
+                eq("application"),
+                eq(applicationId),
+                any()
+        );
     }
 
     @Test
@@ -357,12 +443,86 @@ class ApplicationWorkflowServiceTest {
         );
     }
 
+    @Test
+    void updateApplicationStatusForBetaSelectionCreatesChatRoom() {
+        UUID founderId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "both")));
+        when(repository.findVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, respondentId, "applied", founderId, interviewPostId, "beta_test")));
+        when(repository.updateStatusIfCurrent(applicationId, "selected", Set.of("applied"), null))
+                .thenReturn(Optional.of(readModel(applicationId, interviewPostId, respondentId, "selected", null)));
+
+        ApplicationWorkflowService service = service();
+        service.updateApplicationStatus(founderId, applicationId, "selected", null);
+
+        verify(chatLifecycleService).markSelectedForApplication(applicationId, interviewPostId, founderId, respondentId);
+    }
+
+    @Test
+    void updateApplicationStatusForBetaRejectionDoesNotTouchChatRoom() {
+        UUID founderId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "both")));
+        when(repository.findVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, respondentId, "applied", founderId, interviewPostId, "beta_test")));
+        when(repository.updateStatusIfCurrent(applicationId, "rejected", Set.of("applied"), "조건이 맞지 않아요"))
+                .thenReturn(Optional.of(readModel(applicationId, interviewPostId, respondentId, "rejected", "조건이 맞지 않아요")));
+
+        ApplicationWorkflowService service = service();
+        service.updateApplicationStatus(founderId, applicationId, "rejected", "조건이 맞지 않아요");
+
+        verify(chatLifecycleService, never()).markRejectedForApplication(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void withdrawApplicationForAppliedBetaDoesNotTouchChatRoom() {
+        UUID userId = UUID.randomUUID();
+        UUID founderId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
+        when(repository.lockVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, userId, "applied", founderId, interviewPostId, "beta_test")));
+        when(repository.updateStatusIfCurrent(applicationId, "canceled", Set.of("applied", "selected"), null))
+                .thenReturn(Optional.of(readModel(applicationId, interviewPostId, userId, "canceled", null)));
+
+        ApplicationWorkflowService service = service();
+        service.withdrawApplication(userId, applicationId);
+
+        verify(chatLifecycleService, never()).markCanceledForApplication(any(), any(), any(), any());
+    }
+
+    @Test
+    void withdrawApplicationForSelectedBetaCancelsExistingChatRoom() {
+        UUID userId = UUID.randomUUID();
+        UUID founderId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
+        when(repository.lockVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, userId, "selected", founderId, interviewPostId, "beta_test")));
+        when(repository.hasScheduledVisibleSession(applicationId)).thenReturn(false);
+        when(repository.updateStatusIfCurrent(applicationId, "canceled", Set.of("applied", "selected"), null))
+                .thenReturn(Optional.of(readModel(applicationId, interviewPostId, userId, "canceled", null)));
+
+        ApplicationWorkflowService service = service();
+        service.withdrawApplication(userId, applicationId);
+
+        verify(chatLifecycleService).markCanceledForApplication(applicationId, interviewPostId, founderId, userId);
+    }
+
     private ApplicationWorkflowService service() {
         return new ApplicationWorkflowService(
                 repository,
                 chatLifecycleService,
                 notificationWriteService,
-                auditWriteService
+                auditWriteService,
+                aiSummaryEnqueueService
         );
     }
 
@@ -385,10 +545,22 @@ class ApplicationWorkflowServiceTest {
             UUID founderId,
             UUID interviewPostId
     ) {
+        return context(applicationId, respondentId, status, founderId, interviewPostId, "interview");
+    }
+
+    private ApplicationWorkflowContext context(
+            UUID applicationId,
+            UUID respondentId,
+            String status,
+            UUID founderId,
+            UUID interviewPostId,
+            String recruitmentType
+    ) {
         return new ApplicationWorkflowContext(
                 applicationId,
                 interviewPostId,
                 "인터뷰 제목",
+                recruitmentType,
                 founderId,
                 respondentId,
                 Map.of("experience", "yes"),
@@ -415,5 +587,9 @@ class ApplicationWorkflowServiceTest {
                         "https://example.com/respondent.png"
                 )
         );
+    }
+
+    private InterviewPostOwnership post(UUID postId, UUID founderId, String recruitmentType) {
+        return new InterviewPostOwnership(postId, founderId, "인터뷰 제목", recruitmentType);
     }
 }

@@ -27,6 +27,7 @@ public class ReadinessService {
         checks.put("outbound_email", properties.outboundEmailReadiness());
         checks.put("push", properties.pushReadiness());
         checks.put("social_auth", properties.socialAuthReadiness());
+        checks.put("ai_provider", properties.aiProviderReadiness());
 
         String status = requiredChecksOk(checks) ? "ok" : "degraded";
         Map<String, Object> response = new LinkedHashMap<>();

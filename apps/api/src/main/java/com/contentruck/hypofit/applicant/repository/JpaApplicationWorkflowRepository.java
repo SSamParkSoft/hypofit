@@ -177,7 +177,12 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
         if (entity == null) {
             return Optional.empty();
         }
-        return Optional.of(new InterviewPostOwnership(entity.getId(), entity.getFounderId(), entity.getTitle()));
+        return Optional.of(new InterviewPostOwnership(
+                entity.getId(),
+                entity.getFounderId(),
+                entity.getTitle(),
+                entity.getRecruitmentType()
+        ));
     }
 
     @Override
@@ -320,6 +325,7 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
                 application.getId(),
                 application.getInterviewPostId(),
                 post.getTitle(),
+                post.getRecruitmentType(),
                 post.getFounderId(),
                 application.getRespondentId(),
                 copyAnswers(application.getAnswers()),

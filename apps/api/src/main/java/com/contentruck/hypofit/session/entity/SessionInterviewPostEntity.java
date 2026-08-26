@@ -23,6 +23,9 @@ public class SessionInterviewPostEntity {
     @Column(name = "reward_amount", nullable = false)
     private int rewardAmount;
 
+    @Column(name = "recruitment_type", nullable = false, length = 30)
+    private String recruitmentType;
+
     public UUID getId() {
         return id;
     }
@@ -37,5 +40,9 @@ public class SessionInterviewPostEntity {
 
     public int getRewardAmount() {
         return rewardAmount;
+    }
+
+    public String getRecruitmentType() {
+        return recruitmentType;
     }
 }

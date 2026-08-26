@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @RestController
 @RequestMapping("/api/v1/places")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "장소 검색")
 public class PlaceSearchController {
 
     private final PlaceSearchService service;

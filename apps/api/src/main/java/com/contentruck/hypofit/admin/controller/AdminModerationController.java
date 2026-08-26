@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/admin/moderation")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "운영자 · 신고 및 제재")
 @SecurityRequirement(name = "HTTPBearer")
 public class AdminModerationController {
 

@@ -102,7 +102,7 @@ class SocialAuthServiceTest {
     }
 
     @Test
-    void completeAttemptReturnsRoleOnboardingWhenVerifiedEmailHasNoOwner() {
+    void completeAttemptRequiresLegalConsentWhenVerifiedEmailHasNoOwner() {
         UUID authUserId = UUID.randomUUID();
         AttemptFixture attempt = attempt("google", "login", "pending", null);
         when(repository.findAttemptForUpdate(attempt.entity().getId())).thenReturn(Optional.of(attempt.entity()));
@@ -118,7 +118,7 @@ class SocialAuthServiceTest {
                 attempt.secret()
         );
 
-        assertThat(result.nextStep()).isEqualTo("role_onboarding_required");
+        assertThat(result.nextStep()).isEqualTo("legal_consent_required");
         assertThat(result.identity().email()).isEqualTo("founder@example.com");
         verify(repository).recordAuditEvent(
                 eq(authUserId),

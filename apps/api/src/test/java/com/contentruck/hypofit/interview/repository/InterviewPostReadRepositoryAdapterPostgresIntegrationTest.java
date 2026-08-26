@@ -60,6 +60,7 @@ class InterviewPostReadRepositoryAdapterPostgresIntegrationTest extends Postgres
                         null,
                         null,
                         false,
+                        false,
                         null,
                         null,
                         null,

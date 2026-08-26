@@ -54,7 +54,24 @@ class SessionWorkflowServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new SessionWorkflowService(repository, auditWriteService, notificationWriteService);
+        SessionWorkflowAccessService accessService = new SessionWorkflowAccessService(repository);
+        SessionLifecycleNotificationService notificationService = new SessionLifecycleNotificationService(
+                repository,
+                notificationWriteService
+        );
+        service = new SessionWorkflowService(
+                repository,
+                accessService,
+                new SessionSchedulingService(
+                        repository,
+                        accessService,
+                        auditWriteService,
+                        notificationService
+                ),
+                new SessionAttendanceService(repository, accessService, auditWriteService, notificationService),
+                new SessionRewardService(repository, accessService, auditWriteService, notificationService),
+                new SessionReviewService(repository, accessService, auditWriteService, notificationService)
+        );
         lenient().when(repository.saveSession(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(repository.saveAttendanceRecord(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(repository.saveRewardConfirmation(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -89,7 +106,7 @@ class SessionWorkflowServiceTest {
     }
 
     @Test
-    void authorizeParticipantPreservesFounderAndRespondentRules() {
+    void authorizeParticipantUsesMembershipInsteadOfCustomerRole() {
         UUID founderId = UUID.randomUUID();
         UUID respondentId = UUID.randomUUID();
         ApplicationRecord application = application(respondentId, "selected");
@@ -101,11 +118,8 @@ class SessionWorkflowServiceTest {
                 .isEqualTo("respondent");
         assertThat(service.authorizeParticipant(new ActiveUser(respondentId, "founder"), application, post))
                 .isEqualTo("respondent");
-
-        assertThatThrownBy(() -> service.authorizeParticipant(new ActiveUser(founderId, "respondent"), application, post))
-                .isInstanceOf(HypofitException.class)
-                .extracting("status", "debugMessage")
-                .containsExactly(403, "Founder role required");
+        assertThat(service.authorizeParticipant(new ActiveUser(founderId, "respondent"), application, post))
+                .isEqualTo("founder");
 
         assertThatThrownBy(() -> service.authorizeParticipant(new ActiveUser(UUID.randomUUID(), "both"), application, post))
                 .isInstanceOf(HypofitException.class)
@@ -170,6 +184,44 @@ class SessionWorkflowServiceTest {
     }
 
     @Test
+    void createSessionForActorAllowsRespondentRoleWhenUserOwnsPost() {
+        UUID founderId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        ApplicationRecord application = application(respondentId, "selected");
+        InterviewPostRecord post = post(founderId);
+        InterviewSessionRecord saved = new InterviewSessionRecord(
+                UUID.randomUUID(),
+                application.id(),
+                OffsetDateTime.parse("2026-08-01T10:00:00Z"),
+                "online",
+                "https://meet.example.com/1",
+                null,
+                "scheduled",
+                "visible"
+        );
+
+        when(repository.findUserById(founderId)).thenReturn(Optional.of(user(founderId, "respondent", null, null)));
+        when(repository.findApplicationContext(application.id()))
+                .thenReturn(Optional.of(new ApplicationContext(application, post)));
+        when(repository.lockApplicationContext(application.id()))
+                .thenReturn(Optional.of(new ApplicationContext(application, post)));
+        when(repository.hasScheduledVisibleSessionForApplication(application.id())).thenReturn(false);
+        when(repository.saveSession(any())).thenReturn(saved);
+
+        SessionReadModels.InterviewSessionReadModel result = service.createSession(
+                founderId,
+                application.id(),
+                saved.scheduledAt(),
+                saved.meetingType(),
+                saved.meetingUrl(),
+                saved.place()
+        );
+
+        assertThat(result.id()).isEqualTo(saved.id());
+        assertThat(result.status()).isEqualTo("scheduled");
+    }
+
+    @Test
     void createSessionForActorRejectsUnselectedApplicationBeforeLocking() {
         UUID founderId = UUID.randomUUID();
         ApplicationRecord application = application(UUID.randomUUID(), "rejected");
@@ -191,6 +243,48 @@ class SessionWorkflowServiceTest {
                 .containsExactly(400, "Only selected applications can be scheduled");
 
         verify(repository, never()).lockApplicationContext(application.id());
+    }
+
+    @Test
+    void createSessionRejectsNonInterviewRecruitmentTypeAtApplicationContextBoundary() {
+        UUID founderId = UUID.randomUUID();
+        ApplicationRecord application = application(UUID.randomUUID(), "selected");
+        InterviewPostRecord post = post(founderId, "beta_test");
+
+        when(repository.findUserById(founderId)).thenReturn(Optional.of(user(founderId, "founder", null, null)));
+        when(repository.findApplicationContext(application.id()))
+                .thenReturn(Optional.of(new ApplicationContext(application, post)));
+
+        assertThatThrownBy(() -> service.createSession(
+                founderId,
+                application.id(),
+                OffsetDateTime.parse("2026-08-01T10:00:00Z"),
+                "online",
+                "https://meet.example.com/1",
+                null
+        )).isInstanceOf(HypofitException.class)
+                .extracting("code", "status")
+                .containsExactly("recruitment_type_action_not_allowed", 400);
+
+        verify(repository, never()).lockApplicationContext(application.id());
+    }
+
+    @Test
+    void confirmAttendanceRejectsNonInterviewRecruitmentTypeAtSessionContextBoundary() {
+        UUID founderId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        InterviewSessionRecord interviewSession = session("scheduled");
+        ApplicationRecord application = application(respondentId, "selected");
+        InterviewPostRecord post = post(founderId, "beta_test");
+
+        when(repository.findUserById(founderId)).thenReturn(Optional.of(user(founderId, "founder", null, null)));
+        when(repository.findSessionContext(interviewSession.id()))
+                .thenReturn(Optional.of(new SessionContext(interviewSession, application, post)));
+
+        assertThatThrownBy(() -> service.confirmAttendance(founderId, interviewSession.id()))
+                .isInstanceOf(HypofitException.class)
+                .extracting("code", "status")
+                .containsExactly("recruitment_type_action_not_allowed", 400);
     }
 
     @Test
@@ -234,6 +328,42 @@ class SessionWorkflowServiceTest {
         assertThat(audit.before()).containsEntry("meeting_type", "online");
         assertThat(audit.after()).containsEntry("meeting_type", "offline");
         assertThat(audit.metadata()).containsEntry("actor_role", "founder");
+    }
+
+    @Test
+    void updateSessionRejectsSelectedApplicantBeforeAnyWrite() {
+        UUID founderId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        InterviewSessionRecord interviewSession = session("scheduled");
+        ApplicationRecord application = application(respondentId, "selected");
+        InterviewPostRecord post = post(founderId);
+
+        when(repository.findUserById(respondentId))
+                .thenReturn(Optional.of(user(respondentId, "both", null, null)));
+        when(repository.findSessionContext(interviewSession.id()))
+                .thenReturn(Optional.of(new SessionContext(interviewSession, application, post)));
+
+        assertThatThrownBy(() -> service.updateSession(
+                respondentId,
+                interviewSession.id(),
+                null,
+                OffsetDateTime.parse("2026-08-02T10:00:00Z"),
+                true,
+                null,
+                false,
+                null,
+                false,
+                null,
+                false
+        )).isInstanceOf(HypofitException.class)
+                .extracting("status", "debugMessage")
+                .containsExactly(403, "Only the post owner can update a session");
+
+        verify(repository, never()).saveSession(any());
+        verify(auditWriteService, never()).record(any());
+        verify(notificationWriteService, never()).createNotification(
+                any(), any(), any(), any(), any(), any(), any()
+        );
     }
 
     @Test
@@ -616,11 +746,16 @@ class SessionWorkflowServiceTest {
     }
 
     private InterviewPostRecord post(UUID founderId) {
+        return post(founderId, "interview");
+    }
+
+    private InterviewPostRecord post(UUID founderId, String recruitmentType) {
         return new InterviewPostRecord(
                 UUID.randomUUID(),
                 founderId,
                 "인터뷰",
-                15000
+                15000,
+                recruitmentType
         );
     }
 

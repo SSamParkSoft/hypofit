@@ -1,5 +1,6 @@
 package com.contentruck.hypofit.applicant.service;
 
+import com.contentruck.hypofit.ai.service.AiSummaryEnqueueService;
 import com.contentruck.hypofit.audit.service.AuditEventCommand;
 import com.contentruck.hypofit.audit.service.AuditWriteService;
 import com.contentruck.hypofit.chat.service.ApplicationChatLifecycleService;
@@ -18,8 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ApplicationWorkflowService {
 
-    private static final Set<String> PARTICIPANT_ROLES = Set.of("founder", "respondent", "both");
-    private static final Set<String> FOUNDER_ROLES = Set.of("founder", "both");
+    private static final String RECRUITMENT_TYPE_INTERVIEW = "interview";
+    private static final String RECRUITMENT_TYPE_SURVEY = "survey";
+    private static final String RECRUITMENT_TYPE_BETA_TEST = "beta_test";
     private static final Set<String> WITHDRAWABLE_APPLICATION_STATUSES = Set.of("applied", "selected");
     private static final Set<String> SELECT_ALLOWED_PREVIOUS_STATUSES = Set.of("applied");
     private static final Set<String> REJECT_ALLOWED_PREVIOUS_STATUSES = Set.of("applied");
@@ -29,17 +31,20 @@ public class ApplicationWorkflowService {
     private final ApplicationChatLifecycleService chatLifecycleService;
     private final NotificationWriteService notificationWriteService;
     private final AuditWriteService auditWriteService;
+    private final AiSummaryEnqueueService aiSummaryEnqueueService;
 
     public ApplicationWorkflowService(
             ApplicationWorkflowRepository repository,
             ApplicationChatLifecycleService chatLifecycleService,
             NotificationWriteService notificationWriteService,
-            AuditWriteService auditWriteService
+            AuditWriteService auditWriteService,
+            AiSummaryEnqueueService aiSummaryEnqueueService
     ) {
         this.repository = repository;
         this.chatLifecycleService = chatLifecycleService;
         this.notificationWriteService = notificationWriteService;
         this.auditWriteService = auditWriteService;
+        this.aiSummaryEnqueueService = aiSummaryEnqueueService;
     }
 
     @Transactional(readOnly = true)
@@ -62,11 +67,11 @@ public class ApplicationWorkflowService {
             java.util.Map<String, String> answers,
             java.util.List<String> availableTimes
     ) {
-        ApplicationUserAccount actor = requireActiveUser(userId);
-        ensureParticipantRole(actor);
+        requireActiveUser(userId);
 
         InterviewPostOwnership post = repository.findInterviewPost(interviewPostId)
                 .orElseThrow(() -> new ApplicationNotFoundException("Interview post not found"));
+        ensureApplicationWorkflowSupported(post.recruitmentType());
         if (post.founderId().equals(userId)) {
             throw new ApplicationPermissionDeniedException("Cannot apply to your own interview");
         }
@@ -79,12 +84,14 @@ public class ApplicationWorkflowService {
 
         try {
             ApplicationReadModel application = repository.createApplication(interviewPostId, userId, answers, availableTimes);
-            chatLifecycleService.ensureRoomForApplication(
-                    application.id(),
-                    post.id(),
-                    post.founderId(),
-                    application.respondentId()
-            );
+            if (shouldCreateChatRoomOnApply(post.recruitmentType())) {
+                chatLifecycleService.ensureRoomForApplication(
+                        application.id(),
+                        post.id(),
+                        post.founderId(),
+                        application.respondentId()
+                );
+            }
             notificationWriteService.createNotification(
                     post.founderId(),
                     "application_created",
@@ -97,6 +104,7 @@ public class ApplicationWorkflowService {
                             "interview_title", post.title()
                     )
             );
+            aiSummaryEnqueueService.enqueueApplicationSummary(application.id());
             return application;
         } catch (DataIntegrityViolationException exception) {
             throw new ApplicationConflictException("Already applied to this interview");
@@ -105,11 +113,11 @@ public class ApplicationWorkflowService {
 
     @Transactional
     public ApplicationReadModel withdrawApplication(UUID userId, UUID applicationId) {
-        ApplicationUserAccount actor = requireActiveUser(userId);
-        ensureParticipantRole(actor);
+        requireActiveUser(userId);
 
         ApplicationWorkflowContext context = repository.lockVisibleApplicationContext(applicationId)
                 .orElseThrow(() -> new ApplicationNotFoundException("Application not found"));
+        ensureApplicationWorkflowSupported(context.recruitmentType());
         if (!context.respondentId().equals(userId)) {
             throw new ApplicationPermissionDeniedException("Forbidden");
         }
@@ -127,12 +135,14 @@ public class ApplicationWorkflowService {
                         null
                 )
                 .orElseThrow(() -> new ApplicationConflictException("Application status has already changed"));
-        chatLifecycleService.markCanceledForApplication(
-                application.id(),
-                context.interviewPostId(),
-                context.founderId(),
-                application.respondentId()
-        );
+        if (shouldManageExistingChatRoom(context.recruitmentType(), context.status())) {
+            chatLifecycleService.markCanceledForApplication(
+                    application.id(),
+                    context.interviewPostId(),
+                    context.founderId(),
+                    application.respondentId()
+            );
+        }
         notificationWriteService.createNotification(
                 context.founderId(),
                 "application_withdrawn",
@@ -172,11 +182,11 @@ public class ApplicationWorkflowService {
             String nextStatus,
             String rejectionReason
     ) {
-        ApplicationUserAccount actor = requireActiveUser(userId);
-        ensureFounderRole(actor);
+        requireActiveUser(userId);
 
         ApplicationWorkflowContext context = repository.findVisibleApplicationContext(applicationId)
                 .orElseThrow(() -> new ApplicationNotFoundException("Application not found"));
+        ensureApplicationWorkflowSupported(context.recruitmentType());
         if (!context.founderId().equals(userId)) {
             throw new ApplicationPermissionDeniedException("Forbidden");
         }
@@ -221,13 +231,15 @@ public class ApplicationWorkflowService {
                     )
             );
         } else if ("rejected".equals(nextStatus)) {
-            chatLifecycleService.markRejectedForApplication(
-                    application.id(),
-                    context.interviewPostId(),
-                    context.founderId(),
-                    application.respondentId(),
-                    normalizedReason != null ? normalizedReason : "사유가 입력되지 않았어요."
-            );
+            if (shouldManageExistingChatRoom(context.recruitmentType(), context.status())) {
+                chatLifecycleService.markRejectedForApplication(
+                        application.id(),
+                        context.interviewPostId(),
+                        context.founderId(),
+                        application.respondentId(),
+                        normalizedReason != null ? normalizedReason : "사유가 입력되지 않았어요."
+                );
+            }
             notificationWriteService.createNotification(
                     context.respondentId(),
                     "application_rejected",
@@ -241,12 +253,14 @@ public class ApplicationWorkflowService {
                     )
             );
         } else if ("canceled".equals(nextStatus)) {
-            chatLifecycleService.markCanceledForApplication(
-                    application.id(),
-                    context.interviewPostId(),
-                    context.founderId(),
-                    application.respondentId()
-            );
+            if (shouldManageExistingChatRoom(context.recruitmentType(), context.status())) {
+                chatLifecycleService.markCanceledForApplication(
+                        application.id(),
+                        context.interviewPostId(),
+                        context.founderId(),
+                        application.respondentId()
+                );
+            }
             notificationWriteService.createNotification(
                     context.respondentId(),
                     "application_canceled",
@@ -260,6 +274,31 @@ public class ApplicationWorkflowService {
         return application;
     }
 
+    private void ensureApplicationWorkflowSupported(String recruitmentType) {
+        if (RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType) || RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType)) {
+            return;
+        }
+        if (RECRUITMENT_TYPE_SURVEY.equals(recruitmentType)) {
+            throw new ApplicationRecruitmentTypeActionNotAllowedException(
+                    "Survey posts do not support the application workflow"
+            );
+        }
+        throw new ApplicationRecruitmentTypeActionNotAllowedException(
+                "Unsupported recruitment type for the application workflow: " + recruitmentType
+        );
+    }
+
+    private boolean shouldCreateChatRoomOnApply(String recruitmentType) {
+        return RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType);
+    }
+
+    private boolean shouldManageExistingChatRoom(String recruitmentType, String currentStatus) {
+        if (RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType)) {
+            return true;
+        }
+        return RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType) && "selected".equals(currentStatus);
+    }
+
     private ApplicationUserAccount requireActiveUser(UUID userId) {
         ApplicationUserAccount account = repository.findUserAccount(userId)
                 .orElseThrow(UserProfileMissingException::new);
@@ -270,17 +309,5 @@ public class ApplicationWorkflowService {
             throw new UserAccountDeactivatedException();
         }
         return account;
-    }
-
-    private void ensureParticipantRole(ApplicationUserAccount account) {
-        if (!PARTICIPANT_ROLES.contains(account.role())) {
-            throw new ApplicationPermissionDeniedException("Interview participant role required");
-        }
-    }
-
-    private void ensureFounderRole(ApplicationUserAccount account) {
-        if (!FOUNDER_ROLES.contains(account.role())) {
-            throw new ApplicationPermissionDeniedException("Founder role required");
-        }
     }
 }

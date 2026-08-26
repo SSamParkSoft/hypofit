@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/me")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "내 프로필")
 @SecurityRequirement(name = "HTTPBearer")
 public class MeController {
 

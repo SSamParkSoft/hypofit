@@ -5,7 +5,10 @@ import com.contentruck.hypofit.common.error.HypofitValidationException;
 import com.contentruck.hypofit.common.web.RawRequestBodyJson;
 import com.contentruck.hypofit.interview.service.InterviewPostCreateCommand;
 import com.contentruck.hypofit.interview.service.InterviewPostUpdateCommand;
+import com.contentruck.hypofit.interview.service.PostingCompensation;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,6 +18,10 @@ public final class InterviewPostRequestParser {
 
     private static final Set<String> CREATE_STATUSES = Set.of("draft", "open");
     private static final Set<String> UPDATE_STATUSES = Set.of("draft", "open");
+    private static final Set<String> RECRUITMENT_TYPES = Set.of(
+            "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
+    );
+    private static final Set<String> EXTERNAL_PROVIDERS = Set.of("google_forms");
     private static final Set<String> INTERVIEW_MODES = Set.of("offline", "online", "both");
     private static final Set<String> LOCATION_PRECISIONS = Set.of("exact", "nearby", "district");
     private static final Set<String> LOCATION_SOURCES = Set.of("kakao_place", "manual", "current_location");
@@ -30,16 +37,28 @@ public final class InterviewPostRequestParser {
         JsonNode object = requireObject(body);
         List<FieldError> errors = new ArrayList<>();
 
+        String recruitmentType = optionalEnum(object, "recruitment_type", RECRUITMENT_TYPES, errors);
+        if (!object.has("recruitment_type")) {
+            recruitmentType = "interview";
+        }
         String title = requiredString(object, "title", 2, 120, errors);
         String serviceSummary = requiredString(object, "service_summary", 10, 2000, errors);
         String targetDescription = requiredString(object, "target_description", 10, 2000, errors);
         Integer rewardAmount = requiredInteger(object, "reward_amount", 0, null, errors);
+        List<PostingCompensation> compensations = parseCompensations(object, errors);
         Integer durationMinutes = requiredInteger(object, "duration_minutes", 10, 240, errors);
         Integer recruitCount = optionalInteger(object, "recruit_count", 0, 999, errors);
         if (!object.has("recruit_count")) {
             recruitCount = 0;
         }
-        String interviewMode = requiredEnum(object, "interview_mode", INTERVIEW_MODES, errors);
+        String interviewMode = optionalEnum(object, "interview_mode", INTERVIEW_MODES, errors);
+        String externalProvider = optionalEnum(object, "external_provider", EXTERNAL_PROVIDERS, errors);
+        String externalUrl = optionalString(object, "external_url", null, 2000, errors);
+        OffsetDateTime participationDeadlineAt = optionalOffsetDateTime(object, "participation_deadline_at", errors);
+        String externalDataNotice = optionalString(object, "external_data_notice", null, 2000, errors);
+        List<String> betaTestPlatforms = parseCreateOptionalStringList(object, "beta_test_platforms", errors);
+        OffsetDateTime betaTestStartsAt = optionalOffsetDateTime(object, "beta_test_starts_at", errors);
+        OffsetDateTime betaTestEndsAt = optionalOffsetDateTime(object, "beta_test_ends_at", errors);
         String location = optionalString(object, "location", null, 200, errors);
         String locationText = optionalString(object, "location_text", null, 200, errors);
         String locationAddress = optionalString(object, "location_address", null, 300, errors);
@@ -54,16 +73,39 @@ public final class InterviewPostRequestParser {
             status = "draft";
         }
 
+        if ("interview".equals(recruitmentType) && interviewMode == null) {
+            errors.add(new FieldError("interview_mode", "입력값을 확인해 주세요."));
+        }
+
         throwIfErrors(errors);
-        validateOfflineCapableLocation(interviewMode, location, locationText, locationLatitude, locationLongitude, locationPrecision, locationSource);
+        if ("interview".equals(recruitmentType)
+                && ("offline".equals(interviewMode) || "both".equals(interviewMode))) {
+            validateCreateLocation(
+                    location,
+                    locationText,
+                    locationLatitude,
+                    locationLongitude,
+                    locationPrecision,
+                    locationSource
+            );
+        }
 
         return new InterviewPostCreateCommand(
+                recruitmentType,
                 title,
                 serviceSummary,
                 targetDescription,
                 rewardAmount,
+                compensations,
                 durationMinutes,
                 recruitCount,
+                externalProvider,
+                externalUrl,
+                participationDeadlineAt,
+                externalDataNotice,
+                betaTestPlatforms,
+                betaTestStartsAt,
+                betaTestEndsAt,
                 interviewMode,
                 location,
                 locationText,
@@ -82,11 +124,76 @@ public final class InterviewPostRequestParser {
         return parseUpdate(RawRequestBodyJson.toJsonNode(body.rawBody()));
     }
 
+    private static void validateCreateLocation(
+            String location,
+            String locationText,
+            Double latitude,
+            Double longitude,
+            String precision,
+            String source
+    ) {
+        if ((location == null || location.isBlank())
+                && (locationText == null || locationText.isBlank())
+                || latitude == null
+                || longitude == null
+                || precision == null
+                || source == null) {
+            throw new HypofitValidationException(
+                    "Offline-capable interview posts require a selected location",
+                    List.of(new FieldError("__root__", "Offline-capable interview posts require a selected location"))
+            );
+        }
+    }
+
+    private static List<PostingCompensation> parseCompensations(JsonNode object, List<FieldError> errors) {
+        if (!object.has("compensations") || object.get("compensations").isNull()) {
+            return List.of();
+        }
+        JsonNode values = object.get("compensations");
+        if (!values.isArray()) {
+            errors.add(new FieldError("compensations", "입력값을 확인해 주세요."));
+            return List.of();
+        }
+        List<PostingCompensation> result = new ArrayList<>();
+        for (JsonNode value : values) {
+            if (!value.isObject()) {
+                errors.add(new FieldError("compensations", "입력값을 확인해 주세요."));
+                continue;
+            }
+            result.add(new PostingCompensation(
+                    optionalRawString(value, "type"),
+                    optionalRawString(value, "label"),
+                    optionalRawInteger(value, "amount", errors),
+                    optionalRawString(value, "currency"),
+                    optionalRawInteger(value, "points", errors),
+                    optionalRawString(value, "description"),
+                    optionalRawString(value, "delivery_method")
+            ));
+        }
+        return result;
+    }
+
+    private static String optionalRawString(JsonNode object, String field) {
+        JsonNode value = object.get(field);
+        return value == null || value.isNull() || !value.isTextual() ? null : value.textValue();
+    }
+
+    private static Integer optionalRawInteger(JsonNode object, String field, List<FieldError> errors) {
+        JsonNode value = object.get(field);
+        if (value == null || value.isNull()) return null;
+        if (!value.canConvertToInt()) {
+            errors.add(new FieldError("compensations", "입력값을 확인해 주세요."));
+            return null;
+        }
+        return value.intValue();
+    }
+
     public static InterviewPostUpdateCommand parseUpdate(JsonNode body) {
         JsonNode object = requireObject(body);
         List<FieldError> errors = new ArrayList<>();
         Set<String> providedFields = new LinkedHashSet<>();
 
+        String recruitmentType = optionalNullableEnum(object, "recruitment_type", RECRUITMENT_TYPES, errors, providedFields);
         String title = optionalNullableString(object, "title", 2, 120, errors, providedFields);
         String serviceSummary = optionalNullableString(object, "service_summary", 10, 2000, errors, providedFields);
         String targetDescription = optionalNullableString(object, "target_description", 10, 2000, errors, providedFields);
@@ -94,6 +201,25 @@ public final class InterviewPostRequestParser {
         Integer durationMinutes = optionalNullableInteger(object, "duration_minutes", 10, 240, errors, providedFields);
         Integer recruitCount = optionalNullableInteger(object, "recruit_count", 0, 999, errors, providedFields);
         String interviewMode = optionalNullableEnum(object, "interview_mode", INTERVIEW_MODES, errors, providedFields);
+        String externalProvider = optionalNullableEnum(object, "external_provider", EXTERNAL_PROVIDERS, errors, providedFields);
+        String externalUrl = optionalNullableString(object, "external_url", null, 2000, errors, providedFields);
+        OffsetDateTime participationDeadlineAt = optionalNullableOffsetDateTime(
+                object,
+                "participation_deadline_at",
+                errors,
+                providedFields
+        );
+        String externalDataNotice = optionalNullableString(
+                object,
+                "external_data_notice",
+                null,
+                2000,
+                errors,
+                providedFields
+        );
+        List<String> betaTestPlatforms = parseUpdateOptionalStringList(object, "beta_test_platforms", errors, providedFields);
+        OffsetDateTime betaTestStartsAt = optionalNullableOffsetDateTime(object, "beta_test_starts_at", errors, providedFields);
+        OffsetDateTime betaTestEndsAt = optionalNullableOffsetDateTime(object, "beta_test_ends_at", errors, providedFields);
         String location = optionalNullableString(object, "location", null, 200, errors, providedFields);
         String locationText = optionalNullableString(object, "location_text", null, 200, errors, providedFields);
         String locationAddress = optionalNullableString(object, "location_address", null, 300, errors, providedFields);
@@ -112,12 +238,20 @@ public final class InterviewPostRequestParser {
 
         return new InterviewPostUpdateCommand(
                 providedFields,
+                recruitmentType,
                 title,
                 serviceSummary,
                 targetDescription,
                 rewardAmount,
                 durationMinutes,
                 recruitCount,
+                externalProvider,
+                externalUrl,
+                participationDeadlineAt,
+                externalDataNotice,
+                betaTestPlatforms,
+                betaTestStartsAt,
+                betaTestEndsAt,
                 interviewMode,
                 location,
                 locationText,
@@ -307,6 +441,52 @@ public final class InterviewPostRequestParser {
         return value;
     }
 
+    private static OffsetDateTime optionalOffsetDateTime(JsonNode body, String field, List<FieldError> errors) {
+        if (!body.has(field)) {
+            return null;
+        }
+        JsonNode node = body.get(field);
+        if (node.isNull()) {
+            return null;
+        }
+        if (!node.isTextual()) {
+            errors.add(new FieldError(field, "입력값을 확인해 주세요."));
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(node.asText());
+        } catch (DateTimeParseException exception) {
+            errors.add(new FieldError(field, "입력값을 확인해 주세요."));
+            return null;
+        }
+    }
+
+    private static OffsetDateTime optionalNullableOffsetDateTime(
+            JsonNode body,
+            String field,
+            List<FieldError> errors,
+            Set<String> providedFields
+    ) {
+        if (!body.has(field)) {
+            return null;
+        }
+        providedFields.add(toJavaField(field));
+        JsonNode node = body.get(field);
+        if (node.isNull()) {
+            return null;
+        }
+        if (!node.isTextual()) {
+            errors.add(new FieldError(field, "입력값을 확인해 주세요."));
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(node.asText());
+        } catch (DateTimeParseException exception) {
+            errors.add(new FieldError(field, "입력값을 확인해 주세요."));
+            return null;
+        }
+    }
+
     private static String requiredEnum(JsonNode body, String field, Set<String> allowed, List<FieldError> errors) {
         String value = requiredString(body, field, null, null, errors);
         if (value != null && !allowed.contains(value)) {
@@ -344,6 +524,18 @@ public final class InterviewPostRequestParser {
         return parseStringList(body.get("schedule_options"), "schedule_options", errors);
     }
 
+    private static List<String> parseCreateOptionalStringList(JsonNode body, String field, List<FieldError> errors) {
+        if (!body.has(field)) {
+            return null;
+        }
+        JsonNode node = body.get(field);
+        if (node.isNull()) {
+            errors.add(new FieldError(field, "입력값을 확인해 주세요."));
+            return null;
+        }
+        return parseStringList(node, field, errors);
+    }
+
     private static List<String> parseUpdateScheduleOptions(
             JsonNode body,
             List<FieldError> errors,
@@ -358,6 +550,23 @@ public final class InterviewPostRequestParser {
             throw validation("schedule_options", "schedule_options cannot be null");
         }
         return parseStringList(node, "schedule_options", errors);
+    }
+
+    private static List<String> parseUpdateOptionalStringList(
+            JsonNode body,
+            String field,
+            List<FieldError> errors,
+            Set<String> providedFields
+    ) {
+        if (!body.has(field)) {
+            return null;
+        }
+        providedFields.add(toJavaField(field));
+        JsonNode node = body.get(field);
+        if (node.isNull()) {
+            return null;
+        }
+        return parseStringList(node, field, errors);
     }
 
     private static List<String> parseStringList(JsonNode node, String field, List<FieldError> errors) {
@@ -376,25 +585,6 @@ public final class InterviewPostRequestParser {
         return List.copyOf(values);
     }
 
-    private static void validateOfflineCapableLocation(
-            String interviewMode,
-            String location,
-            String locationText,
-            Double locationLatitude,
-            Double locationLongitude,
-            String locationPrecision,
-            String locationSource
-    ) {
-        if (!"online".equals(interviewMode)
-                && ((!hasValue(location) && !hasValue(locationText))
-                || locationLatitude == null
-                || locationLongitude == null
-                || locationPrecision == null
-                || locationSource == null)) {
-            throw validation("__root__", "Offline-capable interview posts require a selected location");
-        }
-    }
-
     private static void throwIfErrors(List<FieldError> errors) {
         if (!errors.isEmpty()) {
             throw new HypofitValidationException("입력값을 확인해 주세요.", List.copyOf(errors));
@@ -407,12 +597,20 @@ public final class InterviewPostRequestParser {
 
     private static String toJavaField(String field) {
         return switch (field) {
+            case "recruitment_type" -> "recruitmentType";
             case "service_summary" -> "serviceSummary";
             case "target_description" -> "targetDescription";
             case "reward_amount" -> "rewardAmount";
             case "duration_minutes" -> "durationMinutes";
             case "recruit_count" -> "recruitCount";
             case "interview_mode" -> "interviewMode";
+            case "external_provider" -> "externalProvider";
+            case "external_url" -> "externalUrl";
+            case "participation_deadline_at" -> "participationDeadlineAt";
+            case "external_data_notice" -> "externalDataNotice";
+            case "beta_test_platforms" -> "betaTestPlatforms";
+            case "beta_test_starts_at" -> "betaTestStartsAt";
+            case "beta_test_ends_at" -> "betaTestEndsAt";
             case "location_text" -> "locationText";
             case "location_address" -> "locationAddress";
             case "location_place_name" -> "locationPlaceName";
@@ -425,7 +623,4 @@ public final class InterviewPostRequestParser {
         };
     }
 
-    private static boolean hasValue(String value) {
-        return value != null && !value.isEmpty();
-    }
 }

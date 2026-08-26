@@ -53,12 +53,21 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
     public InterviewPostWriteModel createPost(UUID founderId, InterviewPostCreateCommand command) {
         InterviewPostEntity entity = new InterviewPostEntity();
         entity.setFounderId(founderId);
+        entity.setRecruitmentType(command.recruitmentType());
         entity.setTitle(command.title());
         entity.setServiceSummary(command.serviceSummary());
         entity.setTargetDescription(command.targetDescription());
         entity.setRewardAmount(command.rewardAmount());
+        entity.setCompensations(command.compensations());
         entity.setDurationMinutes(command.durationMinutes());
         entity.setRecruitCount(command.recruitCount());
+        entity.setExternalProvider(command.externalProvider());
+        entity.setExternalUrl(command.externalUrl());
+        entity.setParticipationDeadlineAt(command.participationDeadlineAt());
+        entity.setExternalDataNotice(command.externalDataNotice());
+        entity.setBetaTestPlatforms(command.betaTestPlatforms());
+        entity.setBetaTestStartsAt(command.betaTestStartsAt());
+        entity.setBetaTestEndsAt(command.betaTestEndsAt());
         entity.setInterviewMode(command.interviewMode());
         entity.setLocation(command.location() != null ? command.location() : command.locationText());
         entity.setLocationText(command.locationText() != null ? command.locationText() : command.location());
@@ -115,11 +124,19 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
         for (Map.Entry<String, Object> entry : changes.entrySet()) {
             switch (entry.getKey()) {
                 case "title" -> entity.setTitle((String) entry.getValue());
+                case "recruitmentType" -> entity.setRecruitmentType((String) entry.getValue());
                 case "serviceSummary" -> entity.setServiceSummary((String) entry.getValue());
                 case "targetDescription" -> entity.setTargetDescription((String) entry.getValue());
                 case "rewardAmount" -> entity.setRewardAmount((Integer) entry.getValue());
                 case "durationMinutes" -> entity.setDurationMinutes((Integer) entry.getValue());
                 case "recruitCount" -> entity.setRecruitCount((Integer) entry.getValue());
+                case "externalProvider" -> entity.setExternalProvider((String) entry.getValue());
+                case "externalUrl" -> entity.setExternalUrl((String) entry.getValue());
+                case "participationDeadlineAt" -> entity.setParticipationDeadlineAt((java.time.OffsetDateTime) entry.getValue());
+                case "externalDataNotice" -> entity.setExternalDataNotice((String) entry.getValue());
+                case "betaTestPlatforms" -> entity.setBetaTestPlatforms((List<String>) entry.getValue());
+                case "betaTestStartsAt" -> entity.setBetaTestStartsAt((java.time.OffsetDateTime) entry.getValue());
+                case "betaTestEndsAt" -> entity.setBetaTestEndsAt((java.time.OffsetDateTime) entry.getValue());
                 case "interviewMode" -> entity.setInterviewMode((String) entry.getValue());
                 case "location" -> entity.setLocation((String) entry.getValue());
                 case "locationText" -> entity.setLocationText((String) entry.getValue());
@@ -166,12 +183,21 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
         return new InterviewPostWriteModel(
                 entity.getId(),
                 entity.getFounderId(),
+                entity.getRecruitmentType(),
                 entity.getTitle(),
                 entity.getServiceSummary(),
                 entity.getTargetDescription(),
                 entity.getRewardAmount(),
+                entity.getCompensations(),
                 entity.getDurationMinutes(),
                 entity.getRecruitCount(),
+                entity.getExternalProvider(),
+                entity.getExternalUrl(),
+                entity.getParticipationDeadlineAt(),
+                entity.getExternalDataNotice(),
+                entity.getBetaTestPlatforms(),
+                entity.getBetaTestStartsAt(),
+                entity.getBetaTestEndsAt(),
                 entity.getInterviewMode(),
                 entity.getLocation(),
                 entity.getLocationText(),

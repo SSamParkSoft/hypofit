@@ -240,8 +240,8 @@ class SessionWorkflowPostgresIntegrationTest extends PostgresIntegrationTestSupp
                 """
                 insert into interview_posts (
                   id, founder_id, title, service_summary, target_description,
-                  reward_amount, duration_minutes, interview_mode, schedule_options, status
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, ?)
+                  reward_amount, duration_minutes, interview_mode, recruitment_type, schedule_options, status
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, ?)
                 """,
                 interviewPostId,
                 founderId,
@@ -251,6 +251,7 @@ class SessionWorkflowPostgresIntegrationTest extends PostgresIntegrationTestSupp
                 15000,
                 30,
                 "online",
+                "interview",
                 "open"
         );
         jdbcTemplate.update(
@@ -281,7 +282,7 @@ class SessionWorkflowPostgresIntegrationTest extends PostgresIntegrationTestSupp
         return new Fixture(
                 founderId,
                 respondentId,
-                new InterviewPostRecord(interviewPostId, founderId, "세션 동시성 테스트", 15000),
+                new InterviewPostRecord(interviewPostId, founderId, "세션 동시성 테스트", 15000, "interview"),
                 new ApplicationRecord(
                         applicationId,
                         interviewPostId,

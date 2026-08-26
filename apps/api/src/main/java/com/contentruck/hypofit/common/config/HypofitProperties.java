@@ -36,6 +36,24 @@ public class HypofitProperties {
     private String socialAuthGoogleState = "disabled";
     private String socialAuthKakaoState = "disabled";
     private String socialAuthNaverState = "disabled";
+    private boolean surveyRecruitmentCreationEnabled;
+    private boolean betaTestRecruitmentCreationEnabled;
+    private boolean extendedRecruitmentCreationEnabled;
+    private boolean aiSummaryEnabled;
+    private boolean aiInterviewSummaryEnabled;
+    private boolean aiApplicantSummaryEnabled;
+    private boolean aiSummaryWorkerEnabled;
+    private String aiSummaryProvider = "disabled";
+    private String aiSummaryModel = "";
+    private int aiSummaryTimeoutSeconds = 30;
+    private int aiSummaryWorkerBatchSize = 5;
+    private double aiSummaryWorkerActiveSleepSeconds = 2.0d;
+    private double aiSummaryWorkerIdleSleepSeconds = 20.0d;
+    private double aiSummaryWorkerErrorSleepSeconds = 30.0d;
+    private int aiSummaryProcessingTimeoutSeconds = 300;
+    private int aiSummaryMaxAttempts = 3;
+    private String geminiApiKey = "";
+    private String geminiApiBaseUrl = "https://generativelanguage.googleapis.com";
     private final PushProperties push = new PushProperties();
 
     public String getEnv() {
@@ -238,6 +256,157 @@ public class HypofitProperties {
         this.socialAuthNaverState = socialAuthNaverState;
     }
 
+    public boolean isSurveyRecruitmentCreationEnabled() {
+        return surveyRecruitmentCreationEnabled;
+    }
+
+    public void setSurveyRecruitmentCreationEnabled(boolean surveyRecruitmentCreationEnabled) {
+        this.surveyRecruitmentCreationEnabled = surveyRecruitmentCreationEnabled;
+    }
+
+    public boolean isBetaTestRecruitmentCreationEnabled() {
+        return betaTestRecruitmentCreationEnabled;
+    }
+
+    public void setBetaTestRecruitmentCreationEnabled(boolean betaTestRecruitmentCreationEnabled) {
+        this.betaTestRecruitmentCreationEnabled = betaTestRecruitmentCreationEnabled;
+    }
+
+    public boolean isExtendedRecruitmentCreationEnabled() {
+        return extendedRecruitmentCreationEnabled;
+    }
+
+    public void setExtendedRecruitmentCreationEnabled(boolean extendedRecruitmentCreationEnabled) {
+        this.extendedRecruitmentCreationEnabled = extendedRecruitmentCreationEnabled;
+    }
+
+    public boolean isAiSummaryEnabled() {
+        return aiSummaryEnabled;
+    }
+
+    public void setAiSummaryEnabled(boolean aiSummaryEnabled) {
+        this.aiSummaryEnabled = aiSummaryEnabled;
+    }
+
+    public boolean isAiInterviewSummaryEnabled() {
+        return aiInterviewSummaryEnabled;
+    }
+
+    public void setAiInterviewSummaryEnabled(boolean aiInterviewSummaryEnabled) {
+        this.aiInterviewSummaryEnabled = aiInterviewSummaryEnabled;
+    }
+
+    public boolean isAiApplicantSummaryEnabled() {
+        return aiApplicantSummaryEnabled;
+    }
+
+    public void setAiApplicantSummaryEnabled(boolean aiApplicantSummaryEnabled) {
+        this.aiApplicantSummaryEnabled = aiApplicantSummaryEnabled;
+    }
+
+    public boolean isAiSummaryWorkerEnabled() {
+        return aiSummaryWorkerEnabled;
+    }
+
+    public void setAiSummaryWorkerEnabled(boolean aiSummaryWorkerEnabled) {
+        this.aiSummaryWorkerEnabled = aiSummaryWorkerEnabled;
+    }
+
+    public String getAiSummaryProvider() {
+        return aiSummaryProvider;
+    }
+
+    public void setAiSummaryProvider(String aiSummaryProvider) {
+        this.aiSummaryProvider = aiSummaryProvider;
+    }
+
+    public String getAiSummaryModel() {
+        return aiSummaryModel;
+    }
+
+    public void setAiSummaryModel(String aiSummaryModel) {
+        this.aiSummaryModel = aiSummaryModel;
+    }
+
+    public int getAiSummaryTimeoutSeconds() {
+        return aiSummaryTimeoutSeconds;
+    }
+
+    public void setAiSummaryTimeoutSeconds(int aiSummaryTimeoutSeconds) {
+        this.aiSummaryTimeoutSeconds = aiSummaryTimeoutSeconds;
+    }
+
+    public int getAiSummaryWorkerBatchSize() {
+        return aiSummaryWorkerBatchSize;
+    }
+
+    public void setAiSummaryWorkerBatchSize(int aiSummaryWorkerBatchSize) {
+        this.aiSummaryWorkerBatchSize = aiSummaryWorkerBatchSize;
+    }
+
+    public double getAiSummaryWorkerActiveSleepSeconds() {
+        return aiSummaryWorkerActiveSleepSeconds;
+    }
+
+    public void setAiSummaryWorkerActiveSleepSeconds(double aiSummaryWorkerActiveSleepSeconds) {
+        this.aiSummaryWorkerActiveSleepSeconds = aiSummaryWorkerActiveSleepSeconds;
+    }
+
+    public double getAiSummaryWorkerIdleSleepSeconds() {
+        return aiSummaryWorkerIdleSleepSeconds;
+    }
+
+    public void setAiSummaryWorkerIdleSleepSeconds(double aiSummaryWorkerIdleSleepSeconds) {
+        this.aiSummaryWorkerIdleSleepSeconds = aiSummaryWorkerIdleSleepSeconds;
+    }
+
+    public double getAiSummaryWorkerErrorSleepSeconds() {
+        return aiSummaryWorkerErrorSleepSeconds;
+    }
+
+    public void setAiSummaryWorkerErrorSleepSeconds(double aiSummaryWorkerErrorSleepSeconds) {
+        this.aiSummaryWorkerErrorSleepSeconds = aiSummaryWorkerErrorSleepSeconds;
+    }
+
+    public int getAiSummaryProcessingTimeoutSeconds() {
+        return aiSummaryProcessingTimeoutSeconds;
+    }
+
+    public void setAiSummaryProcessingTimeoutSeconds(int aiSummaryProcessingTimeoutSeconds) {
+        this.aiSummaryProcessingTimeoutSeconds = aiSummaryProcessingTimeoutSeconds;
+    }
+
+    public int getAiSummaryMaxAttempts() {
+        return aiSummaryMaxAttempts;
+    }
+
+    public void setAiSummaryMaxAttempts(int aiSummaryMaxAttempts) {
+        this.aiSummaryMaxAttempts = aiSummaryMaxAttempts;
+    }
+
+    public String getGeminiApiKey() {
+        return geminiApiKey;
+    }
+
+    public void setGeminiApiKey(String geminiApiKey) {
+        this.geminiApiKey = geminiApiKey;
+    }
+
+    public String getGeminiApiBaseUrl() {
+        return geminiApiBaseUrl;
+    }
+
+    public void setGeminiApiBaseUrl(String geminiApiBaseUrl) {
+        this.geminiApiBaseUrl = geminiApiBaseUrl;
+    }
+
+    public String getResolvedGeminiApiBaseUrl() {
+        if (!StringUtils.hasText(geminiApiBaseUrl)) {
+            return "https://generativelanguage.googleapis.com";
+        }
+        return geminiApiBaseUrl.trim().replaceAll("/+$", "");
+    }
+
     public PushProperties getPush() {
         return push;
     }
@@ -327,6 +496,18 @@ public class HypofitProperties {
                         "ios", StringUtils.hasText(socialAuthAppleIosState) ? socialAuthAppleIosState : socialAuthAppleState,
                         "android", "unsupported_platform"
                 )
+        );
+    }
+
+    public Map<String, Object> aiProviderReadiness() {
+        return Map.of(
+                "provider", StringUtils.hasText(aiSummaryProvider) ? aiSummaryProvider : "disabled",
+                "configured", StringUtils.hasText(geminiApiKey),
+                "model_configured", StringUtils.hasText(aiSummaryModel),
+                "generation_enabled", aiSummaryEnabled,
+                "interview_summary_enabled", aiInterviewSummaryEnabled,
+                "applicant_summary_enabled", aiApplicantSummaryEnabled,
+                "worker_enabled", aiSummaryWorkerEnabled
         );
     }
 

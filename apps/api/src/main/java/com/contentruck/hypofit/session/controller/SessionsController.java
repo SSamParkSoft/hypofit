@@ -2,6 +2,7 @@ package com.contentruck.hypofit.session.controller;
 
 import com.contentruck.hypofit.session.dto.SessionWebModels;
 import com.contentruck.hypofit.session.service.SessionWorkflowService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/sessions")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "인터뷰 진행")
 @SecurityRequirement(name = "HTTPBearer")
 public class SessionsController {
 
@@ -30,6 +32,7 @@ public class SessionsController {
     }
 
     @GetMapping("/")
+    @Operation(summary = "인터뷰 일정 목록")
     public List<SessionWebModels.InterviewSessionResponse> listSessions(@AuthenticationPrincipal Jwt jwt) {
         return sessionWorkflowService.listSessions(currentUserId(jwt))
                 .stream()
@@ -38,6 +41,7 @@ public class SessionsController {
     }
 
     @PostMapping("/")
+    @Operation(summary = "인터뷰 일정 생성")
     @ResponseStatus(HttpStatus.CREATED)
     public SessionWebModels.InterviewSessionResponse createSession(
             @Valid @RequestBody SessionWebModels.CreateSessionRequest request,
@@ -56,6 +60,7 @@ public class SessionsController {
     }
 
     @PatchMapping("/{session_id}")
+    @Operation(summary = "인터뷰 일정 수정")
     public SessionWebModels.InterviewSessionResponse updateSession(
             @PathVariable("session_id") UUID sessionId,
             @Valid @RequestBody SessionWebModels.UpdateSessionRequest request,
@@ -80,6 +85,7 @@ public class SessionsController {
     }
 
     @PostMapping("/{session_id}/complete")
+    @Operation(summary = "인터뷰 완료 처리")
     public SessionWebModels.InterviewSessionResponse completeSession(
             @PathVariable("session_id") UUID sessionId,
             @AuthenticationPrincipal Jwt jwt
@@ -90,6 +96,7 @@ public class SessionsController {
     }
 
     @PostMapping("/{session_id}/confirm-attendance")
+    @Operation(summary = "참석 확인")
     public SessionWebModels.ConfirmAttendanceResponse confirmAttendance(
             @PathVariable("session_id") UUID sessionId,
             @AuthenticationPrincipal Jwt jwt
@@ -100,6 +107,7 @@ public class SessionsController {
     }
 
     @PostMapping("/{session_id}/reward/mark-paid")
+    @Operation(summary = "사례비 지급 표시")
     public SessionWebModels.RewardConfirmationResponse markRewardPaid(
             @PathVariable("session_id") UUID sessionId,
             @AuthenticationPrincipal Jwt jwt
@@ -110,6 +118,7 @@ public class SessionsController {
     }
 
     @PostMapping("/{session_id}/reward/confirm")
+    @Operation(summary = "사례비 수령 확인")
     public SessionWebModels.RewardConfirmationResponse confirmRewardReceived(
             @PathVariable("session_id") UUID sessionId,
             @AuthenticationPrincipal Jwt jwt
@@ -120,6 +129,7 @@ public class SessionsController {
     }
 
     @PostMapping("/{session_id}/reward/dispute")
+    @Operation(summary = "사례비 이의 제기")
     public SessionWebModels.RewardConfirmationResponse disputeReward(
             @PathVariable("session_id") UUID sessionId,
             @Valid @RequestBody SessionWebModels.RewardDisputeRequest request,
@@ -131,6 +141,7 @@ public class SessionsController {
     }
 
     @PostMapping("/{session_id}/reviews")
+    @Operation(summary = "후기 작성")
     @ResponseStatus(HttpStatus.CREATED)
     public SessionWebModels.InterviewReviewResponse createReview(
             @PathVariable("session_id") UUID sessionId,
@@ -149,6 +160,7 @@ public class SessionsController {
     }
 
     @GetMapping("/{session_id}/reviews")
+    @Operation(summary = "후기 목록")
     public List<SessionWebModels.InterviewReviewResponse> listReviews(
             @PathVariable("session_id") UUID sessionId,
             @AuthenticationPrincipal Jwt jwt
@@ -160,6 +172,7 @@ public class SessionsController {
     }
 
     @PostMapping("/{session_id}/cancel")
+    @Operation(summary = "인터뷰 취소")
     public SessionWebModels.InterviewSessionResponse cancelSession(
             @PathVariable("session_id") UUID sessionId,
             @Valid @RequestBody SessionWebModels.CancelSessionRequest request,
@@ -171,6 +184,7 @@ public class SessionsController {
     }
 
     @PostMapping("/{session_id}/no-show")
+    @Operation(summary = "노쇼 기록")
     public SessionWebModels.InterviewSessionResponse markNoShow(
             @PathVariable("session_id") UUID sessionId,
             @Valid @RequestBody SessionWebModels.NoShowRequest request,

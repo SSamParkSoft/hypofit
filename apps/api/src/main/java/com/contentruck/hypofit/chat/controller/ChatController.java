@@ -8,6 +8,7 @@ import com.contentruck.hypofit.chat.dto.ChatRoomSettingsResponse;
 import com.contentruck.hypofit.chat.dto.ChatRoomSettingsUpdateRequest;
 import com.contentruck.hypofit.chat.dto.ChatWorkflowResponse;
 import com.contentruck.hypofit.chat.service.ChatService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -32,6 +33,7 @@ import org.springframework.http.HttpStatus;
 @Validated
 @RestController
 @RequestMapping("/api/v1/chat")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "채팅")
 @SecurityRequirement(name = "HTTPBearer")
 public class ChatController {
 
@@ -42,12 +44,14 @@ public class ChatController {
     }
 
     @GetMapping("/rooms/")
+    @Operation(summary = "채팅방 목록")
     public List<ChatRoomResponse> listRooms(@AuthenticationPrincipal Jwt jwt) {
         UUID currentUserId = UUID.fromString(jwt.getSubject());
         return chatService.listRooms(currentUserId).stream().map(ChatRoomResponse::from).toList();
     }
 
     @GetMapping("/rooms/{room_id}")
+    @Operation(summary = "채팅방 조회")
     public ChatRoomResponse getRoom(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("room_id") UUID roomId
@@ -57,6 +61,7 @@ public class ChatController {
     }
 
     @GetMapping("/rooms/{room_id}/workflow")
+    @Operation(summary = "인터뷰 진행 상태 조회")
     public ChatWorkflowResponse getRoomWorkflow(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("room_id") UUID roomId
@@ -66,6 +71,7 @@ public class ChatController {
     }
 
     @PatchMapping("/rooms/{room_id}/settings")
+    @Operation(summary = "채팅방 설정 변경")
     public ChatRoomSettingsResponse updateRoomSettings(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("room_id") UUID roomId,
@@ -78,6 +84,7 @@ public class ChatController {
     }
 
     @PostMapping("/rooms/{room_id}/read")
+    @Operation(summary = "채팅방 읽음 처리")
     public ChatRoomSettingsResponse markRoomRead(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("room_id") UUID roomId,
@@ -90,6 +97,7 @@ public class ChatController {
     }
 
     @GetMapping("/rooms/{room_id}/messages")
+    @Operation(summary = "메시지 목록")
     public List<ChatMessageResponse> listMessages(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("room_id") UUID roomId,
@@ -109,6 +117,7 @@ public class ChatController {
     }
 
     @PostMapping("/rooms/{room_id}/messages")
+    @Operation(summary = "메시지 전송")
     @ResponseStatus(HttpStatus.CREATED)
     public ChatMessageResponse sendMessage(
             @AuthenticationPrincipal Jwt jwt,

@@ -1,5 +1,6 @@
 package com.contentruck.hypofit.interview.dto;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.contentruck.hypofit.common.error.HypofitValidationException;
@@ -10,6 +11,42 @@ import org.junit.jupiter.api.Test;
 class InterviewPostRequestParserTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void createDefaultsRecruitmentTypeToInterview() throws Exception {
+        var command = InterviewPostRequestParser.parseCreate(objectMapper.readValue("""
+                {
+                  "title": "인터뷰 모집",
+                  "service_summary": "초기 서비스 문제를 검증하려는 인터뷰입니다.",
+                  "target_description": "최근 3개월 내 관련 경험자",
+                  "reward_amount": 15000,
+                  "duration_minutes": 30,
+                  "interview_mode": "online",
+                  "schedule_options": ["평일 저녁"],
+                  "status": "open"
+                }
+                """, InterviewPostCreateRequest.class));
+
+        assertThat(command.recruitmentType()).isEqualTo("interview");
+    }
+
+    @Test
+    void createRejectsUnknownRecruitmentType() throws Exception {
+        assertThatThrownBy(() -> InterviewPostRequestParser.parseCreate(objectMapper.readValue("""
+                {
+                  "recruitment_type": "not_supported",
+                  "title": "인터뷰 모집",
+                  "service_summary": "초기 서비스 문제를 검증하려는 인터뷰입니다.",
+                  "target_description": "최근 3개월 내 관련 경험자",
+                  "reward_amount": 15000,
+                  "duration_minutes": 30,
+                  "interview_mode": "online",
+                  "schedule_options": ["평일 저녁"],
+                  "status": "open"
+                }
+                """, InterviewPostCreateRequest.class)))
+                .isInstanceOf(HypofitValidationException.class);
+    }
 
     @Test
     void createOfflinePostRequiresSelectedLocation() throws Exception {

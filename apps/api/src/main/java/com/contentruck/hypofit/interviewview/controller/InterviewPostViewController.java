@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "최근 본 모집글")
 @SecurityRequirement(name = "HTTPBearer")
 public class InterviewPostViewController {
 

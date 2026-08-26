@@ -49,7 +49,9 @@ class InterviewPostControllerTest {
                 .claim("email", "admin@example.com")
                 .build();
         when(interviewPostQueryService.listPosts(argThat(criteria ->
-                criteria.viewerId().equals(viewerId) && criteria.admin()
+                criteria.viewerId().equals(viewerId)
+                        && criteria.admin()
+                        && criteria.supportsRecruitmentTypes()
         ))).thenReturn(List.of(InterviewPostFixtures.interviewPost(UUID.randomUUID())));
 
         InterviewPostController controller = new InterviewPostController(
@@ -59,6 +61,7 @@ class InterviewPostControllerTest {
         );
         List<InterviewPostResponse> response = controller.listInterviewPosts(
                 jwt,
+                "other-feature, recruitment-types-v1",
                 "open",
                 null,
                 null,
@@ -73,13 +76,14 @@ class InterviewPostControllerTest {
         );
 
         assertThat(response).hasSize(1);
+        assertThat(response.getFirst().recruitmentType()).isEqualTo("interview");
         assertThat(response.getFirst().status()).isEqualTo("open");
     }
 
     @Test
     void getInterviewPostUsesOptionalViewer() {
         UUID postId = UUID.randomUUID();
-        when(interviewPostQueryService.getVisiblePost(postId, null, false))
+        when(interviewPostQueryService.getVisiblePost(postId, null, false, false))
                 .thenReturn(InterviewPostFixtures.interviewPost(postId));
 
         InterviewPostController controller = new InterviewPostController(
@@ -88,7 +92,7 @@ class InterviewPostControllerTest {
                 email -> false
         );
 
-        InterviewPostResponse response = controller.getInterviewPost(postId, null);
+        InterviewPostResponse response = controller.getInterviewPost(postId, null, null);
 
         assertThat(response.id()).isEqualTo(postId);
         assertThat(response.createdAt()).isEqualTo(OffsetDateTime.of(2026, 8, 1, 9, 30, 0, 0, ZoneOffset.UTC));
@@ -97,7 +101,7 @@ class InterviewPostControllerTest {
     @Test
     void getInterviewPostIncludesFounderReviewSummary() {
         UUID postId = UUID.randomUUID();
-        when(interviewPostQueryService.getVisiblePost(postId, null, false))
+        when(interviewPostQueryService.getVisiblePost(postId, null, false, false))
                 .thenReturn(InterviewPostFixtures.interviewPost(postId));
 
         InterviewPostController controller = new InterviewPostController(
@@ -106,7 +110,7 @@ class InterviewPostControllerTest {
                 email -> false
         );
 
-        InterviewPostResponse response = controller.getInterviewPost(postId, null);
+        InterviewPostResponse response = controller.getInterviewPost(postId, null, null);
 
         assertThat(response.founderReviewSummary()).isNotNull();
         assertThat(response.founderReviewSummary().averageRating()).isEqualTo(5.0);
@@ -122,10 +126,11 @@ class InterviewPostControllerTest {
     void getInterviewPostIncludesAiSummaryWhenPresent() {
         UUID postId = UUID.randomUUID();
         UUID founderId = UUID.randomUUID();
-        when(interviewPostQueryService.getVisiblePost(postId, null, false))
+        when(interviewPostQueryService.getVisiblePost(postId, null, false, false))
                 .thenReturn(new InterviewPostReadModel(
                         postId,
                         founderId,
+                        "interview",
                         "인터뷰 모집",
                         "초기 서비스 문제를 검증하려는 인터뷰입니다.",
                         "최근 3개월 내 관련 경험자",
@@ -164,7 +169,7 @@ class InterviewPostControllerTest {
                 email -> false
         );
 
-        InterviewPostResponse response = controller.getInterviewPost(postId, null);
+        InterviewPostResponse response = controller.getInterviewPost(postId, null, null);
 
         assertThat(response.aiSummary()).isNotNull();
         assertThat(response.createdAt()).isEqualTo(OffsetDateTime.of(2026, 8, 1, 9, 30, 0, 0, ZoneOffset.UTC));
@@ -183,7 +188,8 @@ class InterviewPostControllerTest {
                 .claim("email", "founder@example.com")
                 .build();
         when(interviewPostWriteService.createPost(eq(actorUserId), argThat(command ->
-                command.title().equals("인터뷰 모집")
+                "interview".equals(command.recruitmentType())
+                        && command.title().equals("인터뷰 모집")
                         && command.rewardAmount() == 15000
                         && command.status().equals("open")
         ))).thenReturn(InterviewPostFixtures.interviewPost(postId));

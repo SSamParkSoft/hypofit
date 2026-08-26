@@ -5,8 +5,11 @@ import com.contentruck.hypofit.chat.entity.ChatRoomEntity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.contentruck.hypofit.chat.service.ApplicationChatLifecycleService;
+import com.contentruck.hypofit.chat.service.ChatMessageRepository;
 import com.contentruck.hypofit.chat.service.ChatRepository;
 import com.contentruck.hypofit.testsupport.PostgresIntegrationTestSupport;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -26,6 +29,9 @@ class ChatRepositoryPostgresIntegrationTest extends PostgresIntegrationTestSuppo
 
     @Autowired
     private ChatRepository chatRepository;
+
+    @Autowired
+    private ChatMessageRepository chatMessageRepository;
 
     @Autowired
     private PlatformTransactionManager transactionManager;
@@ -84,12 +90,12 @@ class ChatRepositoryPostgresIntegrationTest extends PostgresIntegrationTestSuppo
         );
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
-        Callable<ChatRepository.CreateUserMessageResult> send = () -> {
+        Callable<ChatMessageRepository.CreateUserMessageResult> send = () -> {
             ready.countDown();
             start.await();
             return new TransactionTemplate(transactionManager).execute(status -> {
                 ChatRoomEntity room = chatRepository.findRoomEntity(roomId).orElseThrow();
-                return chatRepository.createUserMessage(
+                return chatMessageRepository.createUserMessage(
                         room,
                         fixture.founderId(),
                         "동일한 메시지",
@@ -98,16 +104,16 @@ class ChatRepositoryPostgresIntegrationTest extends PostgresIntegrationTestSuppo
             });
         };
 
-        List<ChatRepository.CreateUserMessageResult> outcomes;
+        List<ChatMessageRepository.CreateUserMessageResult> outcomes;
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
-            Future<ChatRepository.CreateUserMessageResult> first = executor.submit(send);
-            Future<ChatRepository.CreateUserMessageResult> second = executor.submit(send);
+            Future<ChatMessageRepository.CreateUserMessageResult> first = executor.submit(send);
+            Future<ChatMessageRepository.CreateUserMessageResult> second = executor.submit(send);
             ready.await();
             start.countDown();
             outcomes = List.of(first.get(), second.get());
         }
 
-        assertThat(outcomes).filteredOn(ChatRepository.CreateUserMessageResult::created).hasSize(1);
+        assertThat(outcomes).filteredOn(ChatMessageRepository.CreateUserMessageResult::created).hasSize(1);
         UUID messageId = outcomes.getFirst().message().getId();
         assertThat(outcomes).extracting(result -> result.message().getId()).containsOnly(messageId);
         assertThat(count(
@@ -119,6 +125,29 @@ class ChatRepositoryPostgresIntegrationTest extends PostgresIntegrationTestSuppo
                 fixture.founderId(),
                 "client-message-1"
         )).isEqualTo(1);
+    }
+
+    @Test
+    void markRoomReadNeverMovesTheReadCursorBackward() {
+        Fixture fixture = seedFixture();
+        lifecycleService.ensureRoomForApplication(
+                fixture.applicationId(),
+                fixture.interviewPostId(),
+                fixture.founderId(),
+                fixture.respondentId()
+        );
+        UUID roomId = jdbcTemplate.queryForObject(
+                "select id from chat_rooms where application_id = ?",
+                UUID.class,
+                fixture.applicationId()
+        );
+        OffsetDateTime later = OffsetDateTime.of(2026, 8, 25, 12, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime earlier = later.minusMinutes(5);
+
+        chatMessageRepository.markRoomRead(roomId, fixture.founderId(), later);
+        var result = chatMessageRepository.markRoomRead(roomId, fixture.founderId(), earlier);
+
+        assertThat(result.getLastReadAt()).isEqualTo(later);
     }
 
     private Fixture seedFixture() {

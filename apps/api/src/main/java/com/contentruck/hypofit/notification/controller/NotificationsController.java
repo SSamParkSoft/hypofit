@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @RestController
 @RequestMapping("/api/v1/notifications")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "알림")
 @SecurityRequirement(name = "HTTPBearer")
 public class NotificationsController {
 

@@ -195,7 +195,7 @@ public class SocialAuthService {
                         "Existing account already owns verified provider email"
                 );
             }
-            nextStep = "role_onboarding_required";
+            nextStep = "legal_consent_required";
         }
 
         attempt.setStatus("completed");

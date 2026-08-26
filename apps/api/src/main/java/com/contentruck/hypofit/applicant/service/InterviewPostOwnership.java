@@ -5,6 +5,7 @@ import java.util.UUID;
 public record InterviewPostOwnership(
         UUID id,
         UUID founderId,
-        String title
+        String title,
+        String recruitmentType
 ) {
 }

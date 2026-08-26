@@ -24,7 +24,7 @@ final class UserProfileInputNormalizer {
                 ? normalizeBio(command.bio(), issues)
                 : existing == null ? null : existing.bio();
         String normalizedPhone = normalizePhone(command.phone(), issues);
-        String normalizedRole = normalizeRole(command.rolePresent(), command.role(), true, issues);
+        String normalizedRole = normalizeRole(command.rolePresent(), command.role(), issues);
         String normalizedProfileImagePath = command.profileImagePathPresent()
                 ? normalizeProfileImagePath(command.profileImagePath(), issues)
                 : existing == null ? null : existing.profileImagePath();
@@ -63,7 +63,7 @@ final class UserProfileInputNormalizer {
         String normalizedName = normalizeName(command.name(), issues);
         String normalizedBio = normalizeBio(command.bio(), issues);
         String normalizedPhone = normalizePhone(command.phone(), issues);
-        String normalizedRole = normalizeRole(command.rolePresent(), command.role(), false, issues);
+        String normalizedRole = normalizeRole(command.rolePresent(), command.role(), issues);
         String normalizedProfileImagePath = command.profileImagePathPresent()
                 ? normalizeProfileImagePath(command.profileImagePath(), issues)
                 : existing.profileImagePath();
@@ -163,28 +163,20 @@ final class UserProfileInputNormalizer {
         return null;
     }
 
-    private static String normalizeRole(
-            boolean rolePresent,
-            String role,
-            boolean allowDefaultRespondent,
-            List<FieldError> issues
-    ) {
+    private static String normalizeRole(boolean rolePresent, String role, List<FieldError> issues) {
         if (!rolePresent) {
-            if (allowDefaultRespondent) {
-                return "respondent";
-            }
-            issues.add(new FieldError("role", "역할을 선택해 주세요."));
-            return null;
+            return "both";
         }
         if (role == null || role.isBlank()) {
             issues.add(new FieldError("role", "역할을 선택해 주세요."));
             return null;
         }
-        if (!List.of("founder", "respondent", "both").contains(role)) {
+        String normalized = role.trim().toLowerCase();
+        if (!List.of("founder", "respondent", "both").contains(normalized)) {
             issues.add(new FieldError("role", "역할을 확인해 주세요."));
             return null;
         }
-        return role;
+        return "both";
     }
 
     private static String normalizeProfileImagePath(String value, List<FieldError> issues) {

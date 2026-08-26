@@ -21,8 +21,8 @@ public final class UserWebModels {
         private String bio;
         @Schema(types = {"null", "string"}, maxLength = 40)
         private String phone;
-        @Schema(defaultValue = "respondent", allowableValues = {"both", "founder", "respondent"})
-        private String role = "respondent";
+        @Schema(defaultValue = "both", allowableValues = {"both", "founder", "respondent"})
+        private String role = "both";
         @Schema(types = {"null", "string"}, maxLength = 500)
         private String profileImagePath;
         @Schema(types = {"null", "string"}, maxLength = 1000)
@@ -129,7 +129,7 @@ public final class UserWebModels {
         }
     }
 
-    @Schema(requiredProperties = {"name", "role"})
+    @Schema(requiredProperties = {"name"})
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static final class UserUpdateRequest {
 
@@ -139,7 +139,7 @@ public final class UserWebModels {
         private String bio;
         @Schema(types = {"null", "string"}, maxLength = 40)
         private String phone;
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"both", "founder", "respondent"})
+        @Schema(allowableValues = {"both", "founder", "respondent"})
         private String role;
         @Schema(types = {"null", "string"}, maxLength = 500)
         private String profileImagePath;

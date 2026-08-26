@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/support")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "문의")
 @SecurityRequirement(name = "HTTPBearer")
 public class SupportTicketController {
 

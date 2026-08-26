@@ -109,6 +109,11 @@ class OpenApiContractRegressionIntegrationTest {
         assertThat(findParameterSchema(root, "/api/v1/interview-posts/", "limit").has("format")).isFalse();
 
         String interviewCreateBase = "/components/schemas/InterviewPostCreate/properties";
+        assertEnum(
+                root,
+                interviewCreateBase + "/recruitment_type/enum",
+                "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
+        );
         assertNoFormat(root, interviewCreateBase + "/reward_amount");
         assertNoFormat(root, interviewCreateBase + "/duration_minutes");
         assertNoFormat(root, interviewCreateBase + "/recruit_count");
@@ -124,6 +129,11 @@ class OpenApiContractRegressionIntegrationTest {
         assertNullableType(root.at(interviewUpdateBase + "/schedule_options"), "array");
 
         String interviewResponseBase = "/components/schemas/InterviewPostResponse/properties";
+        assertEnum(
+                root,
+                interviewResponseBase + "/recruitment_type/enum",
+                "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
+        );
         assertLengthRange(root, interviewResponseBase + "/service_summary", 10, 2000);
         assertLengthRange(root, interviewResponseBase + "/target_description", 10, 2000);
         assertMinimum(root, interviewResponseBase + "/reward_amount", "0");

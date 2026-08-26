@@ -63,13 +63,20 @@ class AccountDeletionServiceTest {
         HypofitProperties properties = new HypofitProperties();
         properties.setEnv("test");
         properties.setAccountDeletionHashPepper("pepper");
+        AccountDeletionCompletionWriteService completionWriteService = new AccountDeletionCompletionWriteService(repository);
         lenient().when(profileImagePurgeGateway.purgeProfileImage(any())).thenReturn("no_profile_image");
         service = new AccountDeletionService(
                 repository,
                 emailGateway,
                 authCleanupGateway,
                 profileImagePurgeGateway,
-                new AccountDeletionCompletionWriteService(repository),
+                completionWriteService,
+                new AccountDeletionAdminService(
+                        repository,
+                        authCleanupGateway,
+                        completionWriteService
+                ),
+                new AccountDeletionVerificationSecurity(properties),
                 properties
         );
     }

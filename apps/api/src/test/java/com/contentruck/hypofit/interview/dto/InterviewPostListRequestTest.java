@@ -25,9 +25,10 @@ class InterviewPostListRequestTest {
                 null,
                 null,
                 null
-        ).toCriteria(viewerId, false);
+        ).toCriteria(viewerId, false, false);
 
         assertThat(criteria.viewerId()).isEqualTo(viewerId);
+        assertThat(criteria.supportsRecruitmentTypes()).isFalse();
         assertThat(criteria.sort()).isEqualTo("newest");
         assertThat(criteria.limit()).isEqualTo(100);
     }
@@ -48,7 +49,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("lat and lng must be provided together");
     }
@@ -69,7 +70,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("radius_m requires lat and lng");
     }
@@ -90,7 +91,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("sort=distance requires lat and lng");
     }
@@ -111,7 +112,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("reward_min must be less than or equal to reward_max");
     }
@@ -132,7 +133,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("q must be at most 100 characters");
     }
@@ -153,7 +154,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("reward_min must be greater than or equal to 0");
     }
@@ -174,7 +175,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("reward_max must be greater than or equal to 0");
     }
@@ -195,7 +196,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("lat must be between -90 and 90");
     }
@@ -216,7 +217,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("lng must be between -180 and 180");
     }
@@ -237,7 +238,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("radius_m must be between 500 and 20000");
     }
@@ -258,7 +259,7 @@ class InterviewPostListRequestTest {
                 101
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("limit must be between 1 and 100");
     }
@@ -279,7 +280,7 @@ class InterviewPostListRequestTest {
                 100
         );
 
-        assertThatThrownBy(() -> request.toCriteria(null, false))
+        assertThatThrownBy(() -> request.toCriteria(null, false, false))
                 .isInstanceOf(InterviewPostValidationException.class)
                 .hasMessageContaining("sort must be one of newest, distance, reward");
     }

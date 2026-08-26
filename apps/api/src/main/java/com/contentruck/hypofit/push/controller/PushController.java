@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "푸시 설정")
 @SecurityRequirement(name = "HTTPBearer")
 public class PushController {
 

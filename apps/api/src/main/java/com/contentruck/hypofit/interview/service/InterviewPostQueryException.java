@@ -4,7 +4,7 @@ import com.contentruck.hypofit.common.error.HypofitException;
 import org.springframework.http.HttpStatus;
 
 public sealed abstract class InterviewPostQueryException extends HypofitException
-        permits InterviewPostNotFoundException, InterviewPostValidationException {
+        permits InterviewPostClientUpgradeRequiredException, InterviewPostNotFoundException, InterviewPostValidationException {
 
     protected InterviewPostQueryException(
             String code,

@@ -13,7 +13,6 @@ import com.contentruck.hypofit.notification.service.NotificationWriteService;
 import com.contentruck.hypofit.chat.entity.ChatMessageEntity;
 import com.contentruck.hypofit.chat.entity.ChatRoomEntity;
 import com.contentruck.hypofit.chat.entity.ChatRoomParticipantSettingEntity;
-import com.contentruck.hypofit.session.service.SessionReadModels;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -34,13 +33,24 @@ class ChatServiceTest {
     private ChatRepository chatRepository;
 
     @Mock
+    private ChatMessageRepository chatMessageRepository;
+
+    @Mock
+    private ChatWorkflowQueryRepository workflowQueryRepository;
+
+    @Mock
     private NotificationWriteService notificationWriteService;
 
     private ChatService chatService;
 
     @BeforeEach
     void setUp() {
-        chatService = new ChatService(chatRepository, notificationWriteService);
+        chatService = new ChatService(
+                chatRepository,
+                chatMessageRepository,
+                workflowQueryRepository,
+                notificationWriteService
+        );
     }
 
     @Test
@@ -69,7 +79,7 @@ class ChatServiceTest {
         );
 
         when(chatRepository.findCurrentUserAccount(userId)).thenReturn(Optional.of(user(userId, "founder")));
-        when(chatRepository.findRoomsForUser(userId, "founder")).thenReturn(List.of(readRoom, unreadRoom));
+        when(chatRepository.findRoomsForUser(userId)).thenReturn(List.of(readRoom, unreadRoom));
 
         List<ChatRoomReadModel> rooms = chatService.listRooms(userId);
 
@@ -89,11 +99,11 @@ class ChatServiceTest {
         when(chatRepository.findCurrentUserAccount(userId)).thenReturn(Optional.of(user(userId, "founder")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
         when(chatRepository.hasActiveBlockBetween(userId, room.getRespondentId())).thenReturn(false);
-        when(chatRepository.findApplicationMessageability(room.getApplicationId()))
-                .thenReturn(Optional.of(new ChatRepository.ApplicationMessageabilityRecord(room.getApplicationId(), "applied")));
-        when(chatRepository.findLatestVisibleSessionStatus(room.getApplicationId())).thenReturn(Optional.empty());
-        when(chatRepository.createUserMessage(room, userId, "내일 가능하세요?", null))
-                .thenReturn(new ChatRepository.CreateUserMessageResult(created, true));
+        when(workflowQueryRepository.findApplicationMessageability(room.getApplicationId()))
+                .thenReturn(Optional.of(new ChatWorkflowQueryRepository.ApplicationMessageabilityRecord(room.getApplicationId(), "applied")));
+        when(workflowQueryRepository.findLatestVisibleSessionStatus(room.getApplicationId())).thenReturn(Optional.empty());
+        when(chatMessageRepository.createUserMessage(room, userId, "내일 가능하세요?", null))
+                .thenReturn(new ChatMessageRepository.CreateUserMessageResult(created, true));
         when(chatRepository.findRoom(roomId, userId)).thenReturn(Optional.of(senderView));
         when(chatRepository.findRoom(roomId, room.getRespondentId())).thenReturn(Optional.of(recipientView));
 
@@ -116,11 +126,11 @@ class ChatServiceTest {
         when(chatRepository.findCurrentUserAccount(founderId)).thenReturn(Optional.of(user(founderId, "founder")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
         when(chatRepository.hasActiveBlockBetween(founderId, respondentId)).thenReturn(false);
-        when(chatRepository.findApplicationMessageability(room.getApplicationId()))
-                .thenReturn(Optional.of(new ChatRepository.ApplicationMessageabilityRecord(room.getApplicationId(), "selected")));
-        when(chatRepository.findLatestVisibleSessionStatus(room.getApplicationId())).thenReturn(Optional.empty());
-        when(chatRepository.createUserMessage(room, founderId, "일정 조율 가능해요", null))
-                .thenReturn(new ChatRepository.CreateUserMessageResult(created, true));
+        when(workflowQueryRepository.findApplicationMessageability(room.getApplicationId()))
+                .thenReturn(Optional.of(new ChatWorkflowQueryRepository.ApplicationMessageabilityRecord(room.getApplicationId(), "selected")));
+        when(workflowQueryRepository.findLatestVisibleSessionStatus(room.getApplicationId())).thenReturn(Optional.empty());
+        when(chatMessageRepository.createUserMessage(room, founderId, "일정 조율 가능해요", null))
+                .thenReturn(new ChatMessageRepository.CreateUserMessageResult(created, true));
         when(chatRepository.findRoom(roomId, founderId)).thenReturn(Optional.of(senderView));
         when(chatRepository.findRoom(roomId, respondentId)).thenReturn(Optional.of(recipientView));
 
@@ -146,8 +156,8 @@ class ChatServiceTest {
         when(chatRepository.findCurrentUserAccount(userId)).thenReturn(Optional.of(user(userId, "founder")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
         when(chatRepository.hasActiveBlockBetween(userId, room.getRespondentId())).thenReturn(false);
-        when(chatRepository.findApplicationMessageability(room.getApplicationId()))
-                .thenReturn(Optional.of(new ChatRepository.ApplicationMessageabilityRecord(room.getApplicationId(), "rejected")));
+        when(workflowQueryRepository.findApplicationMessageability(room.getApplicationId()))
+                .thenReturn(Optional.of(new ChatWorkflowQueryRepository.ApplicationMessageabilityRecord(room.getApplicationId(), "rejected")));
 
         assertThatThrownBy(() -> chatService.sendMessage(userId, roomId, "확인했습니다.", null))
                 .isInstanceOf(ResponseStatusException.class)
@@ -164,15 +174,15 @@ class ChatServiceTest {
         when(chatRepository.findCurrentUserAccount(userId)).thenReturn(Optional.of(user(userId, "founder")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
         when(chatRepository.hasActiveBlockBetween(userId, room.getRespondentId())).thenReturn(false);
-        when(chatRepository.findApplicationMessageability(room.getApplicationId()))
-                .thenReturn(Optional.of(new ChatRepository.ApplicationMessageabilityRecord(room.getApplicationId(), "applied")));
-        when(chatRepository.findLatestVisibleSessionStatus(room.getApplicationId())).thenReturn(Optional.empty());
-        when(chatRepository.findMessageByClientMessageId(roomId, userId, "client-1")).thenReturn(Optional.of(existing));
+        when(workflowQueryRepository.findApplicationMessageability(room.getApplicationId()))
+                .thenReturn(Optional.of(new ChatWorkflowQueryRepository.ApplicationMessageabilityRecord(room.getApplicationId(), "applied")));
+        when(workflowQueryRepository.findLatestVisibleSessionStatus(room.getApplicationId())).thenReturn(Optional.empty());
+        when(chatMessageRepository.findMessageByClientMessageId(roomId, userId, "client-1")).thenReturn(Optional.of(existing));
 
         ChatMessageReadModel response = chatService.sendMessage(userId, roomId, "이미 보낸 메시지", "client-1");
 
         assertThat(response.id()).isEqualTo(existing.getId());
-        verify(chatRepository, never()).createUserMessage(any(), any(), any(), any());
+        verify(chatMessageRepository, never()).createUserMessage(any(), any(), any(), any());
     }
 
     @Test
@@ -186,16 +196,16 @@ class ChatServiceTest {
         when(chatRepository.findCurrentUserAccount(founderId)).thenReturn(Optional.of(user(founderId, "founder")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
         when(chatRepository.hasActiveBlockBetween(founderId, respondentId)).thenReturn(false);
-        when(chatRepository.findApplicationMessageability(room.getApplicationId()))
-                .thenReturn(Optional.of(new ChatRepository.ApplicationMessageabilityRecord(
+        when(workflowQueryRepository.findApplicationMessageability(room.getApplicationId()))
+                .thenReturn(Optional.of(new ChatWorkflowQueryRepository.ApplicationMessageabilityRecord(
                         room.getApplicationId(),
                         "applied"
                 )));
-        when(chatRepository.findLatestVisibleSessionStatus(room.getApplicationId())).thenReturn(Optional.empty());
-        when(chatRepository.findMessageByClientMessageId(roomId, founderId, "client-race"))
+        when(workflowQueryRepository.findLatestVisibleSessionStatus(room.getApplicationId())).thenReturn(Optional.empty());
+        when(chatMessageRepository.findMessageByClientMessageId(roomId, founderId, "client-race"))
                 .thenReturn(Optional.empty());
-        when(chatRepository.createUserMessage(room, founderId, "이미 보낸 메시지", "client-race"))
-                .thenReturn(new ChatRepository.CreateUserMessageResult(existing, false));
+        when(chatMessageRepository.createUserMessage(room, founderId, "이미 보낸 메시지", "client-race"))
+                .thenReturn(new ChatMessageRepository.CreateUserMessageResult(existing, false));
 
         ChatMessageReadModel response = chatService.sendMessage(
                 founderId,
@@ -241,7 +251,7 @@ class ChatServiceTest {
 
         when(chatRepository.findCurrentUserAccount(founderId)).thenReturn(Optional.of(user(founderId, "founder")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
-        when(chatRepository.findMessages(roomId, 50, null, null)).thenReturn(List.of(founderOnly, respondentOnly));
+        when(chatMessageRepository.findMessages(roomId, 50, null, null)).thenReturn(List.of(founderOnly, respondentOnly));
 
         List<ChatMessageReadModel> messages = chatService.listMessages(founderId, roomId, 50, null, null);
 
@@ -260,8 +270,8 @@ class ChatServiceTest {
 
         when(chatRepository.findCurrentUserAccount(userId)).thenReturn(Optional.of(user(userId, "founder")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
-        when(chatRepository.findMessage(roomId, messageId)).thenReturn(Optional.of(message));
-        when(chatRepository.markRoomRead(roomId, userId, message.getCreatedAt())).thenReturn(setting);
+        when(chatMessageRepository.findMessage(roomId, messageId)).thenReturn(Optional.of(message));
+        when(chatMessageRepository.markRoomRead(roomId, userId, message.getCreatedAt())).thenReturn(setting);
 
         var response = chatService.markRoomRead(userId, roomId, messageId);
 
@@ -288,12 +298,12 @@ class ChatServiceTest {
         UUID respondentId = UUID.randomUUID();
         UUID roomId = UUID.randomUUID();
         ChatRoomEntity room = roomEntity(roomId, founderId, respondentId, "open");
-        SessionReadModels.ApplicationReadModel application = application(room.getInterviewPostId(), respondentId, "applied");
+        ChatWorkflowModels.ApplicationReadModel application = application(room.getInterviewPostId(), respondentId, "applied");
 
         when(chatRepository.findCurrentUserAccount(founderId)).thenReturn(Optional.of(user(founderId, "founder")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
-        when(chatRepository.findRoomWorkflowContext(roomId)).thenReturn(Optional.of(
-                new ChatRepository.ChatRoomWorkflowContextRecord(room.getInterviewPostId(), application, null)
+        when(workflowQueryRepository.findRoomWorkflowContext(roomId)).thenReturn(Optional.of(
+                new ChatWorkflowQueryRepository.ChatRoomWorkflowContextRecord(room.getInterviewPostId(), application, null)
         ));
 
         ChatWorkflowReadModel workflow = chatService.getRoomWorkflow(founderId, roomId);
@@ -310,9 +320,9 @@ class ChatServiceTest {
         UUID respondentId = UUID.randomUUID();
         UUID roomId = UUID.randomUUID();
         ChatRoomEntity room = roomEntity(roomId, founderId, respondentId, "open");
-        SessionReadModels.ApplicationReadModel application = application(room.getInterviewPostId(), respondentId, "selected");
-        SessionReadModels.InterviewSessionReadModel session = session(application, "scheduled");
-        SessionReadModels.AttendanceRecordReadModel attendance = new SessionReadModels.AttendanceRecordReadModel(
+        ChatWorkflowModels.ApplicationReadModel application = application(room.getInterviewPostId(), respondentId, "selected");
+        ChatWorkflowModels.InterviewSessionReadModel session = session(application, "scheduled");
+        ChatWorkflowModels.AttendanceRecordReadModel attendance = new ChatWorkflowModels.AttendanceRecordReadModel(
                 session.id(),
                 true,
                 false,
@@ -324,12 +334,12 @@ class ChatServiceTest {
 
         when(chatRepository.findCurrentUserAccount(founderId)).thenReturn(Optional.of(user(founderId, "founder")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
-        when(chatRepository.findRoomWorkflowContext(roomId)).thenReturn(Optional.of(
-                new ChatRepository.ChatRoomWorkflowContextRecord(room.getInterviewPostId(), application, session)
+        when(workflowQueryRepository.findRoomWorkflowContext(roomId)).thenReturn(Optional.of(
+                new ChatWorkflowQueryRepository.ChatRoomWorkflowContextRecord(room.getInterviewPostId(), application, session)
         ));
-        when(chatRepository.findAttendanceRecord(session.id())).thenReturn(Optional.of(attendance));
-        when(chatRepository.findRewardConfirmation(session.id())).thenReturn(Optional.empty());
-        when(chatRepository.findReviews(session.id())).thenReturn(List.of());
+        when(workflowQueryRepository.findAttendanceRecord(session.id())).thenReturn(Optional.of(attendance));
+        when(workflowQueryRepository.findRewardConfirmation(session.id())).thenReturn(Optional.empty());
+        when(workflowQueryRepository.findReviews(session.id())).thenReturn(List.of());
 
         ChatWorkflowReadModel workflow = chatService.getRoomWorkflow(founderId, roomId);
 
@@ -344,9 +354,9 @@ class ChatServiceTest {
         UUID respondentId = UUID.randomUUID();
         UUID roomId = UUID.randomUUID();
         ChatRoomEntity room = roomEntity(roomId, founderId, respondentId, "open");
-        SessionReadModels.ApplicationReadModel application = application(room.getInterviewPostId(), respondentId, "selected");
-        SessionReadModels.InterviewSessionReadModel session = session(application, "completed");
-        SessionReadModels.AttendanceRecordReadModel attendance = new SessionReadModels.AttendanceRecordReadModel(
+        ChatWorkflowModels.ApplicationReadModel application = application(room.getInterviewPostId(), respondentId, "selected");
+        ChatWorkflowModels.InterviewSessionReadModel session = session(application, "completed");
+        ChatWorkflowModels.AttendanceRecordReadModel attendance = new ChatWorkflowModels.AttendanceRecordReadModel(
                 session.id(),
                 true,
                 true,
@@ -355,7 +365,7 @@ class ChatServiceTest {
                 OffsetDateTime.now(ZoneOffset.UTC),
                 null
         );
-        SessionReadModels.RewardConfirmationReadModel reward = new SessionReadModels.RewardConfirmationReadModel(
+        ChatWorkflowModels.RewardConfirmationReadModel reward = new ChatWorkflowModels.RewardConfirmationReadModel(
                 UUID.randomUUID(),
                 session.id(),
                 application.id(),
@@ -373,12 +383,12 @@ class ChatServiceTest {
 
         when(chatRepository.findCurrentUserAccount(respondentId)).thenReturn(Optional.of(user(respondentId, "respondent")));
         when(chatRepository.findRoomEntity(roomId)).thenReturn(Optional.of(room));
-        when(chatRepository.findRoomWorkflowContext(roomId)).thenReturn(Optional.of(
-                new ChatRepository.ChatRoomWorkflowContextRecord(room.getInterviewPostId(), application, session)
+        when(workflowQueryRepository.findRoomWorkflowContext(roomId)).thenReturn(Optional.of(
+                new ChatWorkflowQueryRepository.ChatRoomWorkflowContextRecord(room.getInterviewPostId(), application, session)
         ));
-        when(chatRepository.findAttendanceRecord(session.id())).thenReturn(Optional.of(attendance));
-        when(chatRepository.findRewardConfirmation(session.id())).thenReturn(Optional.of(reward));
-        when(chatRepository.findReviews(session.id())).thenReturn(List.of());
+        when(workflowQueryRepository.findAttendanceRecord(session.id())).thenReturn(Optional.of(attendance));
+        when(workflowQueryRepository.findRewardConfirmation(session.id())).thenReturn(Optional.of(reward));
+        when(workflowQueryRepository.findReviews(session.id())).thenReturn(List.of());
 
         ChatWorkflowReadModel workflow = chatService.getRoomWorkflow(respondentId, roomId);
 
@@ -532,12 +542,12 @@ class ChatServiceTest {
         }
     }
 
-    private static SessionReadModels.ApplicationReadModel application(
+    private static ChatWorkflowModels.ApplicationReadModel application(
             UUID interviewPostId,
             UUID respondentId,
             String status
     ) {
-        return new SessionReadModels.ApplicationReadModel(
+        return new ChatWorkflowModels.ApplicationReadModel(
                 UUID.randomUUID(),
                 interviewPostId,
                 Map.of("experience", "관련 경험이 있어요"),
@@ -545,7 +555,7 @@ class ChatServiceTest {
                 respondentId,
                 status,
                 null,
-                new SessionReadModels.UserSummary(
+                new ChatWorkflowModels.UserSummary(
                         respondentId,
                         "참여자",
                         null,
@@ -555,11 +565,11 @@ class ChatServiceTest {
         );
     }
 
-    private static SessionReadModels.InterviewSessionReadModel session(
-            SessionReadModels.ApplicationReadModel application,
+    private static ChatWorkflowModels.InterviewSessionReadModel session(
+            ChatWorkflowModels.ApplicationReadModel application,
             String status
     ) {
-        return new SessionReadModels.InterviewSessionReadModel(
+        return new ChatWorkflowModels.InterviewSessionReadModel(
                 UUID.randomUUID(),
                 application.id(),
                 OffsetDateTime.now(ZoneOffset.UTC).plusDays(1),

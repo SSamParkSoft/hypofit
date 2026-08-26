@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/account-deletion-requests")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "계정 삭제")
 public class AccountDeletionController {
 
     private final AccountDeletionService accountDeletionService;
@@ -34,27 +35,32 @@ public class AccountDeletionController {
     }
 
     @PostMapping("/public")
+    @Operation(summary = "공개 계정 삭제 요청")
     @ResponseStatus(HttpStatus.CREATED)
     public PublicAccountDeletionRequestResponse createPublicRequest(@RequestBody PublicCreateRequest request) {
         return PublicAccountDeletionRequestResponse.from(accountDeletionService.createPublicRequest(request.toCommand()));
     }
 
     @PostMapping("/public/verify")
+    @Operation(summary = "공개 삭제 인증번호 확인")
     public PublicAccountDeletionVerificationResponse verifyPublicRequest(@RequestBody VerifyRequest request) {
         return PublicAccountDeletionVerificationResponse.from(accountDeletionService.verifyPublicRequest(request.toCommand()));
     }
 
     @PostMapping("/public/resend")
+    @Operation(summary = "공개 삭제 인증번호 재전송")
     public PublicAccountDeletionRequestResponse resendPublicRequest(@RequestBody ResendRequest request) {
         return PublicAccountDeletionRequestResponse.from(accountDeletionService.resendPublicRequest(request.toCommand()));
     }
 
     @PostMapping("/public/confirm")
+    @Operation(summary = "공개 계정 삭제 확정")
     public PublicAccountDeletionRequestResponse confirmPublicRequest(@RequestBody ConfirmRequest request) {
         return PublicAccountDeletionRequestResponse.from(accountDeletionService.confirmPublicRequest(request.toCommand()));
     }
 
     @PostMapping("/me")
+    @Operation(summary = "내 계정 삭제 요청")
     @ResponseStatus(HttpStatus.CREATED)
     @SecurityRequirement(name = "HTTPBearer")
     public AccountDeletionRequestResponse createAuthenticatedRequest(
@@ -67,6 +73,7 @@ public class AccountDeletionController {
     }
 
     @PostMapping("/me/verify")
+    @Operation(summary = "내 계정 삭제 인증번호 확인")
     @SecurityRequirement(name = "HTTPBearer")
     public AccountDeletionVerificationResponse verifyAuthenticatedRequest(
             @AuthenticationPrincipal Jwt jwt,
@@ -78,6 +85,7 @@ public class AccountDeletionController {
     }
 
     @PostMapping("/me/resend")
+    @Operation(summary = "내 계정 삭제 인증번호 재전송")
     @SecurityRequirement(name = "HTTPBearer")
     public AccountDeletionRequestResponse resendAuthenticatedRequest(
             @AuthenticationPrincipal Jwt jwt,
@@ -89,6 +97,7 @@ public class AccountDeletionController {
     }
 
     @PostMapping("/me/confirm")
+    @Operation(summary = "내 계정 삭제 확정")
     @SecurityRequirement(name = "HTTPBearer")
     public AccountDeletionRequestResponse confirmAuthenticatedRequest(
             @AuthenticationPrincipal Jwt jwt,

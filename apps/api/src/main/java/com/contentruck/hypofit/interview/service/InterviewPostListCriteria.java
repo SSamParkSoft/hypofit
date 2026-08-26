@@ -6,6 +6,7 @@ public record InterviewPostListCriteria(
         String status,
         UUID viewerId,
         boolean admin,
+        boolean supportsRecruitmentTypes,
         String mode,
         UUID founderId,
         String query,

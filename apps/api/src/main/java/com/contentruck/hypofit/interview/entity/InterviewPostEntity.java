@@ -9,10 +9,12 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import com.contentruck.hypofit.interview.service.PostingCompensation;
 
 @Entity
 @Table(name = "interview_posts")
@@ -37,11 +39,40 @@ public class InterviewPostEntity {
     @Column(name = "reward_amount", nullable = false)
     private int rewardAmount;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "compensations", nullable = false, columnDefinition = "jsonb")
+    private List<PostingCompensation> compensations = List.of();
+
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes;
 
     @Column(name = "recruit_count", nullable = false)
     private int recruitCount;
+
+    @Column(name = "recruitment_type", nullable = false, length = 30)
+    private String recruitmentType;
+
+    @Column(name = "external_provider", length = 30)
+    private String externalProvider;
+
+    @Column(name = "external_url")
+    private String externalUrl;
+
+    @Column(name = "participation_deadline_at")
+    private OffsetDateTime participationDeadlineAt;
+
+    @Column(name = "external_data_notice")
+    private String externalDataNotice;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "beta_test_platforms", columnDefinition = "text[]")
+    private String[] betaTestPlatforms = new String[0];
+
+    @Column(name = "beta_test_starts_at")
+    private OffsetDateTime betaTestStartsAt;
+
+    @Column(name = "beta_test_ends_at")
+    private OffsetDateTime betaTestEndsAt;
 
     @Column(name = "interview_mode", nullable = false, length = 20)
     private String interviewMode;
@@ -107,12 +138,51 @@ public class InterviewPostEntity {
         return rewardAmount;
     }
 
+    public List<PostingCompensation> getCompensations() {
+        return compensations == null ? List.of() : List.copyOf(compensations);
+    }
+
     public int getDurationMinutes() {
         return durationMinutes;
     }
 
     public int getRecruitCount() {
         return recruitCount;
+    }
+
+    public String getRecruitmentType() {
+        return recruitmentType;
+    }
+
+    public String getExternalProvider() {
+        return externalProvider;
+    }
+
+    public String getExternalUrl() {
+        return externalUrl;
+    }
+
+    public OffsetDateTime getParticipationDeadlineAt() {
+        return participationDeadlineAt;
+    }
+
+    public String getExternalDataNotice() {
+        return externalDataNotice;
+    }
+
+    public List<String> getBetaTestPlatforms() {
+        if (betaTestPlatforms == null || betaTestPlatforms.length == 0) {
+            return List.of();
+        }
+        return List.copyOf(Arrays.asList(betaTestPlatforms));
+    }
+
+    public OffsetDateTime getBetaTestStartsAt() {
+        return betaTestStartsAt;
+    }
+
+    public OffsetDateTime getBetaTestEndsAt() {
+        return betaTestEndsAt;
     }
 
     public String getInterviewMode() {
@@ -191,12 +261,48 @@ public class InterviewPostEntity {
         this.rewardAmount = rewardAmount;
     }
 
+    public void setCompensations(List<PostingCompensation> compensations) {
+        this.compensations = compensations == null ? List.of() : List.copyOf(compensations);
+    }
+
     public void setDurationMinutes(int durationMinutes) {
         this.durationMinutes = durationMinutes;
     }
 
     public void setRecruitCount(int recruitCount) {
         this.recruitCount = recruitCount;
+    }
+
+    public void setRecruitmentType(String recruitmentType) {
+        this.recruitmentType = recruitmentType;
+    }
+
+    public void setExternalProvider(String externalProvider) {
+        this.externalProvider = externalProvider;
+    }
+
+    public void setExternalUrl(String externalUrl) {
+        this.externalUrl = externalUrl;
+    }
+
+    public void setParticipationDeadlineAt(OffsetDateTime participationDeadlineAt) {
+        this.participationDeadlineAt = participationDeadlineAt;
+    }
+
+    public void setExternalDataNotice(String externalDataNotice) {
+        this.externalDataNotice = externalDataNotice;
+    }
+
+    public void setBetaTestPlatforms(List<String> betaTestPlatforms) {
+        this.betaTestPlatforms = betaTestPlatforms == null ? new String[0] : betaTestPlatforms.toArray(String[]::new);
+    }
+
+    public void setBetaTestStartsAt(OffsetDateTime betaTestStartsAt) {
+        this.betaTestStartsAt = betaTestStartsAt;
+    }
+
+    public void setBetaTestEndsAt(OffsetDateTime betaTestEndsAt) {
+        this.betaTestEndsAt = betaTestEndsAt;
     }
 
     public void setInterviewMode(String interviewMode) {

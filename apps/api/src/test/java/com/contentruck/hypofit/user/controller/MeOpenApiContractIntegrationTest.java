@@ -60,7 +60,7 @@ class MeOpenApiContractIntegrationTest {
         assertThat(root.at("/paths/~1api~1v1~1me/patch/requestBody/content/application~1json/schema/$ref").asText())
                 .isEqualTo("#/components/schemas/UserUpdateRequest");
         String patchBase = "/components/schemas/UserUpdateRequest";
-        assertRequired(root, patchBase, "name", "role");
+        assertRequired(root, patchBase, "name");
         assertThat(root.at(patchBase + "/properties/name/minLength").asInt()).isEqualTo(1);
         assertThat(root.at(patchBase + "/properties/name/maxLength").asInt()).isEqualTo(100);
         assertNullableStringType(root, patchBase + "/properties/bio", 120);
@@ -80,7 +80,7 @@ class MeOpenApiContractIntegrationTest {
         assertNullableStringType(root, syncBase + "/properties/profile_image_path", 500);
         assertNullableStringType(root, syncBase + "/properties/profile_image_url", 1000);
         assertEnum(root, syncBase + "/properties/role", USER_ROLES);
-        assertThat(root.at(syncBase + "/properties/role/default").asText()).isEqualTo("respondent");
+        assertThat(root.at(syncBase + "/properties/role/default").asText()).isEqualTo("both");
     }
 
     private static void assertRequired(JsonNode root, String pointer, String... fieldNames) {

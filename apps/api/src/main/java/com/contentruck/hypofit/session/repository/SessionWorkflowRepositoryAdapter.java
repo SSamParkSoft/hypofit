@@ -449,7 +449,8 @@ public class SessionWorkflowRepositoryAdapter implements SessionWorkflowReposito
                 entity.getId(),
                 entity.getFounderId(),
                 entity.getTitle(),
-                entity.getRewardAmount()
+                entity.getRewardAmount(),
+                entity.getRecruitmentType()
         );
     }
 
