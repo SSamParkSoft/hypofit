@@ -141,7 +141,7 @@ class ChatRepositoryPostgresIntegrationTest extends PostgresIntegrationTestSuppo
                 UUID.class,
                 fixture.applicationId()
         );
-        OffsetDateTime later = OffsetDateTime.of(2026, 8, 25, 12, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime later = OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(2);
         OffsetDateTime earlier = later.minusMinutes(5);
 
         chatMessageRepository.markRoomRead(roomId, fixture.founderId(), later);
