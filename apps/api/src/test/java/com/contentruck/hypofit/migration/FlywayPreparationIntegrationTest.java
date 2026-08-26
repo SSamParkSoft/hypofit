@@ -17,7 +17,7 @@ class FlywayPreparationIntegrationTest {
 
             assertThat(migrateResult.success).isTrue();
             assertThat(FlywayMigrationTestSupport.appliedVersions(flyway))
-                    .containsExactly("24", "25", "26");
+                    .containsExactly("24", "25", "26", "27", "28");
         }
     }
 
@@ -31,7 +31,7 @@ class FlywayPreparationIntegrationTest {
             assertThat(secondResult.success).isTrue();
             assertThat(secondResult.migrationsExecuted).isZero();
             assertThat(FlywayMigrationTestSupport.appliedVersions(flyway))
-                    .containsExactly("24", "25", "26");
+                    .containsExactly("24", "25", "26", "27", "28");
         }
     }
 }

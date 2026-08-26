@@ -267,14 +267,18 @@ public class JdbcAiSummaryArtifactRepositoryPostgresIntegrationTest extends Post
         assertThat(secondClaim).hasSize(2);
         assertThat(firstClaim.stream().map(AiSummaryArtifactRepository.ClaimedArtifact::artifactId))
                 .doesNotContainAnyElementsOf(secondClaim.stream().map(AiSummaryArtifactRepository.ClaimedArtifact::artifactId).toList());
-        assertThat(firstClaim.stream().map(AiSummaryArtifactRepository.ClaimedArtifact::summaryType)
-                        .toList()
-                        .contains(AiSummaryArtifactRepository.SummaryType.INTERVIEW_POST))
-                .isTrue();
-        assertThat(secondClaim.stream().map(AiSummaryArtifactRepository.ClaimedArtifact::summaryType)
-                        .toList()
-                        .contains(AiSummaryArtifactRepository.SummaryType.APPLICATION))
-                .isTrue();
+        List<AiSummaryArtifactRepository.SummaryType> claimedTypes = java.util.stream.Stream.concat(
+                        firstClaim.stream(),
+                        secondClaim.stream()
+                )
+                .map(AiSummaryArtifactRepository.ClaimedArtifact::summaryType)
+                .toList();
+        assertThat(claimedTypes).containsExactlyInAnyOrder(
+                AiSummaryArtifactRepository.SummaryType.INTERVIEW_POST,
+                AiSummaryArtifactRepository.SummaryType.INTERVIEW_POST,
+                AiSummaryArtifactRepository.SummaryType.APPLICATION,
+                AiSummaryArtifactRepository.SummaryType.APPLICATION
+        );
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "select id, status, attempt_count, started_at from ai_summary_artifacts where id in (?, ?, ?, ?)",
@@ -304,7 +308,7 @@ public class JdbcAiSummaryArtifactRepositoryPostgresIntegrationTest extends Post
         insertInterviewPost(visiblePostId, founderId, "open", "안산시", List.of("평일 저녁", "토요일 오전"));
         insertInterviewPost(hiddenPostId, founderId, "hidden", "서울시", List.of("평일 점심"));
         insertApplication(visibleApplicationId, visiblePostId, respondentId, "visible");
-        insertApplication(hiddenApplicationId, visiblePostId, respondentId, "hidden");
+        insertApplication(hiddenApplicationId, hiddenPostId, respondentId, "hidden");
 
         AiSummaryArtifactRepository.InterviewSummarySource visiblePost =
                 repository.loadInterviewPostSource(visiblePostId).orElseThrow();
@@ -427,8 +431,12 @@ public class JdbcAiSummaryArtifactRepositoryPostgresIntegrationTest extends Post
         assertThat(asOffsetDateTime(retryRow.get("next_attempt_at"))).isEqualTo(nextAttemptAt);
         assertThat(retryRow.get("completed_at")).isNull();
 
+        UUID exhaustedPostId = UUID.randomUUID();
+        UUID exhaustedApplicationId = UUID.randomUUID();
+        insertInterviewPost(exhaustedPostId, founderId, "open", "연남동", List.of("주말 오후"));
+        insertApplication(exhaustedApplicationId, exhaustedPostId, respondentId, "visible");
         UUID exhaustedArtifactId = insertArtifactForApplication(
-                applicationId,
+                exhaustedApplicationId,
                 "processing",
                 "exhausted-hash",
                 "prompt-v1",

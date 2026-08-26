@@ -8,6 +8,7 @@ import com.contentruck.hypofit.chat.service.ChatMessageRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
@@ -32,17 +33,20 @@ public class ChatMessageRepositoryAdapter implements ChatMessageRepository {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ChatMessageJpaRepository chatMessageJpaRepository;
     private final ChatRoomParticipantSettingJpaRepository chatRoomParticipantSettingJpaRepository;
+    private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
 
     public ChatMessageRepositoryAdapter(
             NamedParameterJdbcTemplate jdbcTemplate,
             ChatMessageJpaRepository chatMessageJpaRepository,
             ChatRoomParticipantSettingJpaRepository chatRoomParticipantSettingJpaRepository,
+            EntityManager entityManager,
             ObjectMapper objectMapper
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.chatMessageJpaRepository = chatMessageJpaRepository;
         this.chatRoomParticipantSettingJpaRepository = chatRoomParticipantSettingJpaRepository;
+        this.entityManager = entityManager;
         this.objectMapper = objectMapper;
     }
 
@@ -180,6 +184,7 @@ public class ChatMessageRepositoryAdapter implements ChatMessageRepository {
                 .addValue("readAt", readAt)
                 .addValue("createdAt", now)
                 .addValue("updatedAt", now));
+        entityManager.clear();
         return chatRoomParticipantSettingJpaRepository.findByRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new IllegalStateException("Expected chat room setting to exist"));
     }

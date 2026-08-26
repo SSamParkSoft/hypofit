@@ -34,7 +34,7 @@ class FlywayAutoConfigurationIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "select version from flyway_schema_history where success order by installed_rank desc limit 1",
                 String.class
-        )).isEqualTo("0025");
+        )).isEqualTo("0028");
     }
 
     private static PostgreSQLContainer startPostgres() {
