@@ -8,7 +8,6 @@ import com.contentruck.hypofit.chat.service.ChatMessageRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.persistence.EntityManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
@@ -32,21 +31,15 @@ public class ChatMessageRepositoryAdapter implements ChatMessageRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ChatMessageJpaRepository chatMessageJpaRepository;
-    private final ChatRoomParticipantSettingJpaRepository chatRoomParticipantSettingJpaRepository;
-    private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
 
     public ChatMessageRepositoryAdapter(
             NamedParameterJdbcTemplate jdbcTemplate,
             ChatMessageJpaRepository chatMessageJpaRepository,
-            ChatRoomParticipantSettingJpaRepository chatRoomParticipantSettingJpaRepository,
-            EntityManager entityManager,
             ObjectMapper objectMapper
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.chatMessageJpaRepository = chatMessageJpaRepository;
-        this.chatRoomParticipantSettingJpaRepository = chatRoomParticipantSettingJpaRepository;
-        this.entityManager = entityManager;
         this.objectMapper = objectMapper;
     }
 
@@ -184,9 +177,34 @@ public class ChatMessageRepositoryAdapter implements ChatMessageRepository {
                 .addValue("readAt", readAt)
                 .addValue("createdAt", now)
                 .addValue("updatedAt", now));
-        entityManager.clear();
-        return chatRoomParticipantSettingJpaRepository.findByRoomIdAndUserId(roomId, userId)
+        return jdbcTemplate.query(
+                        """
+                        select id, room_id, user_id, is_muted, is_hidden,
+                               last_read_at, created_at, updated_at
+                        from chat_room_participant_settings
+                        where room_id = :roomId and user_id = :userId
+                        """,
+                        new MapSqlParameterSource()
+                                .addValue("roomId", roomId)
+                                .addValue("userId", userId),
+                        (resultSet, rowNum) -> roomParticipantSetting(resultSet)
+                )
+                .stream()
+                .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Expected chat room setting to exist"));
+    }
+
+    private ChatRoomParticipantSettingEntity roomParticipantSetting(ResultSet resultSet) throws SQLException {
+        ChatRoomParticipantSettingEntity setting = new ChatRoomParticipantSettingEntity();
+        setting.setId(uuid(resultSet, "id"));
+        setting.setRoomId(uuid(resultSet, "room_id"));
+        setting.setUserId(uuid(resultSet, "user_id"));
+        setting.setMuted(resultSet.getBoolean("is_muted"));
+        setting.setHidden(resultSet.getBoolean("is_hidden"));
+        setting.setLastReadAt(offsetDateTime(resultSet, "last_read_at"));
+        setting.setCreatedAt(offsetDateTime(resultSet, "created_at"));
+        setting.setUpdatedAt(offsetDateTime(resultSet, "updated_at"));
+        return setting;
     }
 
     private String messagesSql(boolean includeBefore, boolean includeBeforeId) {

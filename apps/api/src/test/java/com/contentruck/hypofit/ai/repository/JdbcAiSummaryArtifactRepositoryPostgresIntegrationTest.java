@@ -465,8 +465,10 @@ public class JdbcAiSummaryArtifactRepositoryPostgresIntegrationTest extends Post
         assertThat(exhaustedRow.get("status")).isEqualTo("failed");
         assertThat(asOffsetDateTime(exhaustedRow.get("completed_at"))).isEqualTo(exhaustedNow);
 
+        UUID failedPostId = UUID.randomUUID();
+        insertInterviewPost(failedPostId, founderId, "open", "연남동", List.of("평일 오전"));
         UUID failedArtifactId = insertArtifactForPost(
-                interviewPostId,
+                failedPostId,
                 "processing",
                 "failed-hash",
                 "prompt-v1",

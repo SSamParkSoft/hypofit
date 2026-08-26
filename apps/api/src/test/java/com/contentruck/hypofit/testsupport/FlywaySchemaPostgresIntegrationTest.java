@@ -11,7 +11,7 @@ class FlywaySchemaPostgresIntegrationTest extends PostgresIntegrationTestSupport
         assertThat(jdbcTemplate.queryForObject(
                 "select version from flyway_schema_history where success order by installed_rank desc limit 1",
                 String.class
-        )).isEqualTo("0026");
+        )).isEqualTo("0028");
 
         assertThat(jdbcTemplate.queryForObject(
                 """
@@ -31,6 +31,14 @@ class FlywaySchemaPostgresIntegrationTest extends PostgresIntegrationTestSupport
                 where conname = 'ck_interview_posts_recruitment_type'
                 """,
                 String.class
-        )).contains("interview", "survey", "beta_test");
+        )).contains(
+                "interview",
+                "survey",
+                "beta_test",
+                "usability_test",
+                "research_experiment",
+                "focus_group",
+                "other"
+        );
     }
 }
