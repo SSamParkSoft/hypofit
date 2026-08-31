@@ -236,7 +236,7 @@ class OpenApiContractRegressionIntegrationTest {
         assertNoFormat(root, placeResponseBase + "/latitude");
         assertNumericRange(root, placeResponseBase + "/longitude", "-180", "180");
         assertNoFormat(root, placeResponseBase + "/longitude");
-        assertThat(root.at(placeResponseBase + "/source/default").asText()).isEqualTo("kakao");
+        assertThat(root.at(placeResponseBase + "/source/default").asText()).isEqualTo("kakao_place");
 
         JsonNode adminDeletedByUser = findParameterSchema(
                 root, "/api/v1/admin/support/tickets", "deleted_by_user"
