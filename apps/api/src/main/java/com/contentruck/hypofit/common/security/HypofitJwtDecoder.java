@@ -1,12 +1,18 @@
 package com.contentruck.hypofit.common.security;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.crypto.spec.SecretKeySpec;
 
 import com.contentruck.hypofit.common.config.HypofitProperties;
+import org.springframework.cache.Cache;
+import org.springframework.cache.concurrent.ConcurrentMapCache;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -47,6 +53,7 @@ public class HypofitJwtDecoder implements JwtDecoder {
                         algorithms.add(SignatureAlgorithm.RS256);
                         algorithms.add(SignatureAlgorithm.ES256);
                     })
+                    .cache(new ExpiringJwkSetCache(properties.getSupabaseJwksCacheSeconds()))
                     .build();
             decoder.setJwtValidator(validator(properties.getJwtAudience()));
             return decoder;
@@ -92,6 +99,54 @@ public class HypofitJwtDecoder implements JwtDecoder {
                 withAudience,
                 withUserIdSubject
         );
+    }
+
+    private static final class ExpiringJwkSetCache extends ConcurrentMapCache {
+
+        private final ConcurrentMap<Object, Instant> expiresAt = new ConcurrentHashMap<>();
+        private final Duration ttl;
+
+        private ExpiringJwkSetCache(int cacheSeconds) {
+            super("supabase-jwks");
+            this.ttl = Duration.ofSeconds(Math.max(1, cacheSeconds));
+        }
+
+        @Override
+        protected Object lookup(Object key) {
+            Instant expiry = expiresAt.get(key);
+            if (expiry != null && !expiry.isAfter(Instant.now())) {
+                evict(key);
+                return null;
+            }
+            return super.lookup(key);
+        }
+
+        @Override
+        public void put(Object key, Object value) {
+            super.put(key, value);
+            expiresAt.put(key, Instant.now().plus(ttl));
+        }
+
+        @Override
+        public Cache.ValueWrapper putIfAbsent(Object key, Object value) {
+            Cache.ValueWrapper existing = super.putIfAbsent(key, value);
+            if (existing == null) {
+                expiresAt.put(key, Instant.now().plus(ttl));
+            }
+            return existing;
+        }
+
+        @Override
+        public void evict(Object key) {
+            super.evict(key);
+            expiresAt.remove(key);
+        }
+
+        @Override
+        public void clear() {
+            super.clear();
+            expiresAt.clear();
+        }
     }
 
 }
