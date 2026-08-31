@@ -11,7 +11,7 @@ class PlaceSearchResponseTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void fromIncludesKakaoSourceInResponsePayload() throws Exception {
+    void fromIncludesCanonicalKakaoPlaceSourceInResponsePayload() throws Exception {
         PlaceSearchResponse response = PlaceSearchResponse.from(new PlaceSearchResult(
                 "place-1",
                 "Hypofit Cafe",
@@ -23,7 +23,7 @@ class PlaceSearchResponseTest {
                 126.9780
         ));
 
-        assertThat(response.source()).isEqualTo("kakao");
-        assertThat(objectMapper.writeValueAsString(response)).contains("\"source\":\"kakao\"");
+        assertThat(response.source()).isEqualTo("kakao_place");
+        assertThat(objectMapper.writeValueAsString(response)).contains("\"source\":\"kakao_place\"");
     }
 }

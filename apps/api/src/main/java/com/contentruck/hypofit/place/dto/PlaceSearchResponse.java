@@ -15,7 +15,7 @@ public record PlaceSearchResponse(
         double latitude,
         @Schema(minimum = "-180", maximum = "180")
         double longitude,
-        @Schema(defaultValue = "kakao")
+        @Schema(defaultValue = "kakao_place")
         String source
 ) {
     public static PlaceSearchResponse from(PlaceSearchResult result) {
@@ -28,7 +28,7 @@ public record PlaceSearchResponse(
                 result.phone(),
                 result.latitude(),
                 result.longitude(),
-                "kakao"
+                "kakao_place"
         );
     }
 }
