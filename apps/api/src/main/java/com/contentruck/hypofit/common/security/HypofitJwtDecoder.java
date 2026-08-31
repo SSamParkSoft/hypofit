@@ -25,6 +25,7 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.ResourceAccessException;
 
 public class HypofitJwtDecoder implements JwtDecoder {
 
@@ -32,8 +33,12 @@ public class HypofitJwtDecoder implements JwtDecoder {
     private final JwtDecoder delegate;
 
     public HypofitJwtDecoder(HypofitProperties properties) {
+        this(properties, buildDelegate(properties));
+    }
+
+    HypofitJwtDecoder(HypofitProperties properties, JwtDecoder delegate) {
         this.properties = properties;
-        this.delegate = buildDelegate(properties);
+        this.delegate = delegate;
     }
 
     @Override
@@ -42,10 +47,32 @@ public class HypofitJwtDecoder implements JwtDecoder {
             throw new JwtException("Supabase JWT verification is not configured");
         }
 
-        return delegate.decode(token);
+        try {
+            return delegate.decode(token);
+        } catch (JwtException exception) {
+            if (hasJwksConfiguration() && hasTransportFailure(exception)) {
+                return delegate.decode(token);
+            }
+            throw exception;
+        }
     }
 
-    private JwtDecoder buildDelegate(HypofitProperties properties) {
+    private boolean hasJwksConfiguration() {
+        return StringUtils.hasText(properties.getResolvedSupabaseJwksUrl());
+    }
+
+    private boolean hasTransportFailure(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof ResourceAccessException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private static JwtDecoder buildDelegate(HypofitProperties properties) {
         String jwksUrl = properties.getResolvedSupabaseJwksUrl();
         if (StringUtils.hasText(jwksUrl)) {
             NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwksUrl)
@@ -55,7 +82,7 @@ public class HypofitJwtDecoder implements JwtDecoder {
                     })
                     .cache(new ExpiringJwkSetCache(properties.getSupabaseJwksCacheSeconds()))
                     .build();
-            decoder.setJwtValidator(validator(properties.getJwtAudience()));
+            decoder.setJwtValidator(validator(properties));
             return decoder;
         }
 
@@ -63,14 +90,15 @@ public class HypofitJwtDecoder implements JwtDecoder {
             NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(
                     new SecretKeySpec(properties.getSupabaseJwtSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256")
             ).macAlgorithm(MacAlgorithm.HS256).build();
-            decoder.setJwtValidator(validator(properties.getJwtAudience()));
+            decoder.setJwtValidator(validator(properties));
             return decoder;
         }
 
         return null;
     }
 
-    private OAuth2TokenValidator<Jwt> validator(String audience) {
+    private static OAuth2TokenValidator<Jwt> validator(HypofitProperties properties) {
+        String audience = properties.getJwtAudience();
         OAuth2TokenValidator<Jwt> withAudience = jwt -> {
             List<String> audiences = jwt.getAudience();
             if (audiences != null && audiences.contains(audience)) {

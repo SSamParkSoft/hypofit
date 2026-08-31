@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.contentruck.hypofit.common.config.HypofitProperties;
 import com.nimbusds.jose.JOSEException;
@@ -18,8 +19,10 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.JwtValidationException;
+import org.springframework.web.client.ResourceAccessException;
 
 class HypofitJwtDecoderTest {
 
@@ -155,6 +158,31 @@ class HypofitJwtDecoderTest {
 
         JwtException exception = assertThrows(JwtException.class, () -> decoder.decode("unused-token"));
         assertEquals("Supabase JWT verification is not configured", exception.getMessage());
+    }
+
+    @Test
+    void retriesOnceAfterTransientJwksTransportFailure() {
+        HypofitProperties properties = new HypofitProperties();
+        properties.setSupabaseUrl("https://hypofit.supabase.test");
+        AtomicInteger calls = new AtomicInteger();
+        Jwt expected = new Jwt(
+                "token",
+                Instant.now(),
+                Instant.now().plusSeconds(60),
+                java.util.Map.of("alg", "RS256"),
+                java.util.Map.of("sub", USER_ID)
+        );
+        JwtDecoder delegate = token -> {
+            if (calls.getAndIncrement() == 0) {
+                throw new JwtException("JWKS unavailable", new ResourceAccessException("timed out"));
+            }
+            return expected;
+        };
+
+        Jwt decoded = new HypofitJwtDecoder(properties, delegate).decode("token");
+
+        assertEquals(expected, decoded);
+        assertEquals(2, calls.get());
     }
 
     private HypofitProperties propertiesWithSecret(String secret) {
