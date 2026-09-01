@@ -555,7 +555,6 @@ public final class InterviewPostRequestParser {
         }
         JsonNode node = body.get(field);
         if (node.isNull()) {
-            errors.add(new FieldError(field, "입력값을 확인해 주세요."));
             return null;
         }
         return parseStringList(node, field, errors);

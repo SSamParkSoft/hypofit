@@ -31,6 +31,28 @@ class InterviewPostRequestParserTest {
     }
 
     @Test
+    void createAcceptsNullOptionalBetaFieldsFromNonBetaClients() throws Exception {
+        var command = InterviewPostRequestParser.parseCreate(objectMapper.readValue("""
+                {
+                  "title": "인터뷰 모집",
+                  "service_summary": "초기 서비스 문제를 검증하려는 인터뷰입니다.",
+                  "target_description": "최근 3개월 내 관련 경험자",
+                  "reward_amount": 0,
+                  "compensations": [{ "type": "none" }],
+                  "duration_minutes": 30,
+                  "interview_mode": "online",
+                  "beta_test_platforms": null,
+                  "beta_test_starts_at": null,
+                  "beta_test_ends_at": null,
+                  "status": "open"
+                }
+                """, InterviewPostCreateRequest.class));
+
+        assertThat(command.recruitmentType()).isEqualTo("interview");
+        assertThat(command.betaTestPlatforms()).isNull();
+    }
+
+    @Test
     void parsesOptionalClientSubmissionId() throws Exception {
         var request = objectMapper.readValue("""
                 {
