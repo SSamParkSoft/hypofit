@@ -18,11 +18,12 @@ const blockedImportsByLayer = {
 const allowedFeatureDependencies = {
   applications: new Set(["auth", "chat", "sessions", "workflow"]),
   chat: new Set(["auth"]),
+  home: new Set(["applications", "chat", "interview-posts", "sessions"]),
   "interview-posts": new Set(["applications", "auth"]),
   map: new Set(["interview-posts"]),
   "my-interviews": new Set(["applications", "auth", "interview-posts", "sessions", "workflow"]),
   notifications: new Set(["auth"]),
-  profiles: new Set(["auth", "notifications"]),
+  profiles: new Set(["applications", "auth", "chat", "interview-posts", "notifications", "sessions"]),
   sessions: new Set(["auth", "workflow"]),
   support: new Set(["auth"]),
 };

@@ -104,7 +104,7 @@ Mobile:
 Reference:
 
 - `docs/reference/error-observability-contract.md`
-- `docs/reference/mobile-auth-failure-observability-hardening-plan.md`
+- `docs/completed/mobile-auth-failure-observability-hardening-plan.md`
 - `docs/completed/mobile-startup-auth-error-hardening-plan.md`
 
 ## Current Risks

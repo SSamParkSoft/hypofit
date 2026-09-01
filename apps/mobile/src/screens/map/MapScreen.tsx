@@ -27,9 +27,16 @@ import { useInterviewPosts } from "@/features/interview-posts/useInterviewPosts"
 import { useDebouncedPlaceSearch } from "@/features/places/useDebouncedPlaceSearch";
 import { StateMessage } from "@/screens/home/HomeScreen";
 import type { PlaceSearchResult } from "@/shared/api/places";
+import {
+  getPostingCompensationLabel,
+  getPostingDurationLabel,
+  getPostingModeLabel,
+  getPostingTypeLabel,
+} from "@/shared/format/postings";
 import { ListRow } from "@/shared/ui/ListSurface";
 import { PrimaryButton } from "@/shared/ui/PrimaryButton";
 import { SearchField } from "@/shared/ui/SearchField";
+import { getBottomTabBarHeight } from "@/shared/navigation/tabBarStyle";
 import { addAppBreadcrumb, captureAppError } from "@/shared/diagnostics/sentry";
 import {
   clampMapSheetHeight,
@@ -85,6 +92,7 @@ type MapMarkerItem =
 
 export function MapScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = getBottomTabBarHeight(insets.bottom);
   const { accessToken, appUser } = useAuth();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const [region, setRegion] = useState(defaultRegion);
@@ -648,7 +656,7 @@ export function MapScreen() {
   const mapBannerCopy = getMapBannerCopy(locationState, isError, stableMapPosts.length > 0);
   const showBlockingState = displayMapPosts.length === 0;
   const shouldShowListButton = displayMapPosts.length > 0 && !selectedPost && !selectedMarkerGroup && sheetLevel !== "max";
-  const sheetTitle = selectedMarkerGroup ? "이 위치의 인터뷰" : "근처 인터뷰";
+  const sheetTitle = selectedMarkerGroup ? "이 위치의 공고" : "근처 공고";
   const sheetSubtitle = selectedMarkerGroup
     ? `${selectedMarkerGroup.posts.length}개 · ${getMarkerGroupPlaceLabel(selectedMarkerGroup)}`
     : `${displayMapPosts.length}개 · 마커를 누르면 자세히 볼 수 있어요`;
@@ -792,12 +800,12 @@ export function MapScreen() {
         <Animated.View
           pointerEvents="box-none"
           style={{
-            bottom: Animated.add(animatedSheetHeight, 8),
+            bottom: Animated.add(animatedSheetHeight, tabBarHeight + 8),
           }}
           className="absolute left-3 z-40"
         >
           <Pressable
-            accessibilityLabel="모집글 목록 보기"
+            accessibilityLabel="공고 목록 보기"
             accessibilityRole="button"
             hitSlop={4}
             className="h-10 flex-row items-center gap-1.5 rounded-full border border-hypo-border bg-hypo-surface/95 px-3 shadow-lg"
@@ -805,7 +813,7 @@ export function MapScreen() {
             style={({ pressed }) => ({ opacity: pressed ? 0.82 : 1 })}
           >
             <Feather color="#1D2522" name="list" size={15} />
-            <Text className="text-xs font-black text-hypo-text">목록</Text>
+            <Text className="text-xs font-semibold text-hypo-text">목록</Text>
           </Pressable>
         </Animated.View>
       ) : null}
@@ -813,6 +821,7 @@ export function MapScreen() {
       {!isListMode ? (
         <Animated.View
           style={{
+            bottom: tabBarHeight,
             height: animatedSheetHeight,
             elevation: 16,
           }}
@@ -835,11 +844,11 @@ export function MapScreen() {
             {showBlockingState ? (
               <View className="flex-1 justify-center px-4 pb-6 pt-2">
                 {isLoading ? (
-                  <StateMessage title="인터뷰를 불러오는 중입니다." loading />
+                  <StateMessage title="공고를 불러오는 중이에요." loading />
                 ) : isError ? (
-                  <StateMessage title="인터뷰를 불러오지 못했어요." description="API 연결 상태를 확인한 뒤 다시 시도하세요." />
+                  <StateMessage title="공고를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." />
                 ) : (
-                  <StateMessage title="이 지역에 표시할 인터뷰가 없어요." />
+                  <StateMessage title="이 지역에 표시할 공고가 없어요." />
                 )}
               </View>
             ) : null}
@@ -848,7 +857,7 @@ export function MapScreen() {
               <ScrollView
                 ref={sheetScrollRef}
                 contentContainerClassName="px-4 pt-2"
-                contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 18, 24) }}
+                contentContainerStyle={{ paddingBottom: 28 }}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               >
@@ -937,9 +946,9 @@ function MapListOverlay({
             <Text className="text-[34px] font-semibold leading-9 text-hypo-text">‹</Text>
           </Pressable>
           <View className="min-w-0 flex-1">
-            <Text className="text-[18px] font-black text-hypo-text">목록</Text>
-            <Text className="mt-0.5 text-xs font-bold text-hypo-muted">
-              지도에서 찾은 모집글 {posts.length}개
+            <Text className="text-[18px] font-bold text-hypo-text">목록</Text>
+            <Text className="mt-0.5 text-xs font-medium text-hypo-muted">
+              지도에서 찾은 공고 {posts.length}개
             </Text>
           </View>
           <View className="w-10" />
@@ -948,19 +957,19 @@ function MapListOverlay({
 
       {isLoading ? (
         <View className="flex-1 justify-center px-4">
-          <StateMessage title="인터뷰를 불러오는 중입니다." loading />
+          <StateMessage title="공고를 불러오는 중이에요." loading />
         </View>
       ) : null}
 
       {!isLoading && isError ? (
         <View className="flex-1 justify-center px-4">
-          <StateMessage title="인터뷰를 불러오지 못했어요." description="API 연결 상태를 확인한 뒤 다시 시도하세요." />
+          <StateMessage title="공고를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." />
         </View>
       ) : null}
 
       {!isLoading && !isError && !hasPosts ? (
         <View className="flex-1 justify-center px-4">
-          <StateMessage title="이 지역에 표시할 인터뷰가 없어요." />
+          <StateMessage title="이 지역에 표시할 공고가 없어요." />
         </View>
       ) : null}
 
@@ -970,7 +979,7 @@ function MapListOverlay({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="overflow-hidden rounded-[18px] border border-hypo-border bg-hypo-surface">
+          <View className="bg-hypo-surface">
             {posts.map((post) => (
               <MapListRow
                 key={`map-list-overlay-${post.id}`}
@@ -1003,6 +1012,7 @@ function MarkerPreviewCard({
   style: StyleProp<ViewStyle>;
 }) {
   const isOwnPost = Boolean(currentUserId && post.founder_id === currentUserId);
+  const isSurvey = post.recruitment_type === "survey";
 
   return (
     <View
@@ -1012,8 +1022,8 @@ function MarkerPreviewCard({
     >
       <View className="flex-row items-start gap-2">
         <Pressable className="min-w-0 flex-1" onPress={onDetail} style={({ pressed }) => ({ opacity: pressed ? 0.78 : 1 })}>
-          <Text numberOfLines={1} className="text-[11px] font-black text-[#087C43]">
-            {formatReward(post.reward_amount)}
+          <Text numberOfLines={1} className="text-[11px] font-semibold text-hypo-brand">
+            {getPostingCompensationLabel(post)}
           </Text>
           <Text numberOfLines={2} className="mt-1 text-[13px] font-black leading-5 text-hypo-text">
             {post.title}
@@ -1040,11 +1050,11 @@ function MarkerPreviewCard({
         <Pressable
           accessibilityRole="button"
           className={`min-h-11 flex-1 items-center justify-center rounded-full ${isOwnPost ? "bg-hypo-surface" : "bg-hypo-brand"}`}
-          onPress={isOwnPost ? () => router.push({ pathname: "/(tabs)/interviews/my-interviews", params: { returnTo: "/(tabs)/map" } }) : onApply}
+          onPress={isOwnPost ? () => router.push({ pathname: "/(tabs)/interviews/my-interviews", params: { returnTo: "/(tabs)/map" } }) : isSurvey ? onDetail : onApply}
           style={({ pressed }) => ({ opacity: pressed ? 0.78 : 1 })}
         >
           <Text className={`text-[11px] font-black ${isOwnPost ? "text-hypo-muted" : "text-white"}`}>
-            {isOwnPost ? "내 인터뷰" : "신청하기"}
+            {isOwnPost ? "내 공고" : isSurvey ? "설문 보기" : "신청하기"}
           </Text>
         </Pressable>
       </View>
@@ -1096,7 +1106,7 @@ const NativePostMarker = memo(function NativePostMarker({
   return (
     <Marker
       anchor={{ x: 0.5, y: 1 }}
-      centerOffset={{ x: 0, y: -15 }}
+      centerOffset={{ x: 0, y: -30 }}
       identifier={id}
       coordinate={{ latitude, longitude }}
       description={formatReward(rewardAmount)}
@@ -1182,7 +1192,7 @@ const NativePostGroupMarker = memo(function NativePostGroupMarker({
       anchor={{ x: 0.5, y: 1 }}
       centerOffset={{ x: 0, y: -16 }}
       coordinate={{ latitude, longitude }}
-      description={`${count}개 인터뷰`}
+      description={`${count}개 공고`}
       identifier={id}
       title={title}
       tracksViewChanges={tracksViewChanges}
@@ -1480,22 +1490,22 @@ function SelectedMapPostCard({
   post: InterviewPost;
 }) {
   const distanceLabel = formatMapDistance(post.distance_meters, "거리 확인 전");
+  const durationLabel = getPostingDurationLabel(post);
   const isOwnPost = Boolean(currentUserId && post.founder_id === currentUserId);
+  const isSurvey = post.recruitment_type === "survey";
 
   return (
     <View className="rounded-[18px] border border-hypo-border bg-hypo-bg p-3">
       <View className="flex-row items-start justify-between gap-3">
         <View className="min-w-0 flex-1">
           <View className="flex-row flex-wrap items-center gap-1.5">
-            <View className="rounded-full bg-[#E4F1E7] px-2.5 py-0.5">
-              <Text className="text-[10px] font-black text-hypo-brand">{interviewModeLabels[post.interview_mode]}</Text>
-            </View>
+            <Text className="text-[11px] font-medium text-hypo-brand">{`${getPostingTypeLabel(post)} · ${getPostingModeLabel(post)}`}</Text>
             <View className="rounded-full bg-hypo-surface px-2.5 py-0.5">
               <Text className="text-[10px] font-black text-hypo-muted">{distanceLabel}</Text>
             </View>
           </View>
 
-          <Text numberOfLines={2} className="mt-2 text-[15px] font-black leading-6 text-hypo-text">
+          <Text numberOfLines={2} className="mt-2 text-[16px] font-semibold leading-6 text-hypo-text">
             {post.title}
           </Text>
         </View>
@@ -1510,8 +1520,8 @@ function SelectedMapPostCard({
       </Text>
 
       <View className="mt-3 rounded-[14px] bg-hypo-surface px-3 py-2.5">
-        <Text className="text-[11px] font-black text-hypo-text">찾는 응답자</Text>
-        <Text numberOfLines={2} className="mt-1 text-xs font-bold leading-5 text-hypo-muted">
+        <Text className="text-[12px] font-semibold text-hypo-text">찾는 참여자</Text>
+        <Text numberOfLines={2} className="mt-1 text-[13px] leading-5 text-hypo-muted">
           {post.target_description}
         </Text>
       </View>
@@ -1520,8 +1530,8 @@ function SelectedMapPostCard({
         <PreviewMeta label="위치" value={getPostLocationLabel(post)} />
         <PreviewMeta label="모집 인원" value={formatRecruitCount(post.recruit_count)} />
         <PreviewMeta label="일정" value={post.schedule_options[0] ?? "시간 협의"} />
-        <PreviewMeta label="예상 시간" value={`${post.duration_minutes}분`} />
-        <PreviewMeta label="사례비" value={formatReward(post.reward_amount)} highlighted />
+        {durationLabel ? <PreviewMeta label="예상 시간" value={durationLabel} /> : null}
+        <PreviewMeta label="보상" value={getPostingCompensationLabel(post)} highlighted />
       </View>
 
       <View className="mt-3 flex-row gap-2">
@@ -1530,9 +1540,9 @@ function SelectedMapPostCard({
         </PrimaryButton>
         <PrimaryButton
           variant={isOwnPost ? "secondary" : "primary"}
-          onPress={isOwnPost ? () => router.push({ pathname: "/(tabs)/interviews/my-interviews", params: { returnTo: "/(tabs)/map" } }) : onApply}
+          onPress={isOwnPost ? () => router.push({ pathname: "/(tabs)/interviews/my-interviews", params: { returnTo: "/(tabs)/map" } }) : isSurvey ? onDetail : onApply}
         >
-          {isOwnPost ? "내 인터뷰" : "신청하기"}
+          {isOwnPost ? "내 공고" : isSurvey ? "설문 보기" : "신청하기"}
         </PrimaryButton>
       </View>
     </View>
@@ -1577,20 +1587,20 @@ function MapListRow({
       <View className="flex-row items-start justify-between gap-3">
         <View className="min-w-0 flex-1">
           <View className="flex-row items-start gap-1.5">
-            <View className="mt-0.5 rounded-full bg-[#E4F1E7] px-2 py-0.5">
-              <Text className="text-[10px] font-black text-hypo-brand">{interviewModeLabels[post.interview_mode]}</Text>
-            </View>
-            <Text numberOfLines={1} className={`min-w-0 flex-1 text-sm font-black leading-5 ${isViewed && !isSelected ? "text-hypo-muted" : "text-hypo-text"}`}>
+            <View className="min-w-0 flex-1 gap-1">
+              <Text className="text-[11px] font-medium text-hypo-brand">{`${getPostingTypeLabel(post)} · ${getPostingModeLabel(post)}`}</Text>
+              <Text numberOfLines={1} className={`min-w-0 text-[16px] font-semibold leading-5 ${isViewed && !isSelected ? "text-hypo-muted" : "text-hypo-text"}`}>
               {post.title}
-            </Text>
+              </Text>
+            </View>
           </View>
           <Text numberOfLines={1} className={`mt-1 text-xs font-bold leading-5 ${isViewed && !isSelected ? "text-[#8D958B]" : "text-hypo-muted"}`}>
             {locationLabel}
           </Text>
         </View>
         <View className="items-end">
-          <Text className={`text-sm font-black ${isViewed && !isSelected ? "text-hypo-text-soft" : "text-[#087C43]"}`}>
-            {formatReward(post.reward_amount)}
+          <Text className={`text-[13px] font-semibold ${isViewed && !isSelected ? "text-hypo-text-soft" : "text-hypo-brand"}`}>
+            {getPostingCompensationLabel(post)}
           </Text>
           {distanceLabel ? <Text className="mt-1 text-[10px] font-black text-hypo-muted">{distanceLabel}</Text> : null}
         </View>
@@ -1609,15 +1619,15 @@ function getMapBannerCopy(
   }
 
   if (locationState === "denied") {
-    return "위치 권한을 켜면 내 주변 인터뷰를 볼 수 있어요.";
+    return "위치 권한을 켜면 내 주변 공고를 볼 수 있어요.";
   }
 
   if (locationState === "unavailable") {
-    return "현재 위치 대신 주변 인터뷰를 보여드릴게요.";
+    return "현재 위치 대신 주변 공고를 보여드릴게요.";
   }
 
   if (isError && hasStablePosts) {
-    return "인터뷰를 다시 불러오지 못했어요.";
+    return "공고를 다시 불러오지 못했어요.";
   }
 
   return null;
@@ -1737,7 +1747,7 @@ function toRadians(value: number) {
 
 function formatMarkerReward(amount: number) {
   if (!Number.isFinite(amount) || amount <= 0) {
-    return "사례비";
+    return "보상";
   }
 
   if (amount >= 10000) {

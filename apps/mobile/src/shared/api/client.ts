@@ -1,4 +1,8 @@
+import * as Application from "expo-application";
+import Constants from "expo-constants";
 import { captureAppError } from "@/shared/diagnostics/sentry";
+import { Platform } from "react-native";
+import { buildClientReleaseHeaders } from "./releaseMetadata";
 import { mobileEnv } from "./env";
 
 export interface ApiFieldError {
@@ -116,6 +120,36 @@ function createRequestId() {
   return `mob_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function readConfiguredBuildVersion() {
+  if (Platform.OS === "android") {
+    const versionCode = Constants.expoConfig?.android?.versionCode;
+    return typeof versionCode === "number" ? String(versionCode) : null;
+  }
+
+  const buildNumber = Constants.expoConfig?.ios?.buildNumber;
+  return typeof buildNumber === "string" && buildNumber.trim()
+    ? buildNumber.trim()
+    : null;
+}
+
+function readConfiguredRevision() {
+  const extra = Constants.expoConfig?.extra;
+  if (!extra || typeof extra !== "object") {
+    return null;
+  }
+
+  const revision = (extra as { appRevision?: unknown }).appRevision;
+  return typeof revision === "string" && revision.trim() ? revision.trim() : null;
+}
+
+function createClientReleaseHeaders() {
+  return buildClientReleaseHeaders({
+    version: Constants.expoConfig?.version ?? Application.nativeApplicationVersion,
+    build: readConfiguredBuildVersion() ?? Application.nativeBuildVersion,
+    revision: readConfiguredRevision(),
+  });
+}
+
 function parseFieldErrors(value: unknown): ApiFieldError[] | null {
   if (!Array.isArray(value)) {
     return null;
@@ -202,6 +236,7 @@ export async function apiRequest<T>(path: string, init?: ApiRequestInit): Promis
   const { accessToken, headers, ...requestInit } = init ?? {};
   const method = requestInit.method ?? "GET";
   const requestId = createRequestId();
+  const releaseHeaders = createClientReleaseHeaders();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), apiTimeoutMs);
 
@@ -214,6 +249,7 @@ export async function apiRequest<T>(path: string, init?: ApiRequestInit): Promis
         Accept: "application/json",
         "X-Request-ID": requestId,
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...releaseHeaders,
         ...headers,
       },
       signal: controller.signal,

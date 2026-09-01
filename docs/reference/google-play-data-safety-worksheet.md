@@ -30,12 +30,12 @@ Android app:
 
 Backend and storage:
 
-- FastAPI API at `https://hypofit-api.bukae.co.kr`
+- Spring Boot API at `https://hypofit-api.bukae.co.kr`
 - Supabase Auth
 - Supabase Postgres
 - Supabase Storage bucket `profileimage`
-- Kakao Local API called server-side through FastAPI
-- FastAPI-backed storage now includes support/report tickets, support ticket
+- Kakao Local API called server-side through the Spring API
+- API-backed storage now includes support/report tickets, support ticket
   events, account deletion requests, user blocks, moderation actions,
   notifications, and audit events in Supabase Postgres
 
@@ -193,7 +193,7 @@ Purpose:
 
 Stored in:
 
-- Supabase Postgres through FastAPI.
+- Supabase Postgres through the Spring API.
 
 Play Data safety likely category:
 
@@ -230,7 +230,7 @@ Purpose:
 
 Stored in:
 
-- Supabase Postgres through FastAPI.
+- Supabase Postgres through the Spring API.
 
 Play Data safety likely category:
 
@@ -384,7 +384,7 @@ Purpose:
 Stored in:
 
 - Vercel/logging infrastructure if web is used.
-- FastAPI/GPU server logs.
+- Lightsail Spring API logs.
 - Supabase logs.
 - Sentry project `hypofit-mobile` if Sentry remains enabled in the release
   build.
@@ -410,7 +410,7 @@ Known service providers:
   - auth
   - database
   - storage
-- FastAPI hosting/runtime:
+- Lightsail Spring hosting/runtime:
   - API processing
   - logs
 - Google Maps:

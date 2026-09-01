@@ -11,6 +11,8 @@ import { publicWebBaseUrl } from "@hypofit/contracts";
 import { supportEmail } from "../shared/config/support";
 import { useRouteMetadata } from "../shared/navigation/useRouteMetadata";
 
+const supportSurfaceClassName =
+  "rounded-hypo-lg border border-hypo-border bg-hypo-surface";
 const supportMailHref = `mailto:${supportEmail}?subject=${encodeURIComponent("[Hypofit 계정 도움] 로그인이 어려워요")}`;
 const safetyReportBody = [
   "신고 대상:",
@@ -89,7 +91,7 @@ export function PublicSupportPage() {
             <strong className="font-brand text-lg font-black text-hypo-text">Hypofit</strong>
           </a>
           <a
-            className="inline-flex min-h-10 items-center justify-center rounded-hypo-lg px-3 text-sm font-black text-hypo-brand transition-colors hover:bg-hypo-brand-soft focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
+            className="hidden min-h-10 items-center justify-center rounded-hypo-lg px-3 text-sm font-black text-hypo-brand transition-colors hover:bg-hypo-brand-soft focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20 md:inline-flex"
             href="/app"
           >
             로그인
@@ -110,11 +112,11 @@ export function PublicSupportPage() {
               </p>
             </div>
 
-            <div className="mt-8 border-y border-hypo-border">
+            <div className={["mt-8 overflow-hidden", supportSurfaceClassName].join(" ")}>
               {publicActions.map(({ description, href, icon: Icon, label }, index) => (
                 <a
                   key={label}
-                  className={`group grid min-h-20 grid-cols-[40px_minmax(0,1fr)_24px] items-center gap-3 py-4 transition-colors hover:bg-hypo-surface-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20 ${index > 0 ? "border-t border-hypo-border" : ""}`}
+                  className={`group grid min-h-20 grid-cols-[40px_minmax(0,1fr)_24px] items-center gap-3 px-5 py-4 transition-colors hover:bg-hypo-surface-muted/70 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20 sm:px-6 ${index > 0 ? "border-t border-hypo-border/70" : ""}`}
                   href={href}
                 >
                   <span className="grid size-10 place-items-center rounded-hypo-lg bg-hypo-brand-soft text-hypo-brand">
@@ -136,7 +138,7 @@ export function PublicSupportPage() {
             </div>
           </div>
 
-          <aside className="rounded-hypo-lg border border-hypo-border bg-hypo-surface p-5 shadow-hypo-panel sm:p-6">
+          <aside className={`${supportSurfaceClassName} p-5 sm:p-6`}>
             <span className="grid size-10 place-items-center rounded-hypo-lg bg-hypo-brand-soft text-hypo-brand">
               <LifeBuoy aria-hidden="true" size={20} />
             </span>
@@ -152,10 +154,10 @@ export function PublicSupportPage() {
               이메일로 도움받기
             </a>
             <p className="mt-2 break-all text-xs font-bold text-hypo-text-soft">{supportEmail}</p>
-            <div className="mt-5 border-t border-hypo-border pt-4">
+            <div className="mt-5 border-t border-hypo-border/70 pt-4">
               <p className="flex gap-2 text-xs font-semibold leading-5 text-hypo-text-muted">
-              <LockKeyhole aria-hidden="true" className="mt-0.5 shrink-0" size={15} />
-              <span>
+                <LockKeyhole aria-hidden="true" className="mt-0.5 shrink-0" size={15} />
+                <span>
                   소셜 계정 비밀번호, 인증번호, 로그인 토큰은 보내지 마세요.<br />
                   계정 확인을 위해 추가 정보를 요청할 수 있어요.
                 </span>
@@ -171,16 +173,16 @@ export function PublicSupportPage() {
               먼저 확인해 보세요
             </h2>
           </div>
-          <div className="mt-6 border-y border-hypo-border">
+          <div className={`mt-6 overflow-hidden ${supportSurfaceClassName}`}>
             {faqItems.map(({ answer, question }, index) => (
-              <details key={question} className={index > 0 ? "group border-t border-hypo-border" : "group"}>
-                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-[15px] font-black marker:hidden focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20 [&::-webkit-details-marker]:hidden">
+              <details key={question} className={index > 0 ? "group border-t border-hypo-border/70" : "group"}>
+                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-[15px] font-black marker:hidden focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20 sm:px-6 [&::-webkit-details-marker]:hidden">
                   {question}
                   <span aria-hidden="true" className="text-xl font-semibold text-hypo-text-soft transition-transform group-open:rotate-45">
                     +
                   </span>
                 </summary>
-                <p className="max-w-[760px] pb-5 pr-8 text-sm font-semibold leading-7 text-hypo-text-muted">
+                <p className="max-w-[760px] px-5 pb-5 pr-8 text-sm font-semibold leading-7 text-hypo-text-muted sm:px-6">
                   {answer}
                 </p>
               </details>

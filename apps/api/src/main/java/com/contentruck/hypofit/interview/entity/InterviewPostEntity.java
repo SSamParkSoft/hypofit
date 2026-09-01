@@ -27,6 +27,9 @@ public class InterviewPostEntity {
     @Column(name = "founder_id", nullable = false)
     private UUID founderId;
 
+    @Column(name = "client_submission_id")
+    private UUID clientSubmissionId;
+
     @Column(name = "title", nullable = false, length = 120)
     private String title;
 
@@ -51,6 +54,9 @@ public class InterviewPostEntity {
 
     @Column(name = "recruitment_type", nullable = false, length = 30)
     private String recruitmentType;
+
+    @Column(name = "entry_mode", nullable = false, length = 30)
+    private String entryMode = "application_required";
 
     @Column(name = "external_provider", length = 30)
     private String externalProvider;
@@ -122,6 +128,10 @@ public class InterviewPostEntity {
         return founderId;
     }
 
+    public UUID getClientSubmissionId() {
+        return clientSubmissionId;
+    }
+
     public String getTitle() {
         return title;
     }
@@ -152,6 +162,10 @@ public class InterviewPostEntity {
 
     public String getRecruitmentType() {
         return recruitmentType;
+    }
+
+    public String getEntryMode() {
+        return entryMode;
     }
 
     public String getExternalProvider() {
@@ -245,6 +259,10 @@ public class InterviewPostEntity {
         this.founderId = founderId;
     }
 
+    public void setClientSubmissionId(UUID clientSubmissionId) {
+        this.clientSubmissionId = clientSubmissionId;
+    }
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -275,6 +293,10 @@ public class InterviewPostEntity {
 
     public void setRecruitmentType(String recruitmentType) {
         this.recruitmentType = recruitmentType;
+    }
+
+    public void setEntryMode(String entryMode) {
+        this.entryMode = entryMode;
     }
 
     public void setExternalProvider(String externalProvider) {

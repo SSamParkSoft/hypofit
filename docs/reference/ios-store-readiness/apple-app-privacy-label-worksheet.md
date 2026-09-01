@@ -331,7 +331,7 @@ Likely App Privacy data type:
 Current state:
 
 - Interview search text appears local client-side.
-- Kakao place search terms are sent to the FastAPI proxy and Kakao Local API.
+- Kakao place search terms are sent to the Spring API proxy and Kakao Local API.
 - There is no intentional stored search-history feature.
 
 Linked to user:
@@ -404,7 +404,7 @@ Current state:
   metadata, stack traces, and Hypofit startup breadcrumbs.
 - Sentry is configured not to send default PII. The current mobile runtime also
   strips explicit Sentry user context before sending events.
-- API/GPU/Supabase/Vercel may process request logs, IP address, error logs, and
+- API/Supabase/Vercel may process request logs, IP address, error logs, and
   technical metadata.
 
 Linked to user:
@@ -545,7 +545,7 @@ Known processors/providers:
   - auth
   - database
   - storage
-- FastAPI/GPU/EC2 API runtime:
+- Lightsail Spring API runtime:
   - API processing and logs
 - Vercel:
   - public web, legal, account deletion, support pages

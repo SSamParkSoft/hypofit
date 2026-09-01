@@ -1,4 +1,5 @@
 import type { UserRole } from "../domain/roles";
+import type { OrganizationType } from "./users";
 
 export interface SyncMeInput {
   name: string;
@@ -7,6 +8,8 @@ export interface SyncMeInput {
   role: UserRole;
   profile_image_path?: string | null;
   profile_image_url?: string | null;
+  organization_type?: OrganizationType | null;
+  organization_name?: string | null;
 }
 
 export interface UpdateMeInput {
@@ -16,6 +19,8 @@ export interface UpdateMeInput {
   role: UserRole;
   profile_image_path?: string | null;
   profile_image_url?: string | null;
+  organization_type?: OrganizationType | null;
+  organization_name?: string | null;
 }
 
 export interface AppUser {
@@ -27,4 +32,6 @@ export interface AppUser {
   role: UserRole;
   profile_image_path: string | null;
   profile_image_url: string | null;
+  organization_type: OrganizationType | null;
+  organization_name: string | null;
 }

@@ -3,6 +3,8 @@ import type { User } from "@supabase/supabase-js";
 import type { AppUser, SyncMeInput, UserRole } from "../../shared/api/types";
 import { isApiError } from "../../shared/api/client";
 
+const COMPATIBILITY_ROLE: UserRole = "both";
+
 export function getMetadataRole(user: User | null | undefined): UserRole | null {
   const role = user?.user_metadata?.role;
 
@@ -25,17 +27,11 @@ export function getDisplayName(user: User) {
 }
 
 export function buildDefaultSyncInput(user: User): SyncMeInput {
-  const role = getMetadataRole(user);
-
-  if (!role) {
-    throw new Error("역할 정보를 먼저 저장해 주세요.");
-  }
-
   return {
     name: getDisplayName(user),
     bio: getOptionalMetadataValue(user, "bio"),
     phone: getOptionalMetadataValue(user, "phone"),
-    role,
+    role: getMetadataRole(user) ?? COMPATIBILITY_ROLE,
   };
 }
 

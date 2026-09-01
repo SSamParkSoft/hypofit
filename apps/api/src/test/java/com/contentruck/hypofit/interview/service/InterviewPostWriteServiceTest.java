@@ -14,12 +14,14 @@ import static org.mockito.Mockito.when;
 import com.contentruck.hypofit.ai.service.AiSummaryEnqueueService;
 import com.contentruck.hypofit.audit.service.AuditWriteService;
 import com.contentruck.hypofit.common.config.HypofitProperties;
+import com.contentruck.hypofit.user.service.UserProfileMissingException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,15 +41,60 @@ class InterviewPostWriteServiceTest {
     private AiSummaryEnqueueService aiSummaryEnqueueService;
 
     private InterviewPostWriteService service;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
         service = new InterviewPostWriteService(
                 repository,
                 auditWriteService,
                 new HypofitProperties(),
-                aiSummaryEnqueueService
+                aiSummaryEnqueueService,
+                meterRegistry
         );
+    }
+
+    @Test
+    void createPostRecordsIdempotencyOutcomesWithoutRequestSpecificTags() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID submissionId = UUID.randomUUID();
+        InterviewPostWriteModel existing = writePost(UUID.randomUUID(), actorUserId, "open", "online");
+        service = new InterviewPostWriteService(
+                repository,
+                auditWriteService,
+                new HypofitProperties(),
+                aiSummaryEnqueueService,
+                meterRegistry
+        );
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
+        when(repository.findPostByClientSubmissionId(actorUserId, submissionId)).thenReturn(Optional.of(existing));
+
+        service.createPost(actorUserId, matchingCommand(), submissionId);
+
+        assertThat(meterRegistry.get("hypofit.interview_post.create")
+                .tag("outcome", "replayed")
+                .counter()
+                .count()).isEqualTo(1);
+        assertThat(meterRegistry.getMeters()).allSatisfy(meter ->
+                assertThat(meter.getId().getTags()).allSatisfy(tag ->
+                        assertThat(tag.getKey()).isEqualTo("outcome")
+                )
+        );
+    }
+
+    @Test
+    void createPostRecordsFailureWithoutRequestSpecificTags() {
+        UUID actorUserId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createPost(actorUserId, matchingCommand()))
+                .isInstanceOf(UserProfileMissingException.class);
+
+        assertThat(meterRegistry.get("hypofit.interview_post.create")
+                .tag("outcome", "failed")
+                .counter()
+                .count()).isEqualTo(1);
     }
 
     @Test
@@ -205,6 +252,49 @@ class InterviewPostWriteServiceTest {
     }
 
     @Test
+    void createPostReturnsExistingPostForRepeatedClientSubmissionId() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID submissionId = UUID.randomUUID();
+        InterviewPostWriteModel existing = writePost(UUID.randomUUID(), actorUserId, "open", "online");
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
+        when(repository.findPostByClientSubmissionId(actorUserId, submissionId)).thenReturn(Optional.of(existing));
+
+        InterviewPostReadModel result = service.createPost(actorUserId, matchingCommand(), submissionId);
+
+        assertThat(result.id()).isEqualTo(existing.id());
+        var order = inOrder(repository);
+        order.verify(repository).lockClientSubmission(actorUserId, submissionId);
+        order.verify(repository).findPostByClientSubmissionId(actorUserId, submissionId);
+        verify(repository, never()).createPost(eq(actorUserId), any());
+        verify(aiSummaryEnqueueService, never()).enqueueInterviewSummary(existing.id());
+    }
+
+    @Test
+    void createPostRejectsClientSubmissionIdReusedWithDifferentPayload() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID submissionId = UUID.randomUUID();
+        InterviewPostWriteModel existing = writePost(UUID.randomUUID(), actorUserId, "open", "online");
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
+        when(repository.findPostByClientSubmissionId(actorUserId, submissionId)).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.createPost(
+                actorUserId,
+                new InterviewPostCreateCommand(
+                        "interview", "다른 제목", "사용자 검증을 위한 인터뷰를 진행합니다.",
+                        "최근 3개월 내 유사 서비스 사용 경험자", 15000, 30, 0,
+                        "online", null, null, null, null, null, null, null, null,
+                        List.of("평일 저녁"), "open"
+                ),
+                submissionId
+        ))
+                .isInstanceOf(InterviewPostIdempotencyConflictException.class)
+                .hasMessageContaining("Client submission ID was reused");
+
+        verify(repository, never()).createPost(eq(actorUserId), any());
+        verify(aiSummaryEnqueueService, never()).enqueueInterviewSummary(existing.id());
+    }
+
+    @Test
     void createOnlineInterviewClearsLocationPayload() {
         UUID actorUserId = UUID.randomUUID();
         when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "both")));
@@ -266,7 +356,7 @@ class InterviewPostWriteServiceTest {
         OffsetDateTime deadline = OffsetDateTime.of(2026, 9, 1, 9, 0, 0, 0, ZoneOffset.UTC);
         HypofitProperties properties = new HypofitProperties();
         properties.setSurveyRecruitmentCreationEnabled(true);
-        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService);
+        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService, meterRegistry);
         when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
         when(repository.createPost(eq(actorUserId), argThat(command ->
                 "survey".equals(command.recruitmentType())
@@ -295,7 +385,7 @@ class InterviewPostWriteServiceTest {
         UUID actorUserId = UUID.randomUUID();
         HypofitProperties properties = new HypofitProperties();
         properties.setSurveyRecruitmentCreationEnabled(true);
-        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService);
+        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService, meterRegistry);
         when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
 
         assertThatThrownBy(() -> service.createPost(actorUserId, new InterviewPostCreateCommand(
@@ -337,7 +427,7 @@ class InterviewPostWriteServiceTest {
         OffsetDateTime endsAt = startsAt.plusDays(7);
         HypofitProperties properties = new HypofitProperties();
         properties.setBetaTestRecruitmentCreationEnabled(true);
-        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService);
+        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService, meterRegistry);
         when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "founder")));
         when(repository.createPost(eq(actorUserId), argThat(command ->
                 "beta_test".equals(command.recruitmentType())
@@ -461,6 +551,15 @@ class InterviewPostWriteServiceTest {
 
     private InterviewPostActorAccount activeFounder(UUID userId, String role) {
         return new InterviewPostActorAccount(userId, "founder@example.com", role, false, false);
+    }
+
+    private InterviewPostCreateCommand matchingCommand() {
+        return new InterviewPostCreateCommand(
+                "interview", "기존 모집글", "사용자 검증을 위한 인터뷰를 진행합니다.",
+                "최근 3개월 내 유사 서비스 사용 경험자", 15000, 30, 0,
+                "online", null, null, null, null, null, null, null, null,
+                List.of("평일 저녁"), "open"
+        );
     }
 
     private InterviewPostWriteModel writePost(UUID postId, UUID founderId, String status, String interviewMode) {

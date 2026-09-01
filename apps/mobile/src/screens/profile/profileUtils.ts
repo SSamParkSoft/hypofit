@@ -1,9 +1,10 @@
-import type { UserRole } from "@hypofit/contracts";
+import type { OrganizationType, UserRole } from "@hypofit/contracts";
 import { mobileEnv } from "@/shared/api/env";
 
 export const supportEmail = mobileEnv.supportEmail;
 export const appVersion = "1.0.1";
 export const companyName = "contentruck";
+export const compatibilityRole: UserRole = "both";
 
 export function formatPhoneInput(value: string) {
   const rawDigits = value.replace(/\D/g, "");
@@ -20,8 +21,30 @@ export function formatPhoneInput(value: string) {
   return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
-export function roleDescription(role: UserRole | null | undefined) {
-  if (role === "founder") return "고객 인터뷰를 모집하고 신청자를 선정해요.";
-  if (role === "both") return "창업자와 인터뷰어 역할을 모두 사용할 수 있어요.";
-  return "내 경험에 맞는 인터뷰에 신청해요.";
+export function roleDescription(_role: UserRole | null | undefined) {
+  return "프로필을 정리해 두면 더 잘 맞는 공고와 대화에서 도움이 돼요.";
+}
+
+export function canEditOrganization(_role: UserRole | null | undefined) {
+  return true;
+}
+
+export function getOrganizationTypeLabel(type: OrganizationType | null | undefined) {
+  if (type === "team") return "팀";
+  if (type === "company") return "회사";
+  return null;
+}
+
+export function formatOrganizationDisplay(
+  type: OrganizationType | null | undefined,
+  name: string | null | undefined,
+) {
+  const trimmedName = name?.trim();
+
+  if (!trimmedName) {
+    return null;
+  }
+
+  const typeLabel = getOrganizationTypeLabel(type);
+  return typeLabel ? `${typeLabel} · ${trimmedName}` : trimmedName;
 }

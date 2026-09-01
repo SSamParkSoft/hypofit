@@ -136,7 +136,7 @@ export function PostCreationForm({
 
   return (
     <form
-      className="bg-hypo-surface px-4 py-5 sm:border sm:border-hypo-border sm:px-6 sm:py-6"
+      className="rounded-hypo-lg bg-hypo-surface px-4 py-5 sm:border sm:border-hypo-border sm:px-6 sm:py-6 sm:shadow-hypo-panel"
       onSubmit={handleSubmit}
     >
       {hideHeader ? null : (
@@ -279,11 +279,11 @@ export function PostCreationForm({
             ) : null}
 
             {placeResults.length ? (
-              <div className="grid gap-1 border border-hypo-border bg-hypo-surface p-1 shadow-hypo-panel">
+              <div className="grid gap-1 rounded-hypo-lg border border-hypo-border bg-hypo-surface p-1">
                 {placeResults.map((place) => (
                   <button
                     key={`${place.place_name}-${place.x}-${place.y}`}
-                    className="px-3 py-2 text-left transition-colors hover:bg-hypo-brand-soft"
+                    className="rounded-hypo-md px-3 py-2 text-left transition-colors hover:bg-hypo-bg"
                     type="button"
                     onClick={() => selectPlace(place)}
                   >
@@ -299,7 +299,7 @@ export function PostCreationForm({
             ) : null}
 
             {values.locationLatitude !== null && values.locationLongitude !== null ? (
-              <div className="border-y border-hypo-border py-3">
+              <div className="rounded-hypo-lg border border-hypo-border bg-hypo-bg px-4 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs font-semibold leading-[18px] text-hypo-brand">선택한 장소</p>
@@ -310,7 +310,7 @@ export function PostCreationForm({
                       {values.locationAddress || "지도 좌표가 저장됩니다."}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-hypo-pill bg-hypo-brand-soft px-2.5 py-1 text-[11px] font-semibold leading-4 text-hypo-brand">
+                  <span className="shrink-0 rounded-hypo-lg border border-hypo-border bg-hypo-surface px-2.5 py-1 text-[11px] font-semibold leading-4 text-hypo-text-muted">
                     등록됨
                   </span>
                 </div>
@@ -323,10 +323,10 @@ export function PostCreationForm({
                     <button
                       key={option.value}
                       className={cn(
-                        "min-h-10 rounded-hypo-md border px-3 text-xs font-semibold leading-[18px] transition-colors",
+                        "min-h-10 rounded-hypo-lg border px-3 text-xs font-semibold leading-[18px] transition-colors",
                         values.locationPrecision === option.value
                           ? "border-hypo-brand bg-hypo-brand text-white"
-                          : "border-hypo-border bg-hypo-surface text-hypo-text-muted",
+                          : "border-hypo-border bg-hypo-surface text-hypo-text-muted hover:border-hypo-brand/35 hover:text-hypo-text",
                       )}
                       type="button"
                       onClick={() => {

@@ -9,6 +9,9 @@ import { cloneElement, isValidElement, useId } from "react";
 
 import { cn } from "./cn";
 
+const fieldControlClassName =
+  "w-full rounded-hypo-lg border border-hypo-border bg-hypo-surface text-base text-hypo-text outline-none transition-[background-color,border-color,box-shadow,color] placeholder:text-hypo-icon-muted focus:border-hypo-brand focus:ring-[3px] focus:ring-hypo-brand/15 disabled:cursor-not-allowed disabled:border-hypo-border disabled:bg-hypo-surface-muted disabled:text-hypo-text-soft disabled:opacity-100 aria-[invalid=true]:border-hypo-danger/40 aria-[invalid=true]:focus:border-hypo-danger aria-[invalid=true]:focus:ring-hypo-danger/12";
+
 interface FieldProps {
   children: ReactNode;
   className?: string;
@@ -64,7 +67,8 @@ export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInput
   return (
     <input
       className={cn(
-        "h-11 w-full rounded-hypo-md border border-hypo-border bg-hypo-surface px-3 text-base leading-5 text-hypo-text outline-none transition-[border-color,box-shadow,background-color] placeholder:text-hypo-text-soft focus:border-hypo-brand focus:ring-[3px] focus:ring-hypo-brand/15 disabled:cursor-not-allowed disabled:bg-hypo-bg disabled:text-hypo-text-muted disabled:opacity-100 md:h-10",
+        fieldControlClassName,
+        "h-11 px-3.5 leading-5 md:h-10",
         className,
       )}
       {...props}
@@ -76,7 +80,8 @@ export function SelectInput({ className, ...props }: SelectHTMLAttributes<HTMLSe
   return (
     <select
       className={cn(
-        "h-11 w-full rounded-hypo-md border border-hypo-border bg-hypo-surface px-3 text-base leading-5 text-hypo-text outline-none transition-[border-color,box-shadow,background-color] focus:border-hypo-brand focus:ring-[3px] focus:ring-hypo-brand/15 disabled:cursor-not-allowed disabled:bg-hypo-bg disabled:text-hypo-text-muted disabled:opacity-100 md:h-10",
+        fieldControlClassName,
+        "h-11 px-3.5 leading-5 md:h-10",
         className,
       )}
       {...props}
@@ -91,7 +96,8 @@ export function TextareaInput({
   return (
     <textarea
       className={cn(
-        "min-h-28 w-full rounded-hypo-md border border-hypo-border bg-hypo-surface px-3 py-2.5 text-base leading-6 text-hypo-text outline-none transition-[border-color,box-shadow,background-color] placeholder:text-hypo-text-soft focus:border-hypo-brand focus:ring-[3px] focus:ring-hypo-brand/15 disabled:cursor-not-allowed disabled:bg-hypo-bg disabled:text-hypo-text-muted disabled:opacity-100",
+        fieldControlClassName,
+        "min-h-28 px-3.5 py-3 leading-6",
         className,
       )}
       {...props}

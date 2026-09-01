@@ -2,7 +2,7 @@
 
 Status: service-source-of-truth
 
-Last updated: 2026-08-08
+Last updated: 2026-08-21
 
 ## Native Mobile Surface
 
@@ -13,7 +13,7 @@ Routing is Expo Router based.
 Important route groups:
 
 ```text
-app/(auth)       social-login entry, role/legal onboarding, splash;
+app/(auth)       social-login entry, legal consent, splash;
                  legacy email routes remain non-public compatibility surfaces
                  and must not act as fallback auth
 app/auth         OAuth/OIDC callback completion and recovery
@@ -36,7 +36,7 @@ app/(tabs)/_layout.tsx
      map tab reselect behavior
 
 app/(auth)/*
-  -> SplashScreen, social-only LoginScreen, SignUpRoleScreen
+  -> SplashScreen, social-only LoginScreen, consent-only SignUpRoleScreen
   -> SignUpAccountScreen and EmailConfirmationScreen are retained legacy paths,
      not current public entry points and should stay hidden or redirect
 
@@ -72,9 +72,14 @@ app/(tabs)/chat/schedule.tsx
   -> ScheduleSessionScreen
 
 app/(tabs)/profile/*
-  -> ProfileScreen, AccountInfoScreen, RoleSettingsScreen,
+  -> ProfileScreen, AccountInfoScreen, hidden compatibility RoleSettingsScreen,
      NotificationSettingsScreen, AppearanceSettingsScreen,
      DeleteAccountScreen
+
+Account information lets every active member maintain an optional team or
+company name. The same public profile attribution is shown with the creator on
+interview cards. The role settings route remains hidden only so released deep
+links resolve safely; it is not part of the current navigation or access model.
 
 app/support/*
   -> SupportScreen, FeedbackScreen, ReportScreen
@@ -126,9 +131,17 @@ Responsibilities:
 
 - public legal pages,
 - public account deletion page,
-- PWA/install fallback,
+- mobile landing and native-store acquisition,
+- authenticated desktop customer web,
 - possible admin/operator web surfaces,
 - Vercel deployment.
+
+Phone-sized web viewports are an acquisition surface, not a product runtime.
+Below `768px`, the public landing omits web login and directs users to the App
+Store or Google Play. Direct access to auth-entry and protected customer routes
+redirects to the landing page. Public legal, support, account-deletion, install,
+and OAuth callback routes remain reachable for store review and account flows.
+Desktop web retains login and the authenticated customer workspace.
 
 The web app can have a different desktop information architecture. Do not force
 mobile bottom sheets or phone-specific patterns into desktop web.

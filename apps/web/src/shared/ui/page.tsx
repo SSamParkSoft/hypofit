@@ -19,7 +19,7 @@ const layoutClasses: Record<Exclude<PageLayoutVariant, "form">, string> = {
   document: "max-w-[900px]",
   "list-detail": "max-w-[1480px]",
   "settings-form": "max-w-[1280px]",
-  workspace: "max-w-none min-[1200px]:h-dvh",
+  workspace: "max-w-none",
 };
 
 interface PageHeaderProps {

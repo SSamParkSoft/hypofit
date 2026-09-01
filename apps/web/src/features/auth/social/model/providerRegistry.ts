@@ -34,7 +34,7 @@ export const PUBLIC_WEB_SOCIAL_AUTH_PROVIDER_ORDER = [
 
 export const SOCIAL_PROVIDER_REGISTRY: Record<SocialProviderId, SocialProviderDefinition> = {
   apple: {
-    actionLabel: "Apple로 계속하기",
+    actionLabel: "Apple로 로그인",
     authProvider: "apple",
     buttonClassName:
       "border-[#111111] bg-[#111111] text-white hover:bg-black focus-visible:ring-black/15",
@@ -44,12 +44,12 @@ export const SOCIAL_PROVIDER_REGISTRY: Record<SocialProviderId, SocialProviderDe
     label: "Apple",
   },
   google: {
-    actionLabel: "Google로 계속하기",
+    actionLabel: "Google로 로그인",
     authProvider: "google",
     buttonClassName:
-      "border-[#747775] bg-white text-[#1F1F1F] hover:bg-[#F8F9FA] focus-visible:ring-[#4285F4]/15",
-    iconClassName: "left-3 size-10",
-    iconPath: "/social-auth/google.png",
+      "border-transparent bg-[#F2F2F2] text-[#1F1F1F] hover:bg-[#E8E8E8] focus-visible:ring-[#4285F4]/15",
+    iconClassName: "left-4 size-5",
+    iconPath: "/social-auth/google-g-logo.png",
     id: "google",
     label: "Google",
   },

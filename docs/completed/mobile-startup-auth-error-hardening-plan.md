@@ -90,7 +90,7 @@ Backend:
 Reference documents:
 
 - `docs/reference/error-observability-contract.md`
-- `docs/reference/mobile-auth-failure-observability-hardening-plan.md`
+- `docs/completed/mobile-auth-failure-observability-hardening-plan.md`
 
 ## Startup State Contract
 

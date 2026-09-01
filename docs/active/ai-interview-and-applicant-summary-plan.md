@@ -2,7 +2,7 @@
 
 Status: active
 
-Last updated: 2026-08-08
+Last updated: 2026-08-25
 
 Owner: contentruck
 
@@ -11,10 +11,20 @@ Implementation status on 2026-08-11:
 - Flyway baseline `B0024` contains the `ai_summary_artifacts` schema.
 - The canonical Spring API exposes nullable, authorization-aware summary read
   contracts.
-- The retired FastAPI generation worker was removed with the legacy backend.
-- Provider selection, Spring-owned generation/queue processing, evaluation,
-  mobile/web UI, legal/store declarations, and rollout remain open.
-- Generation flags stay disabled until those gates pass.
+- Gemini summary prompts and structured output schemas are implemented behind
+  a two-operation Spring provider boundary. The final production model and
+  rollout cohort remain undecided.
+- Spring-owned enqueue, source hashing, PostgreSQL claiming, bounded retry,
+  stale-work protection, and write-path triggers are implemented. Evaluation,
+  operational smoke, mobile/web UI, metrics, legal/store declarations, and
+  rollout remain open.
+- Generation flags stay disabled until those gates pass, and production
+  generation remains off.
+- The public landing now contains launch-state copy and a code-rendered preview
+  of the founder-facing applicant summary. The copy is approved for the final
+  released experience, but production deployment remains gated on completing
+  generation, privacy, and rollout work. The preview does not enable
+  generation or expose applicant data by itself.
 
 ## 1. Decision Summary
 
@@ -409,7 +419,7 @@ a guarded update. Avoid a separate queue table, two result tables, or
 production summary history until observed volume or audit requirements justify
 the split.
 
-Proposed table: `ai_summary_artifacts`
+Implemented table: `ai_summary_artifacts`
 
 ```text
 id                         uuid primary key
@@ -420,18 +430,18 @@ status                     pending | processing | ready | failed
 source_hash                char(64)
 prompt_version             varchar
 work_version               integer not null default 1
-provider_name              varchar nullable
-model_name                 varchar nullable
+provider                   varchar nullable
+model                      varchar nullable
 result                     jsonb nullable
 attempt_count              integer not null default 0
-next_attempt_at            timestamptz nullable
-processing_started_at      timestamptz nullable
-locked_by                  varchar nullable
-failure_code               varchar nullable
-input_token_count          integer nullable
-output_token_count         integer nullable
-estimated_cost_micros      bigint nullable
-generated_at               timestamptz nullable
+next_attempt_at            timestamptz not null default now()
+last_error_code            varchar nullable
+last_error_message         varchar nullable (kept null by the worker)
+input_tokens               integer nullable
+output_tokens              integer nullable
+estimated_cost_usd         numeric nullable
+started_at                 timestamptz nullable
+completed_at               timestamptz nullable
 created_at                 timestamptz not null
 updated_at                 timestamptz not null
 ```
@@ -441,7 +451,9 @@ Constraints:
 - Exactly one of `interview_post_id` and `application_id` is non-null.
 - `summary_type` must match the populated foreign key.
 - `result` is required only for `ready`.
-- `failure_code` must be a stable code, never the raw provider response.
+- `last_error_code` must be a stable code, never the raw provider response.
+- `last_error_message` remains null in the current implementation so provider
+  response text and submitted source content cannot become durable diagnostics.
 - Foreign keys use the source entity's established deletion behavior.
 - A partial unique index on `interview_post_id` and another on
   `application_id` prevent more than one artifact row per source entity.
@@ -586,9 +598,11 @@ or another service before measured load requires it.
 
 Implementation order:
 
-1. Select the provider and freeze privacy, region, retention, and cost limits.
-2. Implement the Spring provider gateway, bounded queue processing, stale-work
-   protection, and operational metrics.
+1. Keep Gemini limited to backend credential/connectivity foundation, then
+   freeze privacy, region, retention, prompt/schema, model, and cost limits
+   before enabling generation.
+2. Finish operational metrics for the implemented Spring provider gateway,
+   bounded queue processing, and stale-work protection.
 3. Pass synthetic grounding, authorization, deletion, and failure tests.
 4. Add mobile/web UI against the canonical API.
 5. Update legal/store declarations and enable only for controlled accounts.
@@ -617,13 +631,24 @@ AI_SUMMARY_ENABLED=false
 AI_INTERVIEW_SUMMARY_ENABLED=false
 AI_APPLICANT_SUMMARY_ENABLED=false
 AI_SUMMARY_WORKER_ENABLED=false
-AI_SUMMARY_PROVIDER=
+AI_SUMMARY_PROVIDER=gemini
 AI_SUMMARY_MODEL=
-AI_SUMMARY_API_KEY=
-AI_SUMMARY_API_BASE_URL=https://api.openai.com/v1
+GEMINI_API_KEY=
 AI_SUMMARY_TIMEOUT_SECONDS=30
 AI_SUMMARY_MAX_ATTEMPTS=3
 ```
+
+Current foundation rule:
+
+- `GEMINI_API_KEY` lives only in the backend runtime env file at
+  `/opt/hypofit/config/api.env`.
+- Never store the Gemini key in Git, GitHub Actions variables, `VITE_`,
+  `EXPO_PUBLIC_`, or web/mobile source code.
+- Leave `AI_SUMMARY_MODEL` blank or otherwise non-runnable until the model
+  choice, prompt contract, and schema contract are explicitly approved.
+- Manual provider connectivity may be checked against the Gemini model-list
+  endpoint, but that check is not part of startup readiness and must not block
+  deploys while generation remains disabled.
 
 No provider key may use `VITE_` or `EXPO_PUBLIC_` or appear in web/mobile code.
 
@@ -861,8 +886,9 @@ not public accuracy claims.
 ### Phase 0: contract and provider decision
 
 - [x] Approve the summary-only product boundary; UI copy remains deferred.
+- [x] Choose Gemini only for backend credential/connectivity foundation.
 - [ ] Select a provider against the privacy, structured-output, cost, and
-  operational gates.
+  operational gates for actual production generation.
 - [x] Add synthetic contract, minimization, authorization, and provider tests.
 - [x] Confirm Flyway schema ownership and canonical Spring response contracts.
 
@@ -870,8 +896,9 @@ not public accuracy claims.
 
 - [x] Add schema baseline, artifact persistence, nullable read contracts, and
   founder-only authorization.
-- [ ] Add the Spring-owned worker, provider gateway, source invalidation,
+- [x] Add the Spring-owned worker, provider gateway, source invalidation,
   bounded retry, and readiness state.
+- [ ] Add aggregate operational metrics without source or summary content.
 - [x] Add nullable interview detail contract.
 - [ ] Add mobile and web interview summary UI.
 - [ ] Enable only for review/internal accounts or an explicit percentage flag.
@@ -948,8 +975,6 @@ The feature is implementation-complete only when:
 
 When implementation starts, update in the same change:
 
-- `docs/completed/fastapi-to-spring-boot-backend-migration-plan.md` for
-  historical schema and contract context only.
 - `docs/architecture.md` and `docs/service/07-api-and-backend-map.md` for the
   final runtime and worker flow.
 - `docs/service/04-feature-map.md` and `docs/service/08-data-state-and-permissions.md`

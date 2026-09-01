@@ -8,7 +8,7 @@ Last updated: 2026-06-08
 
 This completed document records the FastAPI launch-hardening work.
 The full endpoint inventory and implementation history were moved to
-`docs/reference/api-operations-readiness-implementation-history.md`.
+`docs/completed/api-operations-readiness-implementation-history.md`.
 
 Use this document when changing backend behavior that affects Google Play
 review, account deletion, support/report operations, blocking/moderation,
@@ -40,7 +40,7 @@ As of the latest API operations pass, the deployed backend foundation includes:
   cannot own the flow. Signup OTP delivery is tracked in
   `docs/completed/email-otp-verification-transition-plan.md`; the superseded
   link-confirmation bridge is preserved in
-  `docs/reference/email-verification-resend-mvp-plan.md`; public deletion
+  `docs/completed/email-verification-resend-mvp-plan.md`; public deletion
   verification now has a backend-owned Resend path and a persisted result code
   when provider configuration is missing or delivery fails.
 - [x] Wire outbound email delivery for public deletion verification.

@@ -125,13 +125,6 @@ async function main() {
 
     await client.send("Page.enable");
     await client.send("Runtime.enable");
-    await client.send("Emulation.setDeviceMetricsOverride", {
-      deviceScaleFactor: 1,
-      height: 960,
-      mobile: false,
-      width: 1440,
-    });
-
     const storageKey = buildSupabaseStorageKey(configuration.supabaseUrl);
     const storageSeedSource = buildStorageSeedSource({
       origin: configuration.origin,
@@ -148,10 +141,7 @@ async function main() {
     const routes = [
       {
         path: "/app",
-        requiredText: [
-          "최근 인터뷰",
-          "최근 올라온 인터뷰를 한 화면에서 비교하고 바로 신청 흐름으로 이어갈 수 있어요.",
-        ],
+        requiredText: ["내 진행 상황", "최근 올라온 인터뷰", "맞춤 추천"],
       },
       {
         path: "/interviews",
@@ -168,14 +158,39 @@ async function main() {
         path: "/profile",
         requiredText: ["프로필", "계정 정보"],
       },
+      {
+        path: "/map",
+        requiredText: [],
+      },
     ];
 
-    for (const route of routes) {
-      await navigate(client, `${configuration.origin}${route.path}`);
-      await waitForRouteState(client, route);
+    const viewports = [
+      { height: 844, label: "phone", width: 390 },
+      { height: 932, label: "large-phone", width: 430 },
+      { height: 900, label: "mobile-edge", width: 767 },
+      { height: 1024, label: "compact-tall", width: 768 },
+      { height: 768, label: "compact-wide", width: 1024 },
+      { height: 800, label: "compact-edge", width: 1199 },
+      { height: 800, label: "desktop-boundary", width: 1200 },
+      { height: 720, label: "desktop-short", width: 1280 },
+      { height: 832, label: "desktop-entry", width: 1280 },
+      { height: 900, label: "desktop", width: 1440 },
+      { height: 1117, label: "wide-desktop", width: 1728 },
+    ];
+
+    for (const viewport of viewports) {
+      await setViewport(client, viewport);
+
+      for (const route of routes) {
+        await navigate(client, `${configuration.origin}${route.path}`);
+        await waitForRouteState(client, route);
+        await assertResponsiveLayout(client, route.path, viewport);
+      }
     }
 
-    console.log("Authenticated browser smoke passed for /app, /interviews, /chat, and /profile.");
+    console.log(
+      "Authenticated responsive browser smoke passed for /app, /interviews, /map, /chat, and /profile.",
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);
@@ -186,6 +201,55 @@ async function main() {
     if (temporaryDirectory) {
       await fs.rm(temporaryDirectory, { force: true, recursive: true });
     }
+  }
+}
+
+async function setViewport(client, { height, width }) {
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    deviceScaleFactor: 1,
+    height,
+    mobile: width < 768,
+    width,
+  });
+}
+
+async function assertResponsiveLayout(client, routePath, viewport) {
+  const metrics = await evaluate(
+    client,
+    `(() => {
+      const isVisible = (element) => {
+        if (!element) return false;
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      };
+      const topNavigation = document.querySelector('[data-app-shell-region="top-navigation"]');
+      const mobileNavigation = document.querySelector('nav[aria-label="Hypofit mobile navigation"]');
+      return {
+        clientWidth: document.documentElement.clientWidth,
+        mobileNavigationVisible: isVisible(mobileNavigation),
+        scrollWidth: document.documentElement.scrollWidth,
+        topNavigationVisible: isVisible(topNavigation),
+      };
+    })()`,
+  );
+
+  if (metrics.scrollWidth > metrics.clientWidth + 1) {
+    throw new Error(
+      `${routePath} overflowed horizontally at ${viewport.label} (${viewport.width}x${viewport.height}): ${metrics.scrollWidth}px > ${metrics.clientWidth}px`,
+    );
+  }
+
+  const expectsMobileNavigation = viewport.width < 768;
+  if (metrics.mobileNavigationVisible !== expectsMobileNavigation) {
+    throw new Error(
+      `${routePath} mobile navigation visibility was incorrect at ${viewport.label}.`,
+    );
+  }
+  if (metrics.topNavigationVisible === expectsMobileNavigation) {
+    throw new Error(
+      `${routePath} top navigation visibility was incorrect at ${viewport.label}.`,
+    );
   }
 }
 

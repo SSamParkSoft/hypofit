@@ -219,7 +219,7 @@ export function DeleteAccountScreen() {
           <View className="gap-2">
             <Text className="text-base font-black text-hypo-text">삭제 전에 확인해 주세요</Text>
             <Text className="text-sm font-bold leading-[22px] text-hypo-muted">
-              계정과 프로필 식별 정보는 삭제 또는 익명화돼요. 다만 신청, 모집글, 채팅, 신고처럼 분쟁 대응과 서비스 안전에 필요한 최소 기록은 개인정보처리방침에 따라 분리 보관될 수 있어요.
+              계정과 프로필 식별 정보는 삭제 또는 익명화돼요. 다만 신청, 공고, 채팅, 신고처럼 분쟁 대응과 서비스 안전에 필요한 최소 기록은 개인정보처리방침에 따라 분리 보관될 수 있어요.
             </Text>
           </View>
 

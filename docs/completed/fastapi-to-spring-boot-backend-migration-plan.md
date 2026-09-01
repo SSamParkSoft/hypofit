@@ -1571,7 +1571,7 @@ document:
 - `docs/service/07-api-and-backend-map.md`
 - `docs/service/10-operations-and-release.md`
 - `docs/reference/error-observability-contract.md`
-- `docs/reference/api-bluegreen-deployment-runbook.md`
+- `docs/completed/api-bluegreen-deployment-runbook.md`
 - API/privacy/store documents when observable behavior changes
 
 Do not rewrite current-state documentation to say Spring is production before

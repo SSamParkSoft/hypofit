@@ -47,6 +47,7 @@ describe("app routes", () => {
 
   it.each([
     ["/", "public"],
+    ["/landing", "public"],
     ["/support", "public"],
     ["/account-deletion", "public"],
     ["/auth/social/callback", "public"],
@@ -74,10 +75,12 @@ describe("app routes", () => {
   });
 
   it.each([
-    ["/", "Hypofit | 실제 고객과 시작하는 검증 인터뷰"],
+    ["/", "Hypofit | 인터뷰로 필요한 답을 찾으세요"],
+    ["/landing", "Hypofit | 인터뷰 참여자 모집과 운영"],
     ["/app", "홈 | Hypofit"],
     ["/interviews/post-1", "인터뷰 상세 | Hypofit"],
     ["/profile/account", "계정 정보 | Hypofit"],
+    ["/profile/role", "계정 정보 | Hypofit"],
     ["/support", "고객지원 | Hypofit"],
     ["/support/inquiries", "내 문의 | Hypofit"],
     ["/support/inquiries/new", "새 문의 | Hypofit"],

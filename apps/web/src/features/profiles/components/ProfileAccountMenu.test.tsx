@@ -3,12 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSignOut = vi.fn();
+const mockReplacePath = vi.fn();
 
 vi.mock("../../auth/useAuth", () => ({
   useAuth: () => ({
     signOut: mockSignOut,
     user: { email: "fallback@example.com" },
   }),
+}));
+
+vi.mock("../../../shared/navigation/appNavigation", () => ({
+  replacePath: (...args: unknown[]) => mockReplacePath(...args),
 }));
 
 import { ProfileAccountMenu } from "./ProfileAccountMenu";
@@ -18,6 +23,8 @@ const appUser = {
   email: "sehyeon@example.com",
   id: "user-1",
   name: "박세현",
+  organization_name: null,
+  organization_type: null,
   phone: null,
   profile_image_path: null,
   profile_image_url: null,
@@ -42,7 +49,12 @@ describe("ProfileAccountMenu", () => {
     const triggerAvatar = within(trigger).getByRole("img", { name: "박세현 프로필 사진" })
       .parentElement;
     expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(triggerAvatar).toHaveClass("rounded-full", "ring-2", "ring-hypo-text-muted/90");
+    expect(triggerAvatar).toHaveClass(
+      "rounded-full",
+      "border",
+      "border-hypo-text/35",
+      "ring-0",
+    );
     expect(triggerAvatar).not.toHaveClass("rounded-hypo-lg", "ring-hypo-border");
 
     await user.click(trigger);
@@ -75,5 +87,9 @@ describe("ProfileAccountMenu", () => {
     await user.click(screen.getByRole("button", { name: "로그아웃" }));
 
     expect(mockSignOut).toHaveBeenCalledTimes(1);
+    expect(mockReplacePath).toHaveBeenCalledWith("/", {
+      intent: "replace",
+      scroll: "top",
+    });
   });
 });

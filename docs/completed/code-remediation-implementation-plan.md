@@ -10,7 +10,7 @@ Record the implementation work extracted from the 2026-06-15 repository audit
 pass. User-operated checks are not tracked as active implementation backlog.
 
 The full audit baseline and historical findings are preserved in
-`docs/reference/code-qa-remediation-plan.md`.
+`docs/completed/code-qa-remediation-plan.md`.
 
 ## Implementation Backlog
 
@@ -83,7 +83,7 @@ The full audit baseline and historical findings are preserved in
 
 - [x] Inventory API schemas not represented in `packages/contracts`.
       Current inventory:
-      `docs/reference/contracts-coverage-inventory.md`.
+      `docs/completed/contracts-coverage-inventory.md`.
 - [x] Decide whether to manually add contracts or generate them from FastAPI
       OpenAPI.
 - [x] Add contracts for account deletion, support/report, notifications,

@@ -11,7 +11,7 @@ class FlywaySchemaPostgresIntegrationTest extends PostgresIntegrationTestSupport
         assertThat(jdbcTemplate.queryForObject(
                 "select version from flyway_schema_history where success order by installed_rank desc limit 1",
                 String.class
-        )).isEqualTo("0028");
+        )).isEqualTo("0029");
 
         assertThat(jdbcTemplate.queryForObject(
                 """
@@ -39,6 +39,32 @@ class FlywaySchemaPostgresIntegrationTest extends PostgresIntegrationTestSupport
                 "research_experiment",
                 "focus_group",
                 "other"
+        );
+
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                select data_type
+                from information_schema.columns
+                where table_schema = 'public'
+                  and table_name = 'interview_posts'
+                  and column_name = 'client_submission_id'
+                """,
+                String.class
+        )).isEqualTo("uuid");
+
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                select indexdef
+                from pg_indexes
+                where schemaname = 'public'
+                  and tablename = 'interview_posts'
+                  and indexname = 'uq_interview_posts_founder_client_submission_id'
+                """,
+                String.class
+        )).contains(
+                "UNIQUE INDEX uq_interview_posts_founder_client_submission_id",
+                "(founder_id, client_submission_id)",
+                "client_submission_id IS NOT NULL"
         );
     }
 }

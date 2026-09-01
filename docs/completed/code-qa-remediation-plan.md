@@ -1,6 +1,6 @@
 # Code QA Remediation Plan
 
-Status: reference
+Status: completed - historical QA record
 
 Last updated: 2026-06-15
 
@@ -364,7 +364,7 @@ Evidence:
 - `apps/mobile/src/screens/auth/EmailConfirmationScreen.tsx`
 - `apps/mobile/app/auth/callback.tsx`
 - `docs/completed/email-otp-verification-transition-plan.md`
-- `docs/reference/email-verification-resend-mvp-plan.md`
+- `docs/completed/email-verification-resend-mvp-plan.md`
 
 Target behavior:
 

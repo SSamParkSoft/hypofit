@@ -62,10 +62,6 @@ Store review/demo account with deterministic data for app review.
 Spring Boot:
 Java framework used by the canonical backend under `apps/api`.
 
-FastAPI:
-Retired Python backend represented only by historical migration documents and
-the frozen legacy OpenAPI baseline.
-
 Expo React Native:
 Native mobile app framework under `apps/mobile`.
 
@@ -74,12 +70,6 @@ Web deployment target for `apps/web`.
 
 Supabase:
 Durable auth/database/storage provider.
-
-EC2 reverse proxy:
-Retired Nginx/reverse-tunnel topology formerly used for the GPU runtime.
-
-GPU server:
-Returned school server that is no longer part of the runtime topology.
 
 Pinned-image rollback:
 Lightsail deployment restores the previous immutable GHCR digest when the new

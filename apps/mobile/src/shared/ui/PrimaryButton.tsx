@@ -12,10 +12,10 @@ interface PrimaryButtonProps {
 export function PrimaryButton({ children, className = "", disabled, variant = "primary", onPress }: PrimaryButtonProps) {
   const buttonClassName =
     variant === "secondary"
-      ? "min-h-[52px] items-center justify-center rounded-[14px] border border-hypo-border bg-hypo-surface px-4"
-      : "min-h-[52px] items-center justify-center rounded-[14px] bg-hypo-brand px-4";
+      ? "min-h-[52px] items-center justify-center rounded-[12px] border border-hypo-border bg-hypo-surface px-4"
+      : "min-h-[52px] items-center justify-center rounded-[12px] bg-hypo-brand px-4";
   const labelClassName =
-    variant === "secondary" ? "text-base font-extrabold text-hypo-text" : "text-base font-extrabold text-white";
+    variant === "secondary" ? "text-[15px] font-semibold text-hypo-text" : "text-[15px] font-semibold text-white";
 
   return (
     <Pressable

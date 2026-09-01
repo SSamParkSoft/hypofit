@@ -28,7 +28,9 @@ export function searchPlaces(params: SearchPlacesParams) {
   if (params.radiusM !== undefined) searchParams.set("radius_m", String(params.radiusM));
   if (params.limit !== undefined) searchParams.set("limit", String(params.limit));
 
-  return apiGet<PlaceSearchResult[]>(`/api/v1/places/search?${searchParams.toString()}`);
+  return apiGet<PlaceSearchResult[]>(`/api/v1/places/search?${searchParams.toString()}`).then(
+    (results) => results.map((result) => ({ ...result, source: "kakao_place" as const })),
+  );
 }
 
 export const placesApi = {

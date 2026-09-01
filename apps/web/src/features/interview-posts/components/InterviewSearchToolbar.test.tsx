@@ -20,14 +20,16 @@ describe("InterviewSearchToolbar", () => {
         nearbyStatus="idle"
         query=""
         resultCount={12}
-        rewardFilter="all"
+        compensationFilter="all"
+        postingTypeFilter="all"
         onClearFilters={vi.fn()}
         onModeChange={vi.fn()}
         onNearbyDisable={vi.fn()}
         onNearbyEnable={vi.fn()}
         onNearbyRadiusChange={vi.fn()}
         onQueryChange={vi.fn()}
-        onRewardChange={vi.fn()}
+        onCompensationChange={vi.fn()}
+        onPostingTypeChange={vi.fn()}
       />,
     );
 

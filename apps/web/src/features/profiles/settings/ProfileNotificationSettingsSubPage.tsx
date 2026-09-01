@@ -92,7 +92,7 @@ export function ProfileNotificationSettingsSubPage() {
         이 설정은 같은 계정으로 로그인한 Hypofit 앱에 적용돼요. 브라우저 알림 권한은 요청하지 않아요.
       </ProfileSettingsTextBlock>
       {updatePreferences.isError ? (
-        <p className="border-t border-hypo-border px-4 py-3 text-xs font-semibold leading-5 text-hypo-danger">
+        <p className="border-t border-hypo-border px-4 py-3.5 text-xs font-semibold leading-5 text-hypo-danger sm:px-5">
           {getApiErrorMessage(updatePreferences.error, "알림 설정을 저장하지 못했어요.")}
         </p>
       ) : null}
@@ -118,7 +118,7 @@ function NotificationPreferenceRow({
   const helperId = `${slug}-helper`;
 
   return (
-    <div className="flex min-h-[66px] items-center gap-4 border-t border-hypo-border px-4 py-3 first:border-t-0">
+    <div className="flex min-h-[70px] items-center gap-4 border-t border-hypo-border px-4 py-3.5 first:border-t-0 sm:px-5">
       <span className="min-w-0 flex-1">
         <span
           id={labelId}
@@ -148,7 +148,7 @@ function NotificationPreferenceRow({
         <span
           aria-hidden="true"
           className={cn(
-            "absolute left-0.5 top-0.5 size-6 rounded-full bg-white shadow-sm transition-transform",
+            "absolute left-0.5 top-0.5 size-6 rounded-full bg-white ring-1 ring-black/5 transition-transform",
             value && "translate-x-5",
           )}
         />

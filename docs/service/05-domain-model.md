@@ -2,7 +2,7 @@
 
 Status: service-source-of-truth
 
-Last updated: 2026-08-08
+Last updated: 2026-08-21
 
 ## Core Entities
 
@@ -16,7 +16,8 @@ Important fields:
 - name,
 - bio,
 - phone,
-- role,
+- compatibility role,
+- optional organization type (`team` or `company`) and organization name,
 - profile image path/url,
 - deletion/deactivation/anonymization timestamps,
 - deleted email hash for retention/re-registration policy.
@@ -24,6 +25,16 @@ Important fields:
 In the current auth policy, `email` is a reachable contact and account-support
 field, not a public email/password login authority. `phone` is profile/contact
 data when present, not a current authentication key.
+
+Organization fields are optional public profile metadata for users who create
+interview posts. They identify the team or company behind a post, but do not
+create a tenant, membership, ownership, invitation, or organization-level
+authorization boundary. Every active member can maintain this metadata and
+create or participate in recruitment without selecting a customer role.
+
+The persisted `role` field is retained only for released-client compatibility.
+New and synchronized users are normalized to `both`; Spring authorization uses
+active account state, post ownership, and workflow membership instead.
 
 ### SocialAuthIdentity
 
@@ -51,7 +62,8 @@ completion state without storing OAuth tokens or authorization codes.
 
 ### InterviewPost
 
-Founder-created recruitment post.
+Member-created recruitment post. Legacy `founder_id` naming remains for
+released-client compatibility; ownership is not a customer role.
 
 Important fields:
 
@@ -62,6 +74,10 @@ Important fields:
 - reward amount,
 - duration,
 - recruit count,
+- recruitment type (`interview`, `survey`, or `beta_test`),
+- external survey provider/URL, participation deadline, and data notice when
+  the type is `survey`,
+- target platforms and test period when the type is `beta_test`,
 - interview mode,
 - location text/address/place/coordinates,
 - location precision/source,
@@ -77,6 +93,33 @@ Statuses:
 - `archived`
 - `hidden`
 - `removed`
+
+`interview_mode`, location, schedule, session, attendance, no-show, reward
+confirmation, and interview review semantics apply only to `interview` posts.
+Beta tests reuse applications and create chat only after selection. Surveys use
+their own participation state and never store external form answers.
+
+### SurveyParticipation
+
+Tracks a member's interaction with an approved external survey without storing
+survey questions or answers.
+
+Important fields:
+
+- survey post,
+- participant,
+- status,
+- opened/submitted/confirmed/withdrawn timestamps.
+
+Statuses:
+
+- `opened`
+- `submitted`
+- `confirmed`
+- `withdrawn`
+
+The participant declares submission; the organizer may confirm it. The unique
+post/participant pair makes repeated open and submit requests idempotent.
 
 ### InterviewPostView
 

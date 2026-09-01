@@ -14,7 +14,7 @@ export function MessageBubble({ message, mySenderId }: MessageBubbleProps) {
 
   if (isSystemMessage(message)) {
     return (
-      <div className="mx-auto max-w-[88%] whitespace-pre-line rounded-hypo-pill bg-hypo-surface px-3 py-2 text-center text-xs font-semibold leading-5 text-hypo-text-muted">
+      <div className="mx-auto max-w-[88%] whitespace-pre-line rounded-hypo-pill border border-hypo-border bg-hypo-bg px-3 py-2 text-center text-xs font-semibold leading-5 text-hypo-text-muted">
         <MessageCircle className="mr-1 inline-block align-[-3px]" size={14} />
         {message.body}
       </div>
@@ -27,8 +27,8 @@ export function MessageBubble({ message, mySenderId }: MessageBubbleProps) {
         className={cn(
           "max-w-[82%] rounded-hypo-lg px-4 py-3 text-sm leading-6",
           isMine
-            ? "rounded-br-hypo-sm bg-hypo-brand-soft/70 text-hypo-brand"
-            : "rounded-bl-hypo-sm border border-hypo-border/80 bg-hypo-surface text-hypo-text",
+            ? "rounded-br-hypo-sm border border-hypo-brand/10 bg-hypo-brand-soft text-hypo-brand-strong"
+            : "rounded-bl-hypo-sm border border-hypo-border bg-hypo-surface-muted text-hypo-text",
         )}
       >
         <p>{message.body}</p>

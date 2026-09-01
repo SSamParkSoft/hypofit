@@ -2,14 +2,14 @@
 
 Status: active-index
 
-Last updated: 2026-08-11
+Last updated: 2026-08-31
 
 `docs/active/` contains only plans that still drive code, schema, deployment,
 release assets, or product configuration work. Standards and deferred designs
 belong in `docs/reference/`; implemented plans and QA history belong in
 `docs/completed/`.
 
-Current active implementation documents: 6.
+Current active implementation documents: 11.
 
 ## Execution Order
 
@@ -36,38 +36,42 @@ Current active implementation documents: 6.
   dedicated account-deletion email OTP confirmation flow. This is the single
   current authentication authority.
 
+## Backend Maintainability
+
+- `spring-mvc-maintainability-hardening-plan.md`: focused, behavior-preserving
+  extraction of observed session, chat and account-deletion responsibility
+  hotspots. It preserves feature-first Spring MVC and explicitly rejects a
+  DDD/hexagonal rewrite or line-count-driven splitting.
+- `production-reliability-and-posting-create-stabilization-plan.md`: deployment
+  authentication smoke, bounded Supabase JWKS verification, idempotent posting
+  creation, mobile/API compatibility, release observability, and constrained
+  Lightsail capacity hardening. It preserves the current modular monolith.
+
+## Product Model
+
+- `multi-format-participant-recruitment-and-web-template-adoption-plan.md`:
+  roleless ownership-based access, interview/survey/beta-test recruitment,
+  type-specific workflows, released-client compatibility, and licensed free
+  web-template pattern adoption.
+- `mobile-calm-emerald-native-redesign-plan.md`: the Expo phone UI migration to
+  Calm Emerald Native, including capability-aware survey consumption that is
+  implemented locally but not yet deployed or release-smoked.
+
 ## Web And Release Assets
 
+- `brainwave-inspired-landing-visual-reconstruction-plan.md`: focused public
+  `/` and `/landing` visual reconstruction using the Brainwave Figma/Vite
+  source as a licensed composition reference, with Hypofit-owned copy, product
+  evidence, brand translation, responsive branches, pricing, and release QA.
 - `desktop-web-service-ui-advancement-plan.md`: remaining authenticated desktop
-  web implementation, shared controls, responsive behavior, state coverage, and
-  release-quality validation under `/app`.
+  web implementation, shared controls, phone/compact/desktop responsive
+  hardening, state coverage, and release-quality validation under `/app`.
 - `landing-page-and-store-creative-production-plan.md`: real product captures,
   App Store and Google Play screenshot exports, feature graphic production,
-  responsive asset QA, and approved Figma review sync.
+  and responsive asset QA.
 - `hypofit-brand-logo-icon-system-migration-plan.md`: remaining local platform
   build validation, launcher-mask and notification checks, cache/store asset
-  verification, raster review sheets, and final Figma brand sync.
-
-## Moved On 2026-08-08
-
-Moved to `docs/completed/` because implementation is complete and only
-historical or manual QA value remains:
-
-- `authenticated-web-ui-ux-quality-remediation-plan.md`
-- `public-support-and-authenticated-inquiry-experience-plan.md`
-- `responsive-web-auth-entry-experience-plan.md`
-- `web-navigation-motion-system-plan.md`
-
-Removed from current docs on 2026-08-08 because social-login-only policy no
-longer keeps a separate phone-auth or SENS backlog document.
-
-## Moved On 2026-08-11
-
-Moved to `docs/completed/` after Spring became the canonical `apps/api`, the
-Lightsail cutover completed, and FastAPI/Alembic were retired:
-
-- `fastapi-to-spring-boot-backend-migration-plan.md`
-- `spring-single-runtime-gpu-to-lightsail-plan.md`
+  verification, and raster review sheets.
 
 ## Lifecycle Rule
 

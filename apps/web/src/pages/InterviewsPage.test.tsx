@@ -131,6 +131,8 @@ const respondentUser: AppUser = {
   email: "respondent@example.com",
   id: "respondent-1",
   name: "인터뷰어",
+  organization_name: null,
+  organization_type: null,
   phone: null,
   profile_image_path: null,
   profile_image_url: null,
@@ -214,6 +216,7 @@ describe("InterviewsPage", () => {
 
     expect(screen.getByTestId("detail-post-title")).toHaveTextContent("alpha interview");
     expect(screen.getByTestId("detail-can-apply")).toHaveTextContent("true");
+    expect(screen.getByRole("button", { name: "모집글 만들기" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "beta interview" }));
 
@@ -231,6 +234,9 @@ describe("InterviewsPage", () => {
       answers: { relevant_experience: "상세 패널 경험" },
       available_times: ["평일 저녁"],
     });
+
+    await user.click(screen.getByRole("button", { name: "모집글 만들기" }));
+    expect(mocks.navigateTo).toHaveBeenCalledWith("/interviews/new");
   });
 
   it("clears an invalid selected post after search filtering removes it", async () => {

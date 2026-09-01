@@ -2,6 +2,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LAST_USED_SOCIAL_PROVIDER_STORAGE_KEY } from "../features/auth/social/lib/lastUsedSocialProvider";
 import { SOCIAL_AUTH_STORAGE_KEY } from "../features/auth/social/lib/socialAuthStorage";
 
 const mocks = vi.hoisted(() => ({
@@ -39,6 +40,7 @@ import { AuthCallbackBridgePage } from "./AuthCallbackBridgePage";
 describe("AuthCallbackBridgePage", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
+    window.localStorage.clear();
     mocks.completeSocialAuth.mockReset();
     mocks.replacePath.mockReset();
     mocks.useAuth.mockReset();
@@ -53,6 +55,7 @@ describe("AuthCallbackBridgePage", () => {
     cleanup();
     vi.clearAllMocks();
     window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
   it("retries completion after a fresh callback lock expires instead of waiting forever", async () => {
@@ -130,9 +133,40 @@ describe("AuthCallbackBridgePage", () => {
     expect(mocks.replacePath).toHaveBeenCalledWith("/chat?room=room-123", { intent: "auth" });
     expect(window.location.pathname).toBe("/chat");
     expect(window.location.search).toBe("?room=room-123");
+    expect(window.localStorage.getItem(LAST_USED_SOCIAL_PROVIDER_STORAGE_KEY)).toBe("google");
 
     view.rerender(<AuthCallbackBridgePage />);
     await waitFor(() => expect(mocks.completeSocialAuth).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not treat account linking as the last used login method", async () => {
+    window.localStorage.setItem(LAST_USED_SOCIAL_PROVIDER_STORAGE_KEY, "kakao");
+    window.sessionStorage.setItem(
+      SOCIAL_AUTH_STORAGE_KEY,
+      JSON.stringify({
+        approvedReturnTo: "/profile/account",
+        attemptId: "attempt-link",
+        attemptSecret: "test-link-secret-that-is-long-enough",
+        completionStartedAt: null,
+        completedAt: null,
+        createdAt: "2026-07-20T10:00:00Z",
+        expiresAt: "2099-07-20T10:10:00Z",
+        intent: "link",
+        navigationTarget: null,
+        provider: "google",
+        providerIdentifier: "google",
+      }),
+    );
+    window.history.replaceState(null, "", "/auth/social/callback?code=provider-code");
+    mocks.completeSocialAuth.mockResolvedValue({
+      nextStep: "signed_in",
+      returnTo: "/profile/account",
+    });
+
+    render(<AuthCallbackBridgePage />);
+
+    await waitFor(() => expect(mocks.replacePath).toHaveBeenCalled());
+    expect(window.localStorage.getItem(LAST_USED_SOCIAL_PROVIDER_STORAGE_KEY)).toBe("kakao");
   });
 
   it("normalizes cancelled callbacks without calling the completion endpoint", async () => {

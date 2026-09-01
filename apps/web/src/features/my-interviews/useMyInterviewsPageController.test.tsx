@@ -64,6 +64,8 @@ const founderUser: AppUser = {
   email: "founder@example.com",
   id: "founder-1",
   name: "창업자",
+  organization_name: null,
+  organization_type: null,
   phone: null,
   profile_image_path: null,
   profile_image_url: null,
@@ -75,6 +77,8 @@ const respondentUser: AppUser = {
   email: "respondent@example.com",
   id: "respondent-1",
   name: "인터뷰어",
+  organization_name: null,
+  organization_type: null,
   phone: null,
   profile_image_path: null,
   profile_image_url: null,
@@ -197,25 +201,31 @@ describe("useMyInterviewsPageController", () => {
     );
   });
 
-  it("resets the posts tab when founder access is removed", async () => {
-    const { result, rerender } = renderHook(
-      ({ appUser }: { appUser: AppUser | null }) => useMyInterviewsPageController({ appUser }),
-      {
-        initialProps: { appUser: founderUser },
+  it("derives owned posts from ownership even when the user is respondent-labelled", async () => {
+    const respondentOwnedPost: InterviewPost = {
+      ...secondPost,
+      founder: {
+        bio: null,
+        id: respondentUser.id,
+        name: respondentUser.name,
+        profile_image_url: null,
+        role: respondentUser.role,
       },
-    );
+      founder_id: respondentUser.id,
+      id: "post-owned-by-respondent",
+      title: "응답자 계정이 만든 모집글",
+    };
+    mocks.postsQuery.data = [basePost, respondentOwnedPost];
 
-    act(() => {
-      result.current.selectTab("posts");
+    const { result } = renderHook(() => useMyInterviewsPageController({ appUser: respondentUser }));
+
+    await waitFor(() => {
+      expect(result.current.canManageFounderPosts).toBe(true);
+      expect(result.current.tabs.map((tab) => tab.value)).toEqual(["applications", "posts"]);
+      expect(result.current.myFounderPosts.map((post) => post.id)).toEqual([
+        "post-owned-by-respondent",
+      ]);
     });
-
-    expect(result.current.activeTab).toBe("posts");
-    expect(result.current.tabs.map((tab) => tab.value)).toEqual(["applications", "posts"]);
-
-    rerender({ appUser: respondentUser });
-
-    await waitFor(() => expect(result.current.activeTab).toBe("applications"));
-    expect(result.current.tabs.map((tab) => tab.value)).toEqual(["applications"]);
   });
 
   it("delegates founder review mutations and session creation through the focused controller", () => {

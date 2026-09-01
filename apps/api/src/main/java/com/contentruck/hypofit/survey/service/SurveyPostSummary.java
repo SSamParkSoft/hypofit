@@ -7,8 +7,19 @@ public record SurveyPostSummary(
         UUID id,
         UUID founderId,
         String recruitmentType,
+        String entryMode,
         String status,
         OffsetDateTime participationDeadlineAt,
         String externalUrl
 ) {
+    public SurveyPostSummary(
+            UUID id,
+            UUID founderId,
+            String recruitmentType,
+            String status,
+            OffsetDateTime participationDeadlineAt,
+            String externalUrl
+    ) {
+        this(id, founderId, recruitmentType, "direct", status, participationDeadlineAt, externalUrl);
+    }
 }

@@ -49,10 +49,10 @@ export function ChatRoomPreview({
   return (
     <div
       className={cn(
-        "relative grid min-h-[78px] w-full grid-cols-[40px_minmax(0,1fr)_28px] gap-3 px-4 py-3 text-left transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20",
+        "relative grid min-h-[74px] w-full grid-cols-[40px_minmax(0,1fr)_28px] gap-3 px-4 py-3 text-left transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20",
         isSelected
-          ? "bg-hypo-brand-soft/45 before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-hypo-pill before:bg-hypo-brand"
-          : "hover:bg-hypo-surface/70",
+          ? "bg-hypo-surface-selected before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:bg-hypo-brand"
+          : "hover:bg-hypo-surface-muted/55",
       )}
     >
       <button
@@ -75,7 +75,7 @@ export function ChatRoomPreview({
         onClick={onSelect}
       >
         <span className="flex min-w-0 items-start gap-2">
-          <strong className="min-w-0 flex-1 truncate text-sm font-semibold leading-5 text-hypo-text">
+          <strong className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-5 text-hypo-text">
             {counterpart.name}
           </strong>
           <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium leading-4 text-hypo-text-soft">
@@ -83,13 +83,13 @@ export function ChatRoomPreview({
             {isMuted ? <BellOff size={12} /> : null}
           </span>
         </span>
-        <span className="truncate text-[11px] font-medium leading-4 text-hypo-text-muted">
+        <span className="truncate text-[11px] font-semibold leading-4 text-hypo-text-muted">
           {title}
         </span>
         <span className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
           <span
             className={cn(
-              "block truncate text-sm leading-5",
+              "block truncate text-[13px] leading-5",
               unreadCount > 0 ? "text-hypo-text" : "text-hypo-text-soft",
             )}
           >

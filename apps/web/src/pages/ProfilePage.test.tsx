@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
     isLoading: false,
   },
   navigateTo: vi.fn(),
+  replacePath: vi.fn(),
   sessionsQuery: {
     data: [{ status: "scheduled" }],
     isLoading: false,
@@ -74,6 +75,7 @@ vi.mock("../features/sessions/useSessions", () => ({
 
 vi.mock("../shared/navigation/appNavigation", () => ({
   navigateTo: (...args: unknown[]) => mocks.navigateTo(...args),
+  replacePath: (...args: unknown[]) => mocks.replacePath(...args),
 }));
 
 vi.mock("../shared/supabase/profileImages", () => ({
@@ -87,6 +89,8 @@ const appUser = {
   email: "review@example.com",
   id: "user-1",
   name: "박세현",
+  organization_name: "콘텐츠럭",
+  organization_type: "team" as const,
   phone: "010-1111-2222",
   profile_image_path: null,
   profile_image_url: null,
@@ -115,6 +119,7 @@ describe("ProfilePage", () => {
     mocks.chatRoomsQuery.isLoading = false;
 
     mocks.navigateTo.mockReset();
+    mocks.replacePath.mockReset();
     mocks.uploadProfileImage.mockReset();
     mocks.uploadProfileImage.mockResolvedValue({
       path: "profiles/user-1/avatar.png",
@@ -136,9 +141,12 @@ describe("ProfilePage", () => {
 
     expect(mocks.uploadProfileImage).toHaveBeenCalledWith("user-1", expect.any(File));
     expect((mocks.uploadProfileImage.mock.calls[0]?.[1] as File).name).toBe("avatar.png");
+    expect(screen.queryByText("창업자 · 인터뷰어")).not.toBeInTheDocument();
     expect(mocks.authState.syncCurrentUser).toHaveBeenCalledWith({
       bio: "기존 소개",
       name: "박세현",
+      organization_name: "콘텐츠럭",
+      organization_type: "team",
       phone: "010-1111-2222",
       profile_image_path: "profiles/user-1/avatar.png",
       profile_image_url: "https://example.com/avatar.png",
@@ -151,6 +159,10 @@ describe("ProfilePage", () => {
 
     await user.click(screen.getByRole("button", { name: "로그아웃" }));
     expect(mocks.authState.signOut).toHaveBeenCalledTimes(1);
+    expect(mocks.replacePath).toHaveBeenCalledWith("/", {
+      intent: "replace",
+      scroll: "top",
+    });
   });
 
   it("shows loading helper copy and exposes auth failures as an alert", () => {

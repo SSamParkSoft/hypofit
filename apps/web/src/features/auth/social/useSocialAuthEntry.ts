@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { getSupabaseClientOrThrow } from "../authSupabase";
 import type { AuthFeedback } from "../authScreenModel";
 import { createSocialAuthAttempt } from "./api/socialAuthApi";
+import { readLastUsedSocialProvider } from "./lib/lastUsedSocialProvider";
 import { buildSocialAuthCallbackUrl, getApprovedSocialReturnTo } from "./lib/returnPath";
 import {
   clearStoredSocialAuthAttempt,
@@ -17,6 +18,14 @@ import {
 
 const visibleProviders = getVisibleWebSocialProviderOptions();
 
+function getAccountSelectionQueryParams(providerId: SocialProviderId) {
+  if (providerId === "google" || providerId === "kakao") {
+    return { prompt: "select_account" };
+  }
+
+  return null;
+}
+
 function getCapabilityErrorFeedback(error: unknown): AuthFeedback {
   return {
     message: normalizeSocialEntryError(error).message,
@@ -25,6 +34,7 @@ function getCapabilityErrorFeedback(error: unknown): AuthFeedback {
 }
 
 export function useSocialAuthEntry() {
+  const [lastUsedProviderId] = useState(readLastUsedSocialProvider);
   const [feedback, setFeedback] = useState<AuthFeedback>(null);
   const [pendingProviderId, setPendingProviderId] = useState<SocialProviderId | null>(null);
 
@@ -87,11 +97,13 @@ export function useSocialAuthEntry() {
         }
 
         const client = getSupabaseClientOrThrow();
+        const queryParams = getAccountSelectionQueryParams(providerId);
         const { data, error } = await client.auth.signInWithOAuth({
           provider: capability.providerIdentifier,
           options: {
             redirectTo: callbackUrl,
             skipBrowserRedirect: true,
+            ...(queryParams ? { queryParams } : {}),
           },
         });
 
@@ -117,6 +129,7 @@ export function useSocialAuthEntry() {
   return {
     clearFeedback,
     feedback,
+    lastUsedProviderId,
     pendingProviderId,
     providers: visibleProviders,
     startSocialAuth,

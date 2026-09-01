@@ -1,6 +1,6 @@
 # Contracts Coverage Inventory
 
-Status: reference
+Status: completed - historical contract inventory
 
 Last updated: 2026-06-15
 

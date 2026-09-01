@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { Pressable, View } from "react-native";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useNotifications } from "@/features/notifications/useNotifications";
+import { colors } from "@/shared/theme/tokens";
 
 interface NotificationButtonProps {
   returnTo?: string;
@@ -37,7 +38,7 @@ export function NotificationButton({ returnTo, unreadCount }: NotificationButton
       }
       style={({ pressed }) => ({ opacity: pressed ? 0.72 : 1 })}
     >
-      <Feather color="#1D2522" name="bell" size={25} />
+      <Feather color={colors.text} name="bell" size={23} />
       {hasUnread ? (
         <View className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-hypo-bg bg-hypo-danger" />
       ) : null}

@@ -13,7 +13,7 @@ The MVP path is:
 ```text
 react-native-maps
   + expo-location
-  + Kakao Local REST API through FastAPI
+  + Kakao Local REST API through the Spring API
 ```
 
 Kakao Native Map SDK remains a planned upgrade candidate if Korean map visual
@@ -46,7 +46,7 @@ heavier native integration path immediately:
 
 Kakao still owns place quality in the MVP:
 
-- FastAPI exposes a server-side place-search proxy.
+- The Spring API exposes a server-side place-search proxy.
 - Kakao REST API key stays backend-only.
 - Founder location selection should use Kakao Local keyword results.
 - The backend stores selected place name, address, latitude, longitude, source,

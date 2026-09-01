@@ -19,6 +19,7 @@
     "brand:export": "pnpm --dir apps/web brand:export",
     "lint:web": "pnpm --dir apps/web lint",
     "test:web": "pnpm --dir apps/web test",
+    "store:creative:export": "node tools/store-creative/export.mjs",
     "dev:mobile": "pnpm --dir apps/mobile start",
     "ios:mobile": "pnpm --dir apps/mobile ios",
     "android:mobile": "pnpm --dir apps/mobile android",

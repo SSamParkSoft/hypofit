@@ -2,23 +2,28 @@
 
 ## Service Summary
 
-Hypofit helps pre-founders and early-stage founders find real target customers for paid customer discovery interviews. A founder creates an interview post with a service description, target respondent conditions, interview mode, time requirements, and reward. A respondent reviews the opportunity and applies if their experience, distance, schedule, and expected compensation fit.
+Hypofit helps teams and individuals recruit suitable participants for customer
+interviews, external surveys, and beta tests. A member creates a typed
+recruitment post with target conditions, expected effort, reward, and
+type-specific participation details. Another member reviews the opportunity and
+participates through the workflow for that recruitment type.
 
 The initial host side focuses on student founders, but respondents should not be limited to students. Respondents must be selected according to the real customer segment of each startup idea.
 
 ## Core Value
 
-For founders:
+For organizers:
 
-- Faster access to customer validation opportunities.
-- Easier recruitment of respondents matching a specific service domain.
-- A structured flow for screening, scheduling, completion, and no-show tracking.
+- Faster access to research and validation participants.
+- Clear interview, survey, and beta-test recruitment contracts.
+- Type-specific coordination without forcing interview semantics onto every
+  activity.
 
-For respondents:
+For participants:
 
-- A way to convert personal experience into paid interview participation.
-- Clear visibility into reward, time, mode, and location before applying.
-- More relevant opportunities based on their profile and experience.
+- A way to find activities that match their experience and conditions.
+- Clear visibility into reward, time, format, location, and deadline.
+- Explicit participation status for each recruitment format.
 
 ## System Overview
 
@@ -36,8 +41,6 @@ Browser / Web app
 
 The canonical API is the Java 21 Spring Boot application in `apps/api`. It runs
 as one memory-limited Docker container on Amazon Lightsail behind host Nginx.
-The retired school GPU and FastAPI runtime are not rollback targets.
-
 The public domain, `/api/v1` contract, standard error envelope, and Supabase
 Auth/Postgres ownership remain stable. Flyway is the only schema migration
 authority.
@@ -118,7 +121,9 @@ The backend is a Spring Boot application deployed on Lightsail.
 
 Expected responsibilities:
 
-- Business rules for interview posts, applications, selection, sessions, completion, and no-shows.
+- Business rules for typed recruitment posts, survey participation, beta-test
+  applications, interview applications, selection, sessions, completion, and
+  no-shows.
 - Supabase Auth token verification through JWKS.
 - Database access to Supabase Postgres.
 - API contract exposed through OpenAPI.
@@ -150,6 +155,24 @@ Backend transaction boundary:
 - Application and session status changes should use conditional updates or
   locks so stale actions return `409` rather than creating duplicate side
   effects.
+
+Backend source is organized by product feature first and familiar Spring MVC
+roles second:
+
+```text
+feature/
+  controller/  HTTP routing and transport validation
+  dto/         request and response models
+  service/     use cases, authorization, business rules, transactions
+  repository/  Spring Data repositories and database implementations
+  entity/      JPA mappings
+  client/      external provider clients, only where needed
+```
+
+This is a modular monolith, not a DDD or hexagonal architecture. A small MVP
+feature does not need a separate port, adapter, command, result, or mapper for
+every operation. Add those types only when they remove observed complexity or
+protect a real external boundary.
 
 ### Database and Auth
 
@@ -211,17 +234,13 @@ AttendanceRecord
 
 ### User
 
-Represents an authenticated person. The user chooses a primary role during
-signup, but the role is a product entry mode rather than a separate account
-type.
+Represents an authenticated person. New users complete legal consent without
+choosing a customer role. Every active account can create and manage its own
+interview posts and apply to another member's post.
 
-Role behavior:
-
-- `founder`: can create and manage interview posts, and can still apply to
-  other interview opportunities.
-- `respondent`: can browse, apply, and chat, but founder-only creation and
-  모집 management surfaces are hidden and blocked by the API.
-- `both`: can use founder tools and respondent participation flows.
+The persisted `role` value is normalized to `both` for compatibility with
+released clients. It does not grant or deny product access; ownership and
+workflow membership are the authorization boundaries.
 
 Important fields:
 
@@ -374,12 +393,30 @@ For protected create/update operations, the browser sends a Supabase access toke
 The frontend must not send trusted `founder_id` or `respondent_id` ownership claims for
 protected actions.
 
+Customer `role` values remain in storage and existing responses only as a released-client
+compatibility field. Spring authorizes interview-post, application, and session actions
+from active account state plus post ownership or workflow membership. The legacy
+`founder` and `respondent` names in identifiers and audit metadata describe those
+relationships; they are not trusted customer authorization claims.
+
 `GET /api/v1/interview-posts` is the canonical interview discovery/search
 endpoint. It accepts `status`, `mode`, `founder_id`, `q`, `reward_min`,
 `reward_max`, `lat`, `lng`, `radius_m`, `sort`, and `limit`. Keyword search is
 server-side and covers title, service summary, target description, and location
 text fields. Location filtering remains PostGIS-backed when coordinates are
 provided.
+
+`interview_posts.recruitment_type` is the forward-compatible discriminator for
+the active multi-format recruitment plan. Flyway `V0026` defaults existing and
+legacy writes to `interview`. Capability-aware clients send
+`X-Hypofit-Features: recruitment-types-v1`; list queries from clients without
+that capability are filtered to interview posts before pagination, and direct
+access to another type returns `client_upgrade_required`. This compatibility
+boundary is independent from creation enablement. Flyway `V0027` adds the
+survey/beta conditional fields and `survey_participations`; Spring implements
+their backend workflows behind separate default-off survey and beta-test
+creation flags so released clients can be deployed before production writes
+are enabled.
 
 Current web authentication flow:
 
@@ -402,7 +439,12 @@ Service-role keys, database passwords, and signing private material must stay se
 ## AI Summaries
 
 The schema and API contract support source-versioned interview-post and
-applicant summary artifacts. Applicant output is founder-only. Generation is
-disabled until the active AI-summary plan's provider, evaluation, and rollout
-gates are implemented. The feature must not score, rank, recommend, select, or
-reject users.
+applicant summary artifacts. On eligible writes, the Spring service computes a
+canonical source hash and upserts a row in `ai_summary_artifacts`. An optional
+single in-process worker claims rows with PostgreSQL `SKIP LOCKED`, calls the
+two-operation Gemini provider boundary outside the claim transaction, and
+stores a version-guarded structured result. Applicant output is founder-only.
+
+All generation and worker flags default to disabled. Production enablement
+still requires evaluation, privacy/store updates, and controlled smoke. The
+feature must not score, rank, recommend, select, or reject users.

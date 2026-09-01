@@ -29,7 +29,7 @@ Repository references:
 
 - `docs/reference/operator-support-moderation-runbook.md`
 - `docs/reference/native-store-submission-readiness-plan.md`
-- `docs/reference/api-operations-readiness-implementation-history.md`
+- `docs/completed/api-operations-readiness-implementation-history.md`
 - `docs/reference/google-play-first-launch-readiness-plan.md`
 - `docs/reference/ios-store-readiness/apple-app-store-first-launch-readiness-plan.md`
 - `docs/reference/error-observability-contract.md`

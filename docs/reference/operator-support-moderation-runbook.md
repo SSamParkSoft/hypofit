@@ -2,7 +2,7 @@
 
 Status: reference
 
-Last updated: 2026-07-02
+Last updated: 2026-08-12
 
 ## Purpose
 
@@ -348,11 +348,11 @@ Inspection checklist:
 
 ## Logs And Health
 
-GPU API service:
+Lightsail Spring API container:
 
 ```bash
-ssh bukae-gpu "systemctl --user status hypofit-api.service --no-pager -l"
-ssh bukae-gpu "journalctl --user -u hypofit-api.service -n 120 --no-pager"
+ssh deploy@54.116.198.195 "cd /opt/hypofit/runtime && docker compose ps"
+ssh deploy@54.116.198.195 "cd /opt/hypofit/runtime && docker compose logs --tail=120 api"
 ```
 
 Public health:

@@ -62,6 +62,13 @@ hypofit/
 
     api/
       src/main/java/com/contentruck/hypofit/
+        interview/
+          controller/
+          dto/
+          service/
+          repository/
+          entity/
+        common/
       src/main/resources/
         db/migration/
       src/test/
@@ -152,12 +159,19 @@ The Java 21 Spring Boot application.
 
 Responsibilities:
 
-- Spring MVC controllers and request/response models.
+- Feature-first Spring MVC controllers and request/response DTOs.
 - Authentication and authorization.
-- Application services and transaction boundaries.
-- JPA/JDBC persistence adapters.
+- Services that own use cases, business rules, and transaction boundaries.
+- Feature-local repositories and JPA entities.
 - OpenAPI contract generation.
 - Flyway migrations.
+
+Feature packages use the conventional structure
+`controller`, `dto`, `service`, `repository`, and `entity`. Add `client` only
+for an actual external provider integration. Keep shared security,
+configuration, error handling, and observability under `common`. Hypofit does
+not use a separate DDD or hexagonal layer for each use case; unnecessary ports,
+adapters, commands, and result wrappers should not be introduced.
 
 ## packages/contracts
 

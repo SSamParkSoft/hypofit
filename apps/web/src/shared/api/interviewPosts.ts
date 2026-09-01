@@ -1,4 +1,5 @@
 import { apiRequest, type ApiRequestInit } from "./client";
+import { withInterviewPostFeatures } from "./interviewPostFeatures";
 import type {
   CreateInterviewPostInput,
   InterviewMode,
@@ -71,14 +72,20 @@ export function listInterviewPosts(
   params?: ListInterviewPostsParams,
   init?: ApiRequestInit,
 ): Promise<InterviewPost[]> {
-  return apiRequest<InterviewPost[]>(buildInterviewPostsPath(params), init);
+  return apiRequest<InterviewPost[]>(
+    buildInterviewPostsPath(params),
+    withInterviewPostFeatures(init),
+  );
 }
 
 export function getInterviewPost(
   interviewPostId: string,
   init?: ApiRequestInit,
 ): Promise<InterviewPost> {
-  return apiRequest<InterviewPost>(interviewPostRoutes.detail(interviewPostId), init);
+  return apiRequest<InterviewPost>(
+    interviewPostRoutes.detail(interviewPostId),
+    withInterviewPostFeatures(init),
+  );
 }
 
 export function createInterviewPost(
@@ -86,6 +93,7 @@ export function createInterviewPost(
   accessToken?: string | null,
 ): Promise<InterviewPost> {
   return apiRequest<InterviewPost>(interviewPostRoutes.collection, {
+    ...withInterviewPostFeatures(),
     method: "POST",
     accessToken,
     body: JSON.stringify(input),

@@ -29,8 +29,24 @@ public record InterviewPostCreateCommand(
         String locationPrecision,
         String locationSource,
         List<String> scheduleOptions,
-        String status
+        String status,
+        String entryMode
 ) {
+    public InterviewPostCreateCommand(
+            String recruitmentType, String title, String serviceSummary, String targetDescription,
+            int rewardAmount, List<PostingCompensation> compensations, int durationMinutes, int recruitCount,
+            String externalProvider, String externalUrl, OffsetDateTime participationDeadlineAt,
+            String externalDataNotice, List<String> betaTestPlatforms, OffsetDateTime betaTestStartsAt,
+            OffsetDateTime betaTestEndsAt, String interviewMode, String location, String locationText,
+            String locationAddress, String locationPlaceName, Double locationLatitude, Double locationLongitude,
+            String locationPrecision, String locationSource, List<String> scheduleOptions, String status
+    ) {
+        this(recruitmentType, title, serviceSummary, targetDescription, rewardAmount, compensations,
+                durationMinutes, recruitCount, externalProvider, externalUrl, participationDeadlineAt,
+                externalDataNotice, betaTestPlatforms, betaTestStartsAt, betaTestEndsAt, interviewMode,
+                location, locationText, locationAddress, locationPlaceName, locationLatitude, locationLongitude,
+                locationPrecision, locationSource, scheduleOptions, status, "application_required");
+    }
     public InterviewPostCreateCommand(
             String recruitmentType,
             String title,
@@ -64,7 +80,8 @@ public record InterviewPostCreateCommand(
                 externalProvider, externalUrl, participationDeadlineAt, externalDataNotice,
                 betaTestPlatforms, betaTestStartsAt, betaTestEndsAt, interviewMode, location,
                 locationText, locationAddress, locationPlaceName, locationLatitude,
-                locationLongitude, locationPrecision, locationSource, scheduleOptions, status
+                locationLongitude, locationPrecision, locationSource, scheduleOptions, status,
+                "application_required"
         );
     }
 

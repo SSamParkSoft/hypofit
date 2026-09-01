@@ -37,7 +37,7 @@ export function MapSearchControls({
         className={cn(
           "relative grid min-h-12 w-full grid-cols-[20px_minmax(0,1fr)] items-center gap-2 rounded-hypo-lg px-3",
           isMobile
-            ? "border border-hypo-border/80 bg-hypo-surface/95 shadow-hypo-panel backdrop-blur"
+            ? "border border-hypo-border bg-hypo-surface"
             : "border border-hypo-border bg-hypo-bg",
         )}
         onSubmit={(event) => {
@@ -62,7 +62,7 @@ export function MapSearchControls({
           className={cn(
             "px-3 py-2 text-xs font-bold leading-4 text-hypo-danger",
             isMobile
-              ? "rounded-hypo-md bg-hypo-surface/95 shadow-sm backdrop-blur"
+              ? "rounded-hypo-md border border-hypo-border bg-hypo-surface"
               : "rounded-hypo-md bg-hypo-danger-soft",
           )}
         >
@@ -75,7 +75,7 @@ export function MapSearchControls({
           className={cn(
             "px-3 py-2 text-[11px] font-black text-hypo-brand",
             isMobile
-              ? "rounded-hypo-pill bg-hypo-surface/95 shadow-sm backdrop-blur"
+              ? "rounded-hypo-pill border border-hypo-border bg-hypo-surface"
               : "rounded-hypo-pill bg-hypo-brand-soft",
           )}
         >
@@ -88,7 +88,7 @@ export function MapSearchControls({
           className={cn(
             "grid gap-1.5 rounded-hypo-lg border p-2",
             isMobile
-              ? "border-hypo-border/80 bg-hypo-surface/98 shadow-hypo-panel backdrop-blur"
+              ? "border-hypo-border bg-hypo-surface"
               : "border-hypo-border bg-hypo-bg",
           )}
         >

@@ -2,7 +2,7 @@
 
 Status: service-source-of-truth
 
-Last updated: 2026-08-08
+Last updated: 2026-08-25
 
 ## Mobile App
 
@@ -13,7 +13,7 @@ Last updated: 2026-08-08
 - Splash and startup readiness.
 - Platform-aware Apple, Google, Kakao, and Naver social-login entry.
 - OAuth/OIDC callback completion and provider error recovery.
-- New-account legal consent and role selection.
+- New-account legal consent without customer role selection.
 - Existing-account social identity linking and provider status.
 - Supabase Auth session handling.
 - Auth preflight and Sentry diagnostics.
@@ -41,6 +41,9 @@ public login.
 - My posts.
 - Post creation.
 - Post management and applicant entry points.
+- Nullable source-grounded interview summaries and founder-only applicant
+  summaries are available in API detail contracts; generation remains disabled
+  until the active rollout gates pass.
 
 ### Map
 

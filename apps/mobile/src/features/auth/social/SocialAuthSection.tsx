@@ -1,4 +1,3 @@
-import * as AppleAuthentication from "expo-apple-authentication";
 import { ActivityIndicator, Image, Platform, Pressable, Text, View } from "react-native";
 import type { SocialAuthProvider } from "@hypofit/contracts";
 
@@ -12,38 +11,55 @@ interface SocialAuthSectionProps {
   onPress: (provider: SocialAuthProvider) => void;
 }
 
-const buttonStyles: Record<Exclude<SocialAuthProvider, "apple">, { background: string; border: string; text: string }> = {
+const buttonStyles: Record<SocialAuthProvider, { text: string }> = {
+  apple: {
+    text: "#FFFFFF",
+  },
   google: {
-    background: "#FFFFFF",
-    border: "#747775",
     text: "#1F1F1F",
   },
   kakao: {
-    background: "#FEE500",
-    border: "#FEE500",
     text: "#191600",
   },
   naver: {
-    background: "#03A94D",
-    border: "#03A94D",
     text: "#FFFFFF",
   },
 };
 
-const providerButtonLabels: Record<Exclude<SocialAuthProvider, "apple">, string> = {
-  google: "Google로 계속하기",
-  kakao: "카카오로 계속하기",
-  naver: "네이버로 로그인",
+const providerButtonClassNames: Record<SocialAuthProvider, string> = {
+  apple: "h-[54px] items-center justify-center overflow-hidden rounded-[12px] border border-black bg-black px-14",
+  google: "h-[54px] items-center justify-center rounded-[12px] border border-[#747775] bg-white px-14",
+  kakao: "h-[54px] items-center justify-center rounded-[12px] border border-[#FEE500] bg-[#FEE500] px-14",
+  naver: "h-[54px] items-center justify-center rounded-[12px] border border-[#03A94D] bg-[#03A94D] px-14",
+};
+
+const providerButtonLabels: Record<SocialAuthProvider, string> = {
+  apple: "Apple로 로그인",
+  google: "Google 로그인",
+  kakao: "카카오 로그인",
+  naver: "네이버 로그인",
+};
+
+const providerIconLayout: Record<
+  Exclude<SocialAuthProvider, "naver">,
+  { left: number; size: number; verticalOffset?: number }
+> = {
+  apple: { left: 4, size: 54, verticalOffset: 3 },
+  google: { left: 20, size: 20 },
+  // These official image canvases include their provider-colored background.
+  // Size the canvas so the visible glyph remains comparable to the Google G.
+  kakao: { left: 9, size: 42 },
 };
 
 const providerIconSources = {
+  apple: require("../../../../assets/social-auth/apple-logo.png"),
   google: Platform.select({
-    ios: require("../../../../assets/social-auth/google-ios.png"),
-    default: require("../../../../assets/social-auth/google-android.png"),
+    default: require("../../../../assets/social-auth/google.png"),
   }),
   kakao: require("../../../../assets/social-auth/kakao.png"),
-  naver: require("../../../../assets/social-auth/naver.png"),
 } as const;
+
+const naverLogoSource = require("../../../../assets/social-auth/naver-left-logo.png");
 
 export function SocialAuthSection({
   busyProvider,
@@ -59,7 +75,7 @@ export function SocialAuthSection({
   }
 
   return (
-    <View className="gap-3 pt-1">
+    <View className="gap-3">
       {showDivider ? (
         <View className="flex-row items-center gap-3">
           <View className="h-px flex-1 bg-[#E7E3D9]" />
@@ -68,64 +84,28 @@ export function SocialAuthSection({
         </View>
       ) : null}
       {providers.length ? (
-        <View className="gap-2">
-          {providers.map((provider) =>
-            provider === "apple" ? (
-              <AppleButton
-                key={provider}
-                busy={busyProvider === provider}
-                disabled={isBusy}
-                onPress={() => onPress(provider)}
-              />
-            ) : (
-              <BrandButton
-                key={provider}
-                busy={busyProvider === provider}
-                disabled={isBusy}
-                provider={provider}
-                onPress={() => onPress(provider)}
-              />
-            ),
-          )}
+        <View className="gap-2.5">
+          {providers.map((provider) => (
+            <BrandButton
+              key={provider}
+              busy={busyProvider === provider}
+              disabled={isBusy}
+              provider={provider}
+              onPress={() => onPress(provider)}
+            />
+          ))}
         </View>
       ) : null}
       {errorMessage ? (
-        <View className="rounded-[14px] bg-hypo-dangerSoft px-3 py-2.5">
-          <Text className="text-[13px] font-bold leading-[19px] text-hypo-danger">{errorMessage}</Text>
+        <View className="px-1 py-1">
+          <Text className="text-[13px] leading-[19px] text-hypo-danger" style={{ fontFamily: "HypofitSansMedium" }}>
+            {errorMessage}
+          </Text>
           {errorCode ? (
-            <Text className="mt-1 text-[11px] font-bold leading-4 text-hypo-danger/70">
+            <Text className="mt-1 text-[11px] leading-4 text-hypo-danger/70" style={{ fontFamily: "HypofitSansMedium" }}>
               진단 코드: {errorCode}
             </Text>
           ) : null}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function AppleButton({
-  busy,
-  disabled,
-  onPress,
-}: {
-  busy: boolean;
-  disabled: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <View className="relative h-[52px] overflow-hidden rounded-[12px]" style={{ opacity: disabled && !busy ? 0.48 : 1 }}>
-      <AppleAuthentication.AppleAuthenticationButton
-        accessibilityLabel="Apple로 계속하기"
-        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-        buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-        cornerRadius={12}
-        onPress={onPress}
-        style={{ height: 52, width: "100%" }}
-      />
-      {busy ? (
-        <View className="absolute inset-0 flex-row items-center justify-center gap-2 bg-black/25">
-          <ActivityIndicator color="#FFFFFF" />
-          <Text className="text-[13px] font-bold text-white">확인하는 중</Text>
         </View>
       ) : null}
     </View>
@@ -141,11 +121,35 @@ function BrandButton({
   busy: boolean;
   disabled: boolean;
   onPress: () => void;
-  provider: Exclude<SocialAuthProvider, "apple">;
+  provider: SocialAuthProvider;
 }) {
   const style = buttonStyles[provider];
-  const iconSize = provider === "google" ? 40 : provider === "kakao" ? 45 : 44;
-  const iconLeft = provider === "google" ? (Platform.OS === "ios" ? 16 : 12) : provider === "kakao" ? 2 : 4;
+
+  if (provider === "naver") {
+    return (
+      <Pressable
+        accessibilityLabel={providerButtonLabels[provider]}
+        accessibilityRole="button"
+        disabled={disabled}
+        onPress={onPress}
+        className={providerButtonClassNames[provider]}
+        style={({ pressed }) => ({
+          opacity: disabled && !busy ? 0.48 : pressed ? 0.84 : 1,
+        })}
+      >
+        {busy ? <LeadingSpinner color="#FFFFFF" left={20} /> : <NaverLogo />}
+        <Text
+          className="text-center text-[15px] leading-5 text-white"
+          numberOfLines={1}
+          style={{ fontFamily: Platform.select({ ios: "System", android: "sans-serif-medium" }), fontWeight: "600" }}
+        >
+          {providerButtonLabels[provider]}
+        </Text>
+      </Pressable>
+    );
+  }
+
+  const icon = providerIconLayout[provider];
 
   return (
     <Pressable
@@ -153,26 +157,14 @@ function BrandButton({
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      className="h-[52px] items-center justify-center rounded-[12px] border px-14"
+      className={providerButtonClassNames[provider]}
       style={({ pressed }) => ({
-        backgroundColor: style.background,
-        borderColor: style.border,
-        opacity: disabled ? 0.48 : pressed ? 0.84 : 1,
+        opacity: disabled && !busy ? 0.48 : pressed ? 0.84 : 1,
       })}
     >
-      <Image
-        accessibilityIgnoresInvertColors
-        resizeMode="contain"
-        source={providerIconSources[provider]}
-        style={{
-          height: iconSize,
-          left: iconLeft,
-          position: "absolute",
-          width: iconSize,
-        }}
-      />
+      {busy ? <LeadingSpinner color={style.text} left={20} /> : <ProviderLogo icon={icon} provider={provider} />}
       <Text
-        className="text-center text-[14px] leading-5"
+        className="text-center text-[15px] leading-5"
         numberOfLines={1}
         style={{
           color: style.text,
@@ -180,8 +172,50 @@ function BrandButton({
           fontWeight: "600",
         }}
       >
-        {busy ? "확인하는 중" : providerButtonLabels[provider]}
+        {providerButtonLabels[provider]}
       </Text>
     </Pressable>
+  );
+}
+
+function NaverLogo() {
+  return (
+    <Image
+      accessibilityIgnoresInvertColors
+      resizeMode="contain"
+      source={naverLogoSource}
+      style={{ height: 54, left: 7, position: "absolute", width: 34 }}
+    />
+  );
+}
+
+function ProviderLogo({
+  icon,
+  provider,
+}: {
+  icon: { left: number; size: number; verticalOffset?: number };
+  provider: Exclude<SocialAuthProvider, "naver">;
+}) {
+  return (
+    <Image
+      accessibilityIgnoresInvertColors
+      resizeMode="contain"
+      source={providerIconSources[provider]}
+      style={{
+        height: icon.size,
+        left: icon.left,
+        position: "absolute",
+        ...(icon.verticalOffset ? { transform: [{ translateY: icon.verticalOffset }] } : {}),
+        width: icon.size,
+      }}
+    />
+  );
+}
+
+function LeadingSpinner({ color, left }: { color: string; left: number }) {
+  return (
+    <View pointerEvents="none" className="absolute inset-y-0 justify-center" style={{ left }}>
+      <ActivityIndicator color={color} size="small" />
+    </View>
   );
 }

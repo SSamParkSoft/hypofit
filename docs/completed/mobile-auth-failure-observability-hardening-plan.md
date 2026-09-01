@@ -1,6 +1,6 @@
 # Mobile Auth Failure Observability Hardening Plan
 
-Status: reference
+Status: completed - historical auth diagnostics plan
 
 Last updated: 2026-06-02
 

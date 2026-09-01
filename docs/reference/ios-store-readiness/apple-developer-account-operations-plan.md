@@ -293,7 +293,7 @@ Operational owner checklist:
 - [ ] Who monitors support inbox?
 - [ ] Who handles deletion requests?
 - [ ] Who handles abuse reports?
-- [ ] Who can restart GPU API/tunnels during review?
+- [ ] Who can restart the Lightsail API container during review?
 - [ ] Who responds to App Review messages?
 
 ## App Review Response Runbook

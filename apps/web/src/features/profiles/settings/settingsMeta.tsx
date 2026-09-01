@@ -1,8 +1,9 @@
 import {
   Bell,
+  FileText,
   HelpCircle,
   MessageCircle,
-  Shield,
+  ShieldCheck,
   ShieldAlert,
   Trash2,
   UserRound,
@@ -11,10 +12,10 @@ import type { LucideIcon } from "lucide-react";
 
 export type SettingsSubPageType =
   | "account"
-  | "role"
   | "notifications"
   | "interview-settings"
-  | "delete-account";
+  | "delete-account"
+  | "role";
 
 interface SettingsSectionItem {
   description?: string;
@@ -47,12 +48,6 @@ export const profileSettingsSections: SettingsSection[] = [
         label: "계정 정보",
       },
       {
-        description: "창업자와 인터뷰어 기능을 확인하고 변경 문의를 남깁니다.",
-        href: "/profile/role",
-        icon: Shield,
-        label: "역할 설정",
-      },
-      {
         description: "신청, 선정, 채팅 알림을 확인합니다.",
         href: "/profile/notifications",
         icon: Bell,
@@ -77,6 +72,23 @@ export const profileSettingsSections: SettingsSection[] = [
       },
     ],
   },
+  {
+    title: "약관과 개인정보",
+    items: [
+      {
+        description: "개인정보 처리와 권리 행사 방법을 확인합니다.",
+        href: "/legal/privacy",
+        icon: ShieldCheck,
+        label: "개인정보처리방침",
+      },
+      {
+        description: "서비스 이용 기준과 운영 정책을 확인합니다.",
+        href: "/legal/terms",
+        icon: FileText,
+        label: "이용약관",
+      },
+    ],
+  },
 ];
 
 export const profileSettingsPageMeta: Record<SettingsSubPageType, SettingsSubPageMeta> = {
@@ -84,13 +96,6 @@ export const profileSettingsPageMeta: Record<SettingsSubPageType, SettingsSubPag
     icon: UserRound,
     title: "계정 정보",
     description: "이름, 이메일, 연락처처럼 인터뷰 진행에 필요한 정보를 확인합니다.",
-  },
-  role: {
-    actionHref: "/support/inquiries",
-    actionLabel: "문의하기",
-    icon: Shield,
-    title: "역할 설정",
-    description: "현재 계정으로 사용할 수 있는 창업자와 인터뷰 참여 기능을 확인합니다.",
   },
   notifications: {
     actionHref: "/notifications",
@@ -112,5 +117,10 @@ export const profileSettingsPageMeta: Record<SettingsSubPageType, SettingsSubPag
     icon: Trash2,
     title: "계정 삭제",
     description: "계정과 연결된 개인정보, 모집글, 신청 기록 처리 범위를 확인합니다.",
+  },
+  role: {
+    icon: UserRound,
+    title: "계정 정보",
+    description: "이름, 이메일, 연락처처럼 인터뷰 진행에 필요한 정보를 확인합니다.",
   },
 };

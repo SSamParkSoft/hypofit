@@ -1,36 +1,16 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
-import type { UserRole } from "@hypofit/contracts";
 import { getAuthDiagnosticCode, getAuthErrorMessage } from "@/features/auth/authErrors";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { PrimaryButton } from "@/shared/ui/PrimaryButton";
 import { getSafeReturnTo } from "@/shared/navigation/backNavigation";
 import { AuthScreenFrame } from "./AuthScreenFrame";
 
-const roleOptions: Array<{ role: UserRole; title: string; description: string }> = [
-  {
-    role: "founder",
-    title: "창업자",
-    description: "고객 인터뷰를 모집하고 신청자를 선정해요.",
-  },
-  {
-    role: "respondent",
-    title: "인터뷰어",
-    description: "내 경험에 맞는 인터뷰에 신청해요.",
-  },
-  {
-    role: "both",
-    title: "창업자 · 인터뷰어",
-    description: "창업자와 인터뷰어 역할을 모두 사용할 수 있어요.",
-  },
-];
-
 export function SignUpRoleScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ returnTo?: string | string[] }>();
   const auth = useAuth();
-  const [selectedRole, setSelectedRole] = useState<UserRole>("founder");
   const [hasConfirmedAge, setHasConfirmedAge] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
@@ -56,10 +36,10 @@ export function SignUpRoleScreen() {
     setIsSubmitting(true);
 
     try {
-      await auth.completeOnboardingWithRole(selectedRole);
+      await auth.completeOnboardingWithRole("both");
       router.replace(getSafeReturnTo(params.returnTo) ?? "/(tabs)/home?welcome=1");
     } catch (error) {
-      setErrorMessage(getAuthErrorMessage(error, "역할을 저장하지 못했어요. 다시 시도해 주세요."));
+      setErrorMessage(getAuthErrorMessage(error, "동의 내용을 저장하지 못했어요. 다시 시도해 주세요."));
       setErrorCode(getAuthDiagnosticCode(error));
     } finally {
       setIsSubmitting(false);
@@ -68,51 +48,19 @@ export function SignUpRoleScreen() {
 
   return (
     <AuthScreenFrame
-      eyebrow="검증 인터뷰 매칭"
+      eyebrow="참여자 모집과 연결"
       title="Hypofit"
       description=""
-      cardTitle="어떤 역할로 시작할까요?"
-      cardDescription="역할과 약관 동의를 마치면 바로 시작할 수 있어요."
+      cardTitle="약관을 확인하고 시작할까요?"
+      cardDescription="동의를 마치면 모집과 참여를 모두 바로 사용할 수 있어요."
       onBack={auth.session ? undefined : () => router.back()}
     >
       <View className="gap-4">
-        <View className="gap-3">
-          {roleOptions.map((option) => {
-            const selected = option.role === selectedRole;
-
-            return (
-              <Pressable
-                key={option.role}
-                accessibilityRole="radio"
-                accessibilityState={{ selected }}
-                onPress={() => setSelectedRole(option.role)}
-                className={`flex-row items-start gap-3 rounded-[18px] border px-4 py-4 ${
-                  selected ? "border-hypo-brand bg-hypo-brandSoft" : "border-hypo-border bg-hypo-surface"
-                }`}
-              >
-                <View
-                  className={`mt-0.5 size-8 items-center justify-center rounded-full ${
-                    selected ? "bg-hypo-brand" : "bg-hypo-bg"
-                  }`}
-                >
-                  <Text className={`text-[14px] font-black ${selected ? "text-white" : "text-transparent"}`}>
-                    ✓
-                  </Text>
-                </View>
-                <View className="min-w-0 flex-1">
-                  <Text className="text-[15px] font-black text-hypo-text">{option.title}</Text>
-                  <Text className="mt-0.5 text-[13px] leading-[20px] text-hypo-text-muted">
-                    {option.description}
-                  </Text>
-                </View>
-                {selected ? (
-                  <View className="rounded-full bg-hypo-surface px-2.5 py-1">
-                    <Text className="text-[11px] font-black text-hypo-brand">선택됨</Text>
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })}
+        <View className="rounded-[18px] border border-hypo-border bg-hypo-surface px-4 py-4">
+          <Text className="text-[15px] font-black text-hypo-text">한 계정으로 모집과 참여를 함께 사용할 수 있어요.</Text>
+          <Text className="mt-1.5 text-[13px] leading-[20px] text-hypo-text-muted">
+            역할을 따로 고르지 않고, 약관 동의만 마치면 바로 시작돼요.
+          </Text>
         </View>
         <View className="flex-row items-start gap-3 rounded-[14px] border border-hypo-border bg-hypo-surface px-3.5 py-3">
           <Pressable
@@ -174,7 +122,7 @@ export function SignUpRoleScreen() {
           </View>
         ) : null}
         <PrimaryButton disabled={isSubmitting || !hasConfirmedAge} onPress={handleSubmit}>
-          {isSubmitting ? "저장하는 중" : "시작하기"}
+          {isSubmitting ? "확인하는 중" : "동의하고 시작하기"}
         </PrimaryButton>
       </View>
     </AuthScreenFrame>

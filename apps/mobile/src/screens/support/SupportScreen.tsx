@@ -17,11 +17,11 @@ const categoryLabels: Record<SupportTicketCategory, string> = {
   abuse: "부적절한 내용",
   application: "신청과 선정",
   chat: "채팅",
-  interview_post: "모집글",
+  interview_post: "공고",
   no_show: "노쇼",
   other: "기타",
   privacy: "개인정보",
-  reward: "사례비",
+  reward: "보상",
 };
 
 export function SupportScreen() {
@@ -134,7 +134,7 @@ export function SupportScreen() {
         <StateMessage title="문의 내역을 불러오지 못했어요." description="잠시 후 다시 확인해 주세요." />
       ) : displayTickets.length === 0 ? (
         <View className="gap-4">
-          <StateMessage title="아직 문의한 내역이 없어요." description="계정, 모집글, 신청 문제를 남기면 확인 후 답변드릴게요." />
+          <StateMessage title="아직 문의한 내역이 없어요." description="계정, 공고, 신청 문제를 남기면 확인 후 답변드릴게요." />
           <PrimaryButton onPress={() => setIsWriting(true)}>문의 남기기</PrimaryButton>
         </View>
       ) : (

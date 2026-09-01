@@ -119,7 +119,7 @@ export function MobileMapSheet({
         } as CSSProperties
       }
       className={cn(
-        "h-[var(--map-sheet-height)] overflow-hidden rounded-t-[24px] border-x-0 border-b-0 border-t border-hypo-border bg-hypo-surface shadow-hypo-floating will-change-[height]",
+        "h-[var(--map-sheet-height)] overflow-hidden rounded-t-[8px] border-x-0 border-b-0 border-t border-hypo-border bg-hypo-surface will-change-[height]",
         isDragging ? "transition-none" : "transition-[height] duration-200 ease-out",
       )}
     >

@@ -21,6 +21,8 @@ public class HypofitProperties {
     private String supabaseJwksUrl = "";
     private String supabaseJwtIssuer = "";
     private int supabaseJwksCacheSeconds = 300;
+    private int supabaseJwksConnectTimeoutMillis = 1500;
+    private int supabaseJwksReadTimeoutMillis = 3000;
     private String jwtAudience = "authenticated";
     private String kakaoRestApiKey = "";
     private String supportEmail = "ssamso8282@gmail.com";
@@ -134,6 +136,22 @@ public class HypofitProperties {
 
     public void setSupabaseJwksCacheSeconds(int supabaseJwksCacheSeconds) {
         this.supabaseJwksCacheSeconds = supabaseJwksCacheSeconds;
+    }
+
+    public int getSupabaseJwksConnectTimeoutMillis() {
+        return supabaseJwksConnectTimeoutMillis;
+    }
+
+    public void setSupabaseJwksConnectTimeoutMillis(int supabaseJwksConnectTimeoutMillis) {
+        this.supabaseJwksConnectTimeoutMillis = supabaseJwksConnectTimeoutMillis;
+    }
+
+    public int getSupabaseJwksReadTimeoutMillis() {
+        return supabaseJwksReadTimeoutMillis;
+    }
+
+    public void setSupabaseJwksReadTimeoutMillis(int supabaseJwksReadTimeoutMillis) {
+        this.supabaseJwksReadTimeoutMillis = supabaseJwksReadTimeoutMillis;
     }
 
     public String getJwtAudience() {

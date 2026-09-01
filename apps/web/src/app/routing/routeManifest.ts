@@ -86,10 +86,6 @@ const ChatPage = lazyNamedPage(
   () => import("../../pages/ChatPage"),
   "ChatPage",
 );
-const ProfilePage = lazyNamedPage(
-  () => import("../../pages/ProfilePage"),
-  "ProfilePage",
-);
 const ProfileSubPage = lazyNamedPage(
   () => import("../../pages/ProfileSubPage"),
   "ProfileSubPage",
@@ -189,8 +185,10 @@ const destinationScreenDefinitions: Record<
   },
   profile: {
     getProps: ({ appUser }) => ({ appUser }),
-    getScreen: ({ usesDesktopProfileLayout }) =>
-      usesDesktopProfileLayout ? ProfileSettingsIndex : ProfilePage,
+    // Profile 2.0 owns its own responsive layout: one column below 1200px and
+    // the identity/workspace split above it. Do not swap back to the legacy
+    // settings screen when a desktop viewport narrows.
+    getScreen: () => ProfileSettingsIndex,
     loading: {
       kind: "shell",
       maxWidthClassName: "max-w-[1480px]",
@@ -201,11 +199,23 @@ const destinationScreenDefinitions: Record<
 
 export const APP_ROUTE_MANIFEST: ReadonlyArray<AppRouteManifestEntry> = [
   createRouteEntry("landing", {
-    getProps: emptyProps,
+    getProps: ({ isAuthenticated }) => ({ isAuthenticated }),
     getScreen: () => LandingPage,
     layout: "standalone",
     loading: {
       ariaLabel: "Hypofit 랜딩페이지를 불러오는 중",
+      kind: "landing",
+    },
+  }),
+  createRouteEntry("outreach-landing", {
+    getProps: () => ({
+      isAuthenticated: false,
+      showWebEntry: false,
+    }),
+    getScreen: () => LandingPage,
+    layout: "standalone",
+    loading: {
+      ariaLabel: "Hypofit 소개 페이지를 불러오는 중",
       kind: "landing",
     },
   }),

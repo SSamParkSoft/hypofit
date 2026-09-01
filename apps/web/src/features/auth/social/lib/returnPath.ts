@@ -24,6 +24,13 @@ export function getApprovedSocialReturnTo() {
     return DEFAULT_POST_AUTH_PATH;
   }
 
+  if (
+    window.location.pathname === DEFAULT_POST_AUTH_PATH &&
+    new URLSearchParams(window.location.search).get("account") === "choose"
+  ) {
+    return DEFAULT_POST_AUTH_PATH;
+  }
+
   return resolvePostAuthPath({
     hash: window.location.hash,
     pathname: window.location.pathname,

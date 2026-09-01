@@ -2,7 +2,7 @@
 
 Status: service-source-of-truth
 
-Last updated: 2026-08-08
+Last updated: 2026-08-25
 
 ## Authentication
 
@@ -54,6 +54,8 @@ Social identity rules:
   `ai_summary = null`; unrelated users receive `404`.
 - AI output must never drive application ordering, selection, rejection, trust
   scoring, or another consequential state transition.
+- AI summaries are derived artifacts and inherit the source post or
+  application's visibility and deletion lifecycle.
 
 ## State Transition Principles
 
@@ -74,7 +76,10 @@ service logic where duplicate or stale actions could create inconsistent state.
 
 AI summary writes use a canonical source hash plus monotonically increasing
 work version. A stale worker may neither overwrite a newer result nor replace a
-newer pending job with an old failure.
+newer pending job with an old failure. The provider payload is rebuilt from the
+summary type's allowlisted fields rather than serializing an entity or API
+response. Provider failures persist stable codes only; raw provider bodies and
+submitted content are not durable diagnostics.
 
 ## Chat And Idempotency
 

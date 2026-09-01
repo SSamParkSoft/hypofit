@@ -50,10 +50,45 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
     }
 
     @Override
+    public Optional<InterviewPostWriteModel> findPostByClientSubmissionId(UUID founderId, UUID clientSubmissionId) {
+        return entityManager.createQuery("""
+                        select post
+                        from InterviewPostEntity post
+                        where post.founderId = :founderId
+                          and post.clientSubmissionId = :clientSubmissionId
+                        """, InterviewPostEntity.class)
+                .setParameter("founderId", founderId)
+                .setParameter("clientSubmissionId", clientSubmissionId)
+                .getResultStream()
+                .findFirst()
+                .map(this::toModel);
+    }
+
+    @Override
+    public void lockClientSubmission(UUID founderId, UUID clientSubmissionId) {
+        entityManager.createNativeQuery("""
+                        select pg_advisory_xact_lock(hashtextextended(:submissionKey, 0))
+                        """)
+                .setParameter("submissionKey", founderId + ":" + clientSubmissionId)
+                .getSingleResult();
+    }
+
+    @Override
     public InterviewPostWriteModel createPost(UUID founderId, InterviewPostCreateCommand command) {
+        return createPost(founderId, command, null);
+    }
+
+    @Override
+    public InterviewPostWriteModel createPost(
+            UUID founderId,
+            InterviewPostCreateCommand command,
+            UUID clientSubmissionId
+    ) {
         InterviewPostEntity entity = new InterviewPostEntity();
         entity.setFounderId(founderId);
+        entity.setClientSubmissionId(clientSubmissionId);
         entity.setRecruitmentType(command.recruitmentType());
+        entity.setEntryMode(command.entryMode());
         entity.setTitle(command.title());
         entity.setServiceSummary(command.serviceSummary());
         entity.setTargetDescription(command.targetDescription());
@@ -125,6 +160,7 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
             switch (entry.getKey()) {
                 case "title" -> entity.setTitle((String) entry.getValue());
                 case "recruitmentType" -> entity.setRecruitmentType((String) entry.getValue());
+                case "entryMode" -> entity.setEntryMode((String) entry.getValue());
                 case "serviceSummary" -> entity.setServiceSummary((String) entry.getValue());
                 case "targetDescription" -> entity.setTargetDescription((String) entry.getValue());
                 case "rewardAmount" -> entity.setRewardAmount((Integer) entry.getValue());
@@ -209,7 +245,8 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
                 entity.getLocationSource(),
                 entity.getScheduleOptions(),
                 entity.getStatus(),
-                entity.getCreatedAt()
+                entity.getCreatedAt(),
+                entity.getEntryMode()
         );
     }
 

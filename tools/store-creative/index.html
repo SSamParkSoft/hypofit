@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hypofit Store Creative Renderer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="creative" class="creative" aria-label="Hypofit store creative">
+      <div class="ambient-line ambient-line--top"></div>
+      <div class="ambient-line ambient-line--bottom"></div>
+
+      <header class="creative__header">
+        <div class="brand-lockup">
+          <img class="brand-lockup__mark" src="../../apps/web/public/brand/hypofit-mark.svg" alt="" />
+          <span class="brand-lockup__name">Hypofit</span>
+        </div>
+        <span class="creative__eyebrow" id="eyebrow"></span>
+        <h1 class="creative__headline" id="headline"></h1>
+        <p class="creative__body" id="body"></p>
+      </header>
+
+      <section class="product-stage" aria-label="실제 Hypofit 앱 화면">
+        <div class="product-stage__backdrop"></div>
+        <figure class="phone phone--main">
+          <img id="primary-screen" alt="" />
+        </figure>
+        <figure class="phone phone--secondary" aria-hidden="true">
+          <img id="secondary-screen" alt="" />
+        </figure>
+      </section>
+
+      <section class="feature-flow" aria-label="Hypofit 인터뷰 진행 흐름">
+        <div class="feature-flow__rail" aria-hidden="true"></div>
+        <div class="feature-flow__step">
+          <span class="feature-flow__number">01</span>
+          <strong>모집</strong>
+          <span>타깃 고객을 찾아요</span>
+        </div>
+        <div class="feature-flow__step">
+          <span class="feature-flow__number">02</span>
+          <strong>지원</strong>
+          <span>조건을 확인해요</span>
+        </div>
+        <div class="feature-flow__step">
+          <span class="feature-flow__number">03</span>
+          <strong>조율</strong>
+          <span>채팅으로 연결해요</span>
+        </div>
+      </section>
+
+      <footer class="creative__footer">
+        <span id="footer-copy"></span>
+        <span class="sequence" id="sequence"></span>
+      </footer>
+    </main>
+    <script type="module" src="./creative.js"></script>
+  </body>
+</html>

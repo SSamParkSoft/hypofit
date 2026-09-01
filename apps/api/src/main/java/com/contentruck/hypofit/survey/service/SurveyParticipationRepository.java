@@ -15,6 +15,10 @@ public interface SurveyParticipationRepository {
 
     Optional<SurveyParticipationReadModel> findParticipationForUpdate(UUID postId, UUID participantId);
 
+    Optional<SurveyParticipationReadModel> findParticipation(UUID postId, UUID participantId);
+
+    boolean hasSelectedApplication(UUID postId, UUID participantId);
+
     SurveyParticipationReadModel createOpenedParticipation(UUID postId, UUID participantId, OffsetDateTime openedAt);
 
     SurveyParticipationReadModel updateToSubmitted(UUID postId, UUID participantId, OffsetDateTime submittedAt);

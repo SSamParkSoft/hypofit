@@ -53,13 +53,12 @@ const publicProviderOrderByPlatform = {
 } as const;
 
 type SocialPhase =
-  | "provider_capability"
   | "attempt_create"
   | "provider_authorization"
   | "provider_callback"
   | "supabase_token_exchange"
   | "supabase_session_persist"
-  | "fastapi_identity_resolve";
+  | "api_identity_resolve";
 
 type PendingSocialAttempt = {
   attemptId: string;
@@ -303,11 +302,16 @@ export function getUnsupportedSocialNextStepMessage(response: SocialAuthComplete
 
 export function getSocialIdentityLabel(identity: SocialIdentityRead) {
   const base = socialProviderLabels[identity.provider];
-  if (!identity.email) {
+  const email = getSocialIdentityEmailLabel(identity);
+  if (!email) {
     return `${base} 연결됨`;
   }
 
-  return `${base} · ${maskEmail(identity.email)}`;
+  return `${base} · ${email}`;
+}
+
+export function getSocialIdentityEmailLabel(identity: SocialIdentityRead) {
+  return identity.email ? maskEmail(identity.email) : null;
 }
 
 export function getSocialIdentityStatusLabel(identity: SocialIdentityRead) {
@@ -457,7 +461,7 @@ async function startBrowserOAuth(attempt: SocialAuthAttemptRead): Promise<Social
 
 async function finalizeSocialAuthAttempt(attempt: PendingSocialAttempt, accessToken: string) {
   addAppBreadcrumb("social_auth_complete_start", {
-    phase: "fastapi_identity_resolve",
+    phase: "api_identity_resolve",
     provider_name: attempt.provider,
   });
 
@@ -472,13 +476,13 @@ async function finalizeSocialAuthAttempt(attempt: PendingSocialAttempt, accessTo
 
     await clearPendingAttempt();
     addAppBreadcrumb("social_auth_complete_success", {
-      phase: "fastapi_identity_resolve",
+      phase: "api_identity_resolve",
       provider_name: attempt.provider,
     });
     return response;
   } catch (error) {
     await clearPendingAttempt();
-    throw normalizeSocialAuthError(error, "fastapi_identity_resolve");
+    throw normalizeSocialAuthError(error, "api_identity_resolve");
   }
 }
 

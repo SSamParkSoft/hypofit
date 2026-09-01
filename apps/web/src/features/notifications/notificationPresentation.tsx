@@ -1,6 +1,7 @@
-import { Bell, CheckCircle2, MessageCircle, UserRound } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 import type { NotificationRecord } from "../../shared/api/notifications";
+import { AppIcon } from "../../shared/ui/icon";
 
 export interface NotificationGroup {
   label: string;
@@ -15,7 +16,7 @@ export function NotificationIcon({
   size?: number;
 }) {
   if (notification.target_type === "chat_room" || notification.type.includes("chat")) {
-    return <MessageCircle size={size} />;
+    return <AppIcon name="chat" size={size} />;
   }
 
   if (notification.type.includes("selected") || notification.type.includes("completed")) {
@@ -23,10 +24,10 @@ export function NotificationIcon({
   }
 
   if (notification.type.includes("application")) {
-    return <UserRound size={size} />;
+    return <AppIcon name="users" size={size} />;
   }
 
-  return <Bell size={size} />;
+  return <AppIcon name="notification" size={size} />;
 }
 
 export function getNotificationHref(notification: NotificationRecord) {

@@ -6,7 +6,6 @@ import { ProfileAccountSettingsSubPage } from "./ProfileAccountSettingsSubPage";
 import { ProfileDeleteAccountSettingsSubPage } from "./ProfileDeleteAccountSettingsSubPage";
 import { ProfileInterviewSettingsSubPage } from "./ProfileInterviewSettingsSubPage";
 import { ProfileNotificationSettingsSubPage } from "./ProfileNotificationSettingsSubPage";
-import { ProfileRoleSettingsSubPage } from "./ProfileRoleSettingsSubPage";
 import { type SettingsSubPageType, profileSettingsPageMeta } from "./settingsMeta";
 import { ProfileSettingsHeader } from "./settingsPrimitives";
 
@@ -19,7 +18,7 @@ export function ProfileSettingsSubPage({
   appUser: AppUser | null;
   type: SettingsSubPageType;
 }) {
-  if (type === "account") {
+  if (type === "account" || type === "role") {
     return <ProfileAccountSettingsSubPage appUser={appUser} />;
   }
 
@@ -29,12 +28,12 @@ export function ProfileSettingsSubPage({
 
   return (
     <PageLayout className="max-w-[880px]" variant="settings-form">
-      <div className="grid min-w-0 gap-4">
+      <div className="grid min-w-0 gap-5">
         <ProfileSettingsHeader
           action={
             actionHref && actionLabel ? (
               <Button
-                className="min-h-10"
+                className="min-h-10 px-4"
                 size="sm"
                 variant={type === "delete-account" ? "outlineDanger" : "secondary"}
                 onClick={() => navigateTo(actionHref)}
@@ -47,16 +46,14 @@ export function ProfileSettingsSubPage({
           title={meta.title}
         />
 
-        {renderSubPageBody(type, appUser)}
+        {renderSubPageBody(type)}
       </div>
     </PageLayout>
   );
 }
 
-function renderSubPageBody(type: Exclude<SettingsSubPageType, "account">, appUser: AppUser | null) {
+function renderSubPageBody(type: Exclude<SettingsSubPageType, "account">) {
   switch (type) {
-    case "role":
-      return <ProfileRoleSettingsSubPage appUser={appUser} />;
     case "notifications":
       return <ProfileNotificationSettingsSubPage />;
     case "interview-settings":

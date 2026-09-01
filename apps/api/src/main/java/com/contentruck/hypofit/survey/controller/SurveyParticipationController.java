@@ -7,6 +7,7 @@ import com.contentruck.hypofit.survey.service.SurveyParticipationService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,6 +38,16 @@ public class SurveyParticipationController {
         return SurveyParticipationActionResponse.from(
                 surveyParticipationService.open(actorUserId(jwt), postId)
         );
+    }
+
+    @GetMapping("/participation")
+    public ResponseEntity<SurveyParticipationResponse> ownParticipation(
+            @PathVariable UUID postId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        return surveyParticipationService.findOwn(actorUserId(jwt), postId)
+                .map(view -> ResponseEntity.ok(SurveyParticipationResponse.from(view)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping("/submit")

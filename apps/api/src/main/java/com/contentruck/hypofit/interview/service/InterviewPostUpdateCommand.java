@@ -29,7 +29,8 @@ public record InterviewPostUpdateCommand(
         String locationPrecision,
         String locationSource,
         java.util.List<String> scheduleOptions,
-        String status
+        String status,
+        String entryMode
 ) {
     public InterviewPostUpdateCommand(
             Set<String> providedFields,
@@ -78,7 +79,8 @@ public record InterviewPostUpdateCommand(
                 locationPrecision,
                 locationSource,
                 scheduleOptions,
-                status
+                status,
+                null
         );
     }
 

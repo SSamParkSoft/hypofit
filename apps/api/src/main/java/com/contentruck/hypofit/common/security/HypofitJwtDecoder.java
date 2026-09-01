@@ -11,8 +11,12 @@ import java.util.concurrent.ConcurrentMap;
 import javax.crypto.spec.SecretKeySpec;
 
 import com.contentruck.hypofit.common.config.HypofitProperties;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.cache.Cache;
 import org.springframework.cache.concurrent.ConcurrentMapCache;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
@@ -26,35 +30,73 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
 
 public class HypofitJwtDecoder implements JwtDecoder {
 
     private final HypofitProperties properties;
     private final JwtDecoder delegate;
+    private final MeterRegistry meterRegistry;
 
     public HypofitJwtDecoder(HypofitProperties properties) {
-        this(properties, buildDelegate(properties));
+        this(properties, buildDelegate(properties), new SimpleMeterRegistry());
+    }
+
+    public HypofitJwtDecoder(HypofitProperties properties, MeterRegistry meterRegistry) {
+        this(properties, buildDelegate(properties), meterRegistry);
     }
 
     HypofitJwtDecoder(HypofitProperties properties, JwtDecoder delegate) {
+        this(properties, delegate, new SimpleMeterRegistry());
+    }
+
+    HypofitJwtDecoder(HypofitProperties properties, JwtDecoder delegate, MeterRegistry meterRegistry) {
         this.properties = properties;
         this.delegate = delegate;
+        this.meterRegistry = meterRegistry;
     }
 
     @Override
     public Jwt decode(String token) throws JwtException {
         if (delegate == null) {
+            recordDecode("not_configured", Timer.start(meterRegistry));
             throw new JwtException("Supabase JWT verification is not configured");
         }
 
+        Timer.Sample sample = Timer.start(meterRegistry);
         try {
-            return delegate.decode(token);
+            Jwt decoded = delegate.decode(token);
+            recordDecode("success", sample);
+            return decoded;
         } catch (JwtException exception) {
-            if (hasJwksConfiguration() && hasTransportFailure(exception)) {
-                return delegate.decode(token);
+            if (!hasJwksConfiguration() || !hasTransportFailure(exception)) {
+                recordDecode("invalid", sample);
+                throw exception;
             }
-            throw exception;
+            meterRegistry.counter("hypofit.auth.jwks.retry").increment();
+            try {
+                Jwt decoded = delegate.decode(token);
+                recordDecode("success_after_retry", sample);
+                return decoded;
+            } catch (JwtException retryException) {
+                if (hasTransportFailure(retryException)) {
+                    recordDecode("verifier_unavailable", sample);
+                    throw new HypofitJwtException(
+                            "auth_verifier_unavailable",
+                            "로그인 정보를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.",
+                            503,
+                            "Supabase JWKS verification transport failure",
+                            retryException
+                    );
+                }
+                recordDecode("invalid_after_retry", sample);
+                throw retryException;
+            }
         }
+    }
+
+    private void recordDecode(String outcome, Timer.Sample sample) {
+        sample.stop(meterRegistry.timer("hypofit.auth.jwt.decode", "outcome", outcome));
     }
 
     private boolean hasJwksConfiguration() {
@@ -80,6 +122,7 @@ public class HypofitJwtDecoder implements JwtDecoder {
                         algorithms.add(SignatureAlgorithm.RS256);
                         algorithms.add(SignatureAlgorithm.ES256);
                     })
+                    .restOperations(jwksRestOperations(properties))
                     .cache(new ExpiringJwkSetCache(properties.getSupabaseJwksCacheSeconds()))
                     .build();
             decoder.setJwtValidator(validator(properties));
@@ -95,6 +138,13 @@ public class HypofitJwtDecoder implements JwtDecoder {
         }
 
         return null;
+    }
+
+    private static RestTemplate jwksRestOperations(HypofitProperties properties) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Math.max(1, properties.getSupabaseJwksConnectTimeoutMillis()));
+        requestFactory.setReadTimeout(Math.max(1, properties.getSupabaseJwksReadTimeoutMillis()));
+        return new RestTemplate(requestFactory);
     }
 
     private static OAuth2TokenValidator<Jwt> validator(HypofitProperties properties) {

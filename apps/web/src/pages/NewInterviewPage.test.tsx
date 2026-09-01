@@ -30,6 +30,8 @@ const founderUser: AppUser = {
   email: "founder@example.com",
   id: "founder-1",
   name: "창업자",
+  organization_name: null,
+  organization_type: null,
   phone: null,
   profile_image_path: null,
   profile_image_url: null,
@@ -41,6 +43,8 @@ const respondentUser: AppUser = {
   email: "respondent@example.com",
   id: "respondent-1",
   name: "인터뷰어",
+  organization_name: null,
+  organization_type: null,
   phone: null,
   profile_image_path: null,
   profile_image_url: null,
@@ -113,16 +117,16 @@ describe("NewInterviewPage", () => {
     expect(mocks.navigateTo).toHaveBeenCalledWith("/my-interviews");
   });
 
-  it("shows the founder-only guard state for respondent accounts", async () => {
+  it("keeps the post-creation form available for respondent-labelled accounts", async () => {
     const user = userEvent.setup();
 
     render(<NewInterviewPage accessToken="token-123" appUser={respondentUser} />);
 
-    expect(screen.getByText("모집글을 만들 수 없는 계정입니다.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "모집글 저장" })).not.toBeInTheDocument();
+    expect(screen.queryByText("모집글을 만들 수 없는 계정입니다.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "모집글 저장" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "인터뷰 보기" }));
+    await user.click(screen.getByRole("button", { name: "내 모집글 보기" }));
 
-    expect(mocks.navigateTo).toHaveBeenCalledWith("/interviews");
+    expect(mocks.navigateTo).toHaveBeenCalledWith("/my-interviews");
   });
 });

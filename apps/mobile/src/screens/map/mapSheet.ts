@@ -75,6 +75,10 @@ export function formatMapDistance(distanceMeters: number | null, fallback = "") 
     return fallback;
   }
 
+  if (distanceMeters < 100) {
+    return "가까움";
+  }
+
   if (distanceMeters < 1000) {
     return `${Math.round(distanceMeters)}m`;
   }

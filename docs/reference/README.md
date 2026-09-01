@@ -2,7 +2,7 @@
 
 Status: reference
 
-Last updated: 2026-08-08
+Last updated: 2026-08-12
 
 This directory contains standards, design references, architecture decisions,
 and review-readiness background material. These documents guide work, but they
@@ -37,13 +37,6 @@ smoke, reviewer access, screenshots, App Privacy/Data safety, store metadata,
 and review-week operations. This is reference/release checklist material, not
 the active implementation backlog.
 
-### `store-review-readiness-audit-2026-06-22.md`
-
-Current Apple App Store and Google Play review-readiness audit for the shipped
-mobile app, public legal pages, account deletion, UGC report/block,
-permissions, reviewer account data, privacy labels, Data safety, and final
-submission blockers.
-
 ### `ios-store-readiness/`
 
 Apple App Store and TestFlight readiness material.
@@ -54,30 +47,6 @@ Use these docs for iOS release work, but keep implementation backlog in
 `docs/active/` only when code or deployment work remains.
 These documents are reference guidance, not the active backlog by themselves.
 
-### `api-operations-readiness-implementation-history.md`
-
-FastAPI endpoint inventory, implementation notes, verification history, and
-backend launch-readiness context. The active closeout checklist lives in
-`docs/completed/api-operations-readiness-plan.md`.
-
-### `api-bluegreen-deployment-runbook.md`
-
-GPU FastAPI and EC2 Nginx blue/green deployment runbook. Use this before
-changing API deployment scripts, systemd API services, reverse SSH tunnel
-services, Nginx upstream switching, deployment state files, or DB migration
-rules for zero-downtime API releases.
-
-### `code-qa-remediation-plan.md`
-
-Historical 2026-06-15 QA baseline and findings. The active implementation-only
-backlog extracted from this QA pass lives in
-`docs/completed/code-remediation-implementation-plan.md`.
-
-### `contracts-coverage-inventory.md`
-
-Current inventory of FastAPI schema surfaces covered by shared TypeScript
-contracts in `packages/contracts`, plus the remaining client-adoption gap.
-
 ### `legal-pages-implementation-history.md`
 
 Terms, privacy policy, support page, and account-deletion copy history. The
@@ -86,14 +55,8 @@ active launch closeout checklist lives in
 
 ### `error-observability-contract.md`
 
-FastAPI error envelope, request ID propagation, mobile `ApiError` and
+Spring API error envelope, request ID propagation, mobile `ApiError` and
 `NetworkError` behavior, auth error normalization, and Sentry redaction rules.
-
-### `email-verification-resend-mvp-plan.md`
-
-Supabase/Resend link-confirmation bridge history and fallback reference.
-Signup verification is now tracked by
-`docs/completed/email-otp-verification-transition-plan.md`.
 
 ### `google-play-data-safety-worksheet.md`
 
@@ -120,11 +83,6 @@ Brand asset notes for the Hypofit logo, favicon, and app icon direction.
 
 Current location, geocoding, Kakao place search, current-location permission,
 stored coordinate, and radius-search behavior reference.
-
-### `mobile-auth-failure-observability-hardening-plan.md`
-
-Mobile auth error classification, preflight, Supabase Auth normalization,
-Sentry-safe telemetry, and release-build auth debugging reference.
 
 ### `mobile-list-card-surface-system-plan.md`
 
@@ -155,8 +113,8 @@ map, chat, and profile surfaces.
 ### `operator-support-moderation-runbook.md`
 
 MVP operator runbook for support tickets, reports, moderation actions, public
-account-deletion requests, audit-event inspection, and GPU API log/health
-checks.
+account-deletion requests, audit-event inspection, and Lightsail API
+log/health checks.
 
 ### `support-report-flow-plan.md`
 
@@ -168,8 +126,3 @@ path expectations.
 
 Final UI/UX QA checklist reference. Use it before release or UI signoff, but do
 not treat it as active implementation backlog.
-
-### `react-web-to-expo-mobile-migration-plan.md`
-
-Decision and migration-history reference for splitting the React web app and
-Expo React Native mobile app.

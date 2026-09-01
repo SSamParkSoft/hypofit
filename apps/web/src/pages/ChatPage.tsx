@@ -30,7 +30,7 @@ export function ChatPage() {
   return (
     <div
       className={cn(
-        "mx-auto grid w-full max-w-none bg-hypo-bg min-[1200px]:m-6 min-[1200px]:w-auto min-[1200px]:grid-cols-[320px_minmax(0,1fr)] min-[1200px]:gap-0 min-[1200px]:rounded-hypo-lg min-[1200px]:border min-[1200px]:border-hypo-border/80 min-[1200px]:bg-hypo-surface min-[1600px]:grid-cols-[320px_minmax(0,1fr)_300px]",
+        "mx-auto grid w-full max-w-none bg-hypo-bg min-[1200px]:m-5 min-[1200px]:w-auto min-[1200px]:grid-cols-[320px_minmax(0,1fr)] min-[1200px]:gap-0 min-[1200px]:rounded-hypo-lg min-[1200px]:border min-[1200px]:border-hypo-border min-[1200px]:bg-hypo-surface min-[1600px]:grid-cols-[320px_minmax(0,1fr)_300px]",
         getWorkspaceRegionClassName({ height: "content", scroll: "clip" }),
         getWorkspaceRegionClassName({ height: "framedDesktop" }),
       )}
@@ -75,9 +75,9 @@ export function ChatPage() {
           onReport={() => roomList.requestReport(selectedRoom)}
         />
       ) : (
-        <section className="hidden min-h-[520px] place-items-center bg-hypo-surface p-6 min-[1200px]:grid">
+        <section className="hidden min-h-[520px] place-items-center bg-hypo-bg p-6 min-[1200px]:grid">
           <EmptyState className="max-w-md border-0 bg-transparent p-0" title="채팅방을 선택해주세요.">
-            인터뷰를 신청하거나 신청을 받으면 여기서 대화를 이어갈 수 있어요.
+            공고에 신청하거나 참여자를 선정하면 여기서 대화를 이어갈 수 있어요.
           </EmptyState>
         </section>
       )}

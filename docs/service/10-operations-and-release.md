@@ -18,10 +18,13 @@ mobile app / web app
   -> Supabase Postgres/Auth
 ```
 
-The school GPU server has been returned. Spring, secrets, the Flyway baseline,
-Nginx/TLS, and canonical DNS are deployed on Lightsail. Public readiness, CORS,
-and auth-boundary smoke pass; authenticated product-flow smoke and the
-stabilization window remain open.
+Spring, secrets, the Flyway baseline, Nginx/TLS, and canonical DNS are deployed
+on Lightsail. Public readiness, CORS, and auth-boundary smoke pass.
+Authenticated deploy smoke is a separate gate from readiness: it must use a
+dedicated, revocable user session against `/api/v1/me`, warming the Spring JWKS
+cache before traffic. Until that credential's storage and rotation policy is
+approved, operators run the authenticated smoke manually and do not place a
+long-lived user token or Supabase service-role key in CI.
 
 ## Web
 
@@ -44,8 +47,7 @@ Current rule:
 ## API
 
 Deploy the Spring API to Lightsail only through the reviewed GitHub Actions
-workflow and Lightsail runbook. The retired FastAPI runtime is not a rollback
-target.
+workflow and Lightsail runbook.
 
 The MVP runtime is one memory-limited Docker container that owns HTTP and push
 delivery. Short deployment downtime is accepted until real traffic justifies
@@ -69,8 +71,8 @@ Build images off-host and deploy immutable tags or digests. Keep Spring near a
 ## Database
 
 Supabase is the durable database/auth system. Flyway is the only schema
-migration authority. Lightsail should use a supported direct or
-pooler endpoint and must not recreate the retired GPU DB tunnel.
+migration authority. Lightsail should use a supported direct or pooler
+endpoint.
 
 Do not run local PostgreSQL, Redis, a durable queue, distributed locks, or
 permanent file storage on Lightsail.
@@ -101,7 +103,9 @@ curl -fsS http://127.0.0.1:8080/api/v1/health/ready
 docker compose -f /opt/hypofit/runtime/compose.yml ps
 docker compose -f /opt/hypofit/runtime/compose.yml logs --tail=200 api
 curl -fsS https://hypofit-api.bukae.co.kr/api/v1/health/ready
+HYPOFIT_API_SMOKE_ACCESS_TOKEN='<short-lived smoke-user token>' \
+  bash infra/lightsail/authenticated-smoke.sh
 ```
 
 Use `docs/reference/lightsail-spring-deployment-runbook.md` for the current
-deploy procedure. The old GPU blue/green path is retired.
+deploy procedure.

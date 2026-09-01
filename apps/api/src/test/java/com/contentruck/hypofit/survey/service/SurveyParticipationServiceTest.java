@@ -65,6 +65,58 @@ class SurveyParticipationServiceTest {
     }
 
     @Test
+    void openBlocksApplicationRequiredSurveyUntilApplicantIsSelected() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        SurveyPostSummary post = new SurveyPostSummary(
+                postId,
+                UUID.randomUUID(),
+                "survey",
+                "application_required",
+                "open",
+                NOW.plusDays(1),
+                "https://forms.example.com/approved-only"
+        );
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(post));
+        when(repository.hasSelectedApplication(postId, actorUserId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.open(actorUserId, postId))
+                .isInstanceOf(HypofitException.class)
+                .extracting(error -> ((HypofitException) error).getCode())
+                .isEqualTo("survey_access_not_granted");
+        verify(repository, never()).createOpenedParticipation(postId, actorUserId, NOW);
+    }
+
+    @Test
+    void findOwnReturnsEmptyWhenParticipantHasNotStartedSurvey() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "open", NOW.plusDays(1))));
+        when(repository.findParticipation(postId, actorUserId)).thenReturn(Optional.empty());
+
+        assertThat(service.findOwn(actorUserId, postId)).isEmpty();
+    }
+
+    @Test
+    void findOwnReturnsExistingParticipationWithoutExternalUrl() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        SurveyPostSummary post = surveyPost(postId, UUID.randomUUID(), "open", NOW.plusDays(1));
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(post));
+        when(repository.findParticipation(postId, actorUserId))
+                .thenReturn(Optional.of(participation(postId, actorUserId, "submitted")));
+        when(repository.findParticipantSummaries(anyCollection()))
+                .thenReturn(Map.of(actorUserId, participant(actorUserId)));
+
+        SurveyParticipationView response = service.findOwn(actorUserId, postId).orElseThrow();
+
+        assertThat(response.participation().status()).isEqualTo("submitted");
+    }
+
+    @Test
     void openIsIdempotentForSubmittedParticipation() {
         UUID actorUserId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
@@ -133,6 +185,26 @@ class SurveyParticipationServiceTest {
                 .isInstanceOf(HypofitException.class)
                 .extracting(error -> ((HypofitException) error).getCode())
                 .isEqualTo("survey_not_available");
+    }
+
+    @Test
+    void openRejectsSurveyWithoutExternalUrl() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(new SurveyPostSummary(
+                postId,
+                UUID.randomUUID(),
+                "survey",
+                "direct",
+                "open",
+                NOW.plusDays(1),
+                null
+        )));
+        assertThatThrownBy(() -> service.open(actorUserId, postId))
+                .isInstanceOf(HypofitException.class)
+                .extracting(error -> ((HypofitException) error).getCode())
+                .isEqualTo("survey_link_unavailable");
     }
 
     @Test

@@ -13,6 +13,7 @@ interface FounderPostCardProps {
   isCreatingSession?: boolean;
   isUpdatingApplication?: boolean;
   sessionErrorMessage?: string | null;
+  surfaceMode?: "panel" | "plain";
   onCreateSession: (input: CreateSessionInput) => void;
   onRejectApplication: (applicationId: string, rejectionReason: string) => void;
   onSelectApplication: (applicationId: string) => void;
@@ -28,19 +29,27 @@ export function FounderPostCard({
   onSelectApplication,
   post,
   sessionErrorMessage,
+  surfaceMode = "panel",
 }: FounderPostCardProps) {
   const selectedCount = applications.filter((application) => application.status === "selected").length;
   const isPostActionable = post.status === "open";
+  const isPlain = surfaceMode === "plain";
 
   return (
-    <article className="rounded-hypo-lg border border-hypo-border bg-hypo-surface p-4 shadow-hypo-panel">
+    <article
+      className={
+        isPlain
+          ? "grid gap-4"
+          : "rounded-hypo-lg border border-hypo-border bg-hypo-surface p-4 shadow-hypo-panel"
+      }
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <InterviewPostStatusBadge status={post.status} />
             <Badge intent="info">{interviewModeLabels[post.interview_mode]}</Badge>
           </div>
-          <h3 className="mt-3 text-base font-black leading-6 text-hypo-text">{post.title}</h3>
+          <h3 className="mt-3 text-base font-semibold leading-6 text-hypo-text">{post.title}</h3>
           <p className="mt-1 text-sm leading-6 text-hypo-text-muted">{post.target_description}</p>
         </div>
         <Button disabled={!applications.length} size="sm" variant="secondary">
@@ -70,7 +79,7 @@ export function FounderPostCard({
       {applications.length ? (
         <div className="mt-4 grid gap-3 border-t border-hypo-border pt-4">
           {!isPostActionable ? (
-            <p className="rounded-hypo-md bg-hypo-surface-muted px-3 py-2 text-xs font-bold text-hypo-text-muted">
+            <p className="rounded-hypo-lg border border-hypo-border bg-hypo-bg px-3 py-2 text-xs font-medium text-hypo-text-muted">
               마감된 모집글은 지원자 상태 변경과 일정 생성을 할 수 없습니다.
             </p>
           ) : null}

@@ -20,7 +20,7 @@ export function MyInterviewsPage({ appUser }: MyInterviewsPageProps) {
   const controller = useMyInterviewsPageController({ appUser });
 
   return (
-    <PageFrame className="gap-5">
+    <PageFrame className="gap-6">
       <div className="flex items-start gap-3">
         <BackLink
           ariaLabel="인터뷰 목록으로 돌아가기"

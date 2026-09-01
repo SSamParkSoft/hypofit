@@ -35,7 +35,8 @@ import { Button } from "../shared/ui/button";
 import { cn } from "../shared/ui/cn";
 import { ConfirmActionButton } from "../shared/ui/confirm-action";
 import { Field, SelectInput, TextareaInput, TextInput } from "../shared/ui/field";
-import { PageLayout } from "../shared/ui/page";
+import { AppIcon } from "../shared/ui/icon";
+import { PageHeader, PageLayout } from "../shared/ui/page";
 import { EmptyState, ErrorState, LoadingState } from "../shared/ui/state";
 
 const categoryOptions: Array<{ label: string; value: SupportTicketCategory }> = [
@@ -56,6 +57,8 @@ const statusLabels: Record<SupportTicketStatus, string> = {
 };
 
 const DESKTOP_LIST_DETAIL_MEDIA_QUERY = "(min-width: 1200px)";
+const inboxSurfaceClassName =
+  "min-h-[560px] overflow-hidden rounded-hypo-lg border border-hypo-border bg-hypo-surface shadow-hypo-panel min-[1200px]:grid min-[1200px]:grid-cols-[370px_minmax(0,1fr)]";
 
 type SupportInboxMode = "detail" | "list" | "new";
 
@@ -101,26 +104,26 @@ export function SupportInboxPage({ mode, ticketId }: SupportInboxPageProps) {
   return (
     <main className="min-h-dvh bg-hypo-bg text-hypo-text">
       <PageLayout className="min-[1200px]:gap-6" variant="list-detail">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <BackLink className="mt-0.5" href="/profile" />
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold leading-8">문의하기</h1>
-              <p className="mt-1 text-sm leading-6 text-hypo-text-muted">
-                접수한 문의와 운영팀 답변을 확인할 수 있어요.
-              </p>
-            </div>
+        <div className="flex min-w-0 items-start gap-3">
+          <BackLink className="mt-1" href="/profile" />
+          <div className="min-w-0 flex-1">
+            <PageHeader
+              action={
+                <Button onClick={() => navigateTo("/support/inquiries/new")}>
+                  <Plus aria-hidden="true" size={17} />
+                  새 문의
+                </Button>
+              }
+              description="접수한 문의와 운영팀 답변을 확인할 수 있어요."
+              title="문의하기"
+            />
           </div>
-          <Button onClick={() => navigateTo("/support/inquiries/new")}>
-            <Plus aria-hidden="true" size={17} />
-            새 문의
-          </Button>
-        </header>
+        </div>
 
-        <section className="min-h-[560px] overflow-hidden border-y border-hypo-border bg-hypo-surface sm:border min-[1200px]:grid min-[1200px]:grid-cols-[370px_minmax(0,1fr)]">
+        <section className={inboxSurfaceClassName}>
           <div
             className={cn(
-              "min-w-0 min-[1200px]:border-r min-[1200px]:border-hypo-border",
+              "min-w-0 min-[1200px]:border-r min-[1200px]:border-hypo-border/70",
               mode !== "list" && "hidden min-[1200px]:block",
             )}
           >
@@ -245,8 +248,18 @@ function InquiryList({
 
   return (
     <div>
-      <div className="border-b border-hypo-border px-4 py-3.5">
-        <p className="text-xs font-medium leading-[18px] text-hypo-text-muted">내 문의 {tickets.length}건</p>
+      <div className="border-b border-hypo-border/70 px-4 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-bold leading-[18px] text-hypo-text-soft">내 문의 {tickets.length}건</p>
+            <p className="mt-1 text-sm font-semibold leading-5 text-hypo-text">
+              최근 업데이트 순으로 확인할 수 있어요
+            </p>
+          </div>
+          <span className="grid size-9 place-items-center rounded-full bg-hypo-brand-soft/80 text-hypo-brand">
+            <AppIcon aria-hidden="true" name="notification" size={16} />
+          </span>
+        </div>
       </div>
       <div>
         {tickets.map((ticket) => {
@@ -256,8 +269,8 @@ function InquiryList({
               key={ticket.id}
               aria-current={selected ? "page" : undefined}
               className={cn(
-                "group relative grid min-h-[104px] grid-cols-[minmax(0,1fr)_20px] items-center gap-3 border-b border-hypo-border px-4 py-4 transition-colors hover:bg-hypo-surface-muted focus-visible:z-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20",
-                selected && "bg-hypo-brand-soft/70 before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:bg-hypo-brand",
+                "group relative grid min-h-[108px] grid-cols-[minmax(0,1fr)_20px] items-center gap-3 border-b border-hypo-border/70 px-4 py-4 transition-colors hover:bg-hypo-surface-muted/70 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20",
+                selected && "bg-hypo-brand-soft/60",
               )}
               href={`/support/inquiries/${ticket.id}`}
               onClick={(event) => handleInquiryRowNavigation(event, ticket.id)}
@@ -272,7 +285,7 @@ function InquiryList({
                 <strong className="mt-2 block truncate text-[15px] font-semibold leading-[22px] text-hypo-text">
                   {getTicketTitle(ticket)}
                 </strong>
-                <span className="mt-1.5 flex items-center gap-1.5 text-xs font-normal leading-[18px] text-hypo-text-muted">
+                <span className="mt-1.5 flex items-center gap-1.5 text-xs font-medium leading-[18px] text-hypo-text-muted">
                   <Clock3 aria-hidden="true" size={13} />
                   {formatDateTime(ticket.updated_at)}
                 </span>
@@ -326,7 +339,7 @@ function InquiryDetail({
 
   return (
     <article className="min-h-[560px]">
-      <div className="border-b border-hypo-border px-4 py-4 sm:px-6 sm:py-5">
+      <div className="border-b border-hypo-border/70 px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex items-start gap-3 min-[1200px]:hidden">
           <BackLink href="/support/inquiries" />
           <div className="min-w-0 pt-1">
@@ -370,12 +383,14 @@ function InquiryDetail({
           <p id="inquiry-body-title" className="text-xs font-semibold leading-[18px] text-hypo-text-soft">
             {ticket.kind === "report" ? "내가 남긴 신고" : "내가 남긴 문의"}
           </p>
-          <p className="mt-3 whitespace-pre-wrap break-words text-[15px] font-normal leading-7 text-hypo-text">
-            {ticket.body}
-          </p>
+          <div className="mt-3 rounded-hypo-lg border border-hypo-border/70 bg-hypo-bg/55 px-4 py-4">
+            <p className="whitespace-pre-wrap break-words text-[15px] font-normal leading-7 text-hypo-text">
+              {ticket.body}
+            </p>
+          </div>
         </section>
 
-        <section className="border-t border-hypo-border pt-7" aria-labelledby="inquiry-replies-title">
+        <section className="border-t border-hypo-border/70 pt-7" aria-labelledby="inquiry-replies-title">
           <div className="flex items-center gap-2">
             <MessageCircleQuestion aria-hidden="true" className="text-hypo-brand" size={18} />
             <h3 id="inquiry-replies-title" className="text-base font-semibold leading-6">
@@ -385,7 +400,10 @@ function InquiryDetail({
           {ticket.replies.length > 0 ? (
             <div className="mt-4 grid gap-4">
               {ticket.replies.map((reply) => (
-                <div key={reply.id} className="border-l-2 border-hypo-brand bg-hypo-brand-soft/55 px-4 py-3.5">
+                <div
+                  key={reply.id}
+                  className="rounded-hypo-lg border border-hypo-brand/15 bg-hypo-brand-soft/55 px-4 py-3.5"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <strong className="text-xs font-semibold leading-[18px] text-hypo-brand">Hypofit 운영팀</strong>
                     <span className="text-xs font-normal leading-[18px] text-hypo-text-muted">{formatDateTime(reply.created_at)}</span>
@@ -397,7 +415,7 @@ function InquiryDetail({
               ))}
             </div>
           ) : (
-            <div className="mt-4 border-y border-hypo-border py-5">
+            <div className="mt-4 rounded-hypo-lg border border-hypo-border/70 bg-hypo-bg/45 px-4 py-5">
               <p className="text-sm leading-6 text-hypo-text-muted">
                 아직 등록된 답변이 없어요. 남겨주신 내용은 운영팀이 순서대로 확인해요.
               </p>
@@ -450,7 +468,7 @@ function InquiryComposer({
 
   return (
     <div>
-      <div className="flex items-center gap-3 border-b border-hypo-border px-4 py-4 sm:px-6">
+      <div className="flex items-center gap-3 border-b border-hypo-border/70 px-4 py-4 sm:px-6">
         <button
           aria-label="문의 목록으로 돌아가기"
           className="grid size-9 place-items-center rounded-hypo-md text-hypo-text-muted hover:bg-hypo-surface-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
@@ -483,7 +501,7 @@ function InquiryComposer({
         </Field>
         <Field error={bodyError} label="문의 내용">
           <TextareaInput
-            className="min-h-40 resize-y"
+            className="min-h-44 resize-y"
             id="support-inquiry-body"
             maxLength={2000}
             minLength={5}
@@ -496,7 +514,7 @@ function InquiryComposer({
             }}
           />
         </Field>
-        <div className="flex flex-wrap justify-end gap-2 border-t border-hypo-border pt-5">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-hypo-border/70 pt-5">
           <Button disabled={isPending} onClick={onCancel} variant="secondary">취소</Button>
           <Button disabled={isPending} type="submit">
             {initialTicket ? <FileText aria-hidden="true" size={16} /> : <Send aria-hidden="true" size={16} />}

@@ -63,7 +63,7 @@ export function AuthBootstrapGate({
       <div className="mx-auto grid min-h-dvh w-full max-w-[480px] items-center px-4 pb-[calc(var(--app-safe-bottom)+1.5rem)] pt-[calc(var(--app-safe-top)+1.5rem)] sm:px-6 sm:py-10">
         <section className="mx-auto flex w-full max-w-[440px] flex-col gap-5">
           <button
-            className="inline-flex w-fit items-center gap-2.5 self-center rounded-hypo-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
+            className="inline-flex w-fit items-center gap-3 self-center rounded-hypo-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
             type="button"
             onClick={onGoToLanding}
             aria-label="Hypofit 처음으로"
@@ -72,9 +72,9 @@ export function AuthBootstrapGate({
               src="/brand/hypofit-mark.svg"
               alt=""
               aria-hidden="true"
-              className="size-9 object-contain"
+              className="size-12 object-contain"
             />
-            <strong className="font-brand text-xl font-black text-hypo-text">Hypofit</strong>
+            <strong className="font-brand text-2xl font-black text-hypo-text">Hypofit</strong>
           </button>
 
           <div className="py-2 sm:rounded-hypo-lg sm:border sm:border-hypo-border sm:bg-hypo-surface sm:p-7 sm:shadow-hypo-panel">

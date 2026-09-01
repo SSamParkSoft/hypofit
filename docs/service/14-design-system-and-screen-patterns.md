@@ -2,7 +2,7 @@
 
 Status: service-source-of-truth
 
-Last updated: 2026-07-02
+Last updated: 2026-08-26
 
 This document is the practical design reference for agents changing Hypofit UI.
 It sits above historical UI plans and points to the detailed reference docs when
@@ -16,7 +16,7 @@ or critique UI, also read `15-ai-assisted-design-workflow.md`.
 Current mobile navigation is:
 
 ```text
-홈 / 인터뷰 / 지도 / 채팅 / 프로필
+홈 / 공고 / 지도 / 채팅 / 프로필
 ```
 
 Older completed plans may mention historical labels such as `찾기`, `내 신청`,
@@ -25,7 +25,7 @@ otherwise.
 
 ## Product Feel
 
-Hypofit should feel like a focused interview-coordination app:
+Hypofit should feel like a focused participant-recruitment and coordination app:
 
 - practical,
 - trustworthy,
@@ -51,7 +51,7 @@ Avoid:
 
 Use rows for repeated operational content:
 
-- interview lists,
+- posting lists,
 - chat list,
 - notification list,
 - profile/settings menu,
@@ -113,29 +113,30 @@ Use full-screen pages for:
 Purpose:
 
 - orient the user,
-- show recent interviews,
-- show lightweight progress.
+- show the next meaningful action,
+- show newly opened or relevant postings,
+- keep secondary activity context lightweight.
 
 Do:
 
 - keep it compact,
 - avoid duplicating the full interview search tab,
-- make recent interviews tappable,
+- make postings tappable,
 - preserve notification entry.
 
 Do not:
 
-- add dashboard metric clutter,
+- add dashboard metric clutter or fake analytics,
 - create marketing panels,
 - show irrelevant profile editing content.
 
-### Interviews
+### Postings
 
 Purpose:
 
-- detailed search/browse,
-- application entry,
-- my interviews/my posts entry.
+- detailed posting search/browse,
+- type-aware participation entry,
+- my participation/my postings entry.
 
 Do:
 
@@ -153,7 +154,7 @@ Do not:
 
 Purpose:
 
-- location-based discovery for relevant interview posts.
+- location-based discovery for nearby postings that need a location.
 
 Do:
 
@@ -178,7 +179,7 @@ Purpose:
 Do:
 
 - order by latest meaningful activity/unread state,
-- show counterpart, interview context, last message, unread count, status,
+- show counterpart, posting context, last message, unread count, status,
 - keep row height efficient,
 - use a contextual overflow menu close to the more button.
 
@@ -193,7 +194,7 @@ Do not:
 
 Purpose:
 
-- coordinate one interview.
+- coordinate one applicable posting workflow.
 
 Do:
 
@@ -206,8 +207,8 @@ Do:
 
 Do not:
 
-- keep interview summary expanded by default if it crowds messages,
-- duplicate detail information already reachable through `인터뷰 상세정보`.
+- keep a posting summary expanded by default if it crowds messages,
+- duplicate detail information already reachable through posting detail.
 
 ### Profile
 
@@ -370,7 +371,6 @@ Before calling meaningful UI work done, check:
 - back animation direction feels correct,
 - empty/loading/error states are readable,
 - legal/support/report/delete paths remain reachable,
-- Figma sync status is reported if relevant.
 
 ## AI-Assisted Design Gate
 

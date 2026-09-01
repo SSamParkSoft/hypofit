@@ -62,7 +62,7 @@ Repository references:
 - `docs/reference/operator-support-moderation-runbook.md`
 - `docs/completed/native-push-notification-apns-fcm-plan.md`
 - `docs/completed/legal-pages-implementation-plan.md`
-- `docs/reference/api-bluegreen-deployment-runbook.md`
+- `docs/reference/lightsail-spring-deployment-runbook.md`
 
 ## Current Verified State
 
@@ -265,18 +265,18 @@ test install.
 ### 4. Backend Review-Week Stability
 
 - [x] Public API readiness endpoint is healthy.
-- [x] Blue/green API deployment runbook exists.
+- [x] Lightsail Spring deployment and rollback runbook exists.
 - [x] API readiness reports outbound email configured.
 - [x] API readiness reports APNs/FCM configured.
 - [ ] Prepare a review-week monitoring checklist:
   - API health
-  - reverse tunnel status
-  - DB tunnel status
-  - push worker status
+  - Spring container status and restart count
+  - database readiness
+  - push delivery readiness
   - Sentry issues
   - support/report inbox
 - [ ] Prepare emergency restart commands from
-      `docs/reference/api-bluegreen-deployment-runbook.md`.
+      `docs/reference/lightsail-spring-deployment-runbook.md`.
 - [ ] Keep backend live for the whole review period.
 
 ### 5. Reviewer Demo Accounts
@@ -579,11 +579,9 @@ If the product keeps the 19+ decision:
 
 Before requesting production review:
 
-- [ ] Confirm `hypofit-api.service` is active on GPU.
-- [ ] Confirm `hypofit-api-reverse-tunnel.service` is active.
-- [ ] Confirm `hypofit-db-tunnel.service` is active if DB tunnel is required.
-- [ ] Confirm `hypofit-push-worker.service` is active.
-- [ ] Confirm EC2 Nginx points to the active blue/green upstream.
+- [ ] Confirm the Lightsail Spring container is healthy and within its memory limit.
+- [ ] Confirm host Nginx routes to `127.0.0.1:8080`.
+- [ ] Confirm database and push-provider readiness checks pass.
 - [ ] Confirm `/api/v1/health/ready` is healthy.
 - [ ] Confirm Sentry receives release-build events.
 - [ ] Confirm support/report/deletion inboxes are checked daily during review.

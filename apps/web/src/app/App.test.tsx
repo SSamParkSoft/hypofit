@@ -87,6 +87,15 @@ import { App } from "./App";
 
 describe("App route/auth entry handling", () => {
   beforeEach(() => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        addEventListener: vi.fn(),
+        matches: false,
+        media: query,
+        removeEventListener: vi.fn(),
+      })),
+    });
     mockUseAuth.mockReturnValue({
       accessToken: null,
       appUser: null,
@@ -125,13 +134,13 @@ describe("App route/auth entry handling", () => {
     );
   });
 
-  it("renders the settings index as the desktop profile entry", async () => {
+  it("renders the responsive Profile 2.0 entry", async () => {
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
-      value: vi.fn().mockImplementation(() => ({
+      value: vi.fn().mockImplementation((query: string) => ({
         addEventListener: vi.fn(),
-        matches: true,
-        media: "(min-width: 1200px)",
+        matches: query === "(min-width: 1200px)",
+        media: query,
         removeEventListener: vi.fn(),
       })),
     });
@@ -160,6 +169,32 @@ describe("App route/auth entry handling", () => {
     render(<App />);
 
     expect(screen.getByText("MockAuthBootstrapGate")).toBeInTheDocument();
+    expect(screen.queryByText("MockAuthScreen")).not.toBeInTheDocument();
+  });
+
+  it("redirects mobile web product routes to the store-focused landing page", async () => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        addEventListener: vi.fn(),
+        matches: query === "(max-width: 767px)",
+        media: query,
+        removeEventListener: vi.fn(),
+      })),
+    });
+    window.history.pushState(null, "", "/app");
+    mockUseAuth.mockReturnValue({
+      accessToken: null,
+      appUser: null,
+      errorMessage: null,
+      isLoading: false,
+      user: null,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText("MockWorkflowSection")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/");
     expect(screen.queryByText("MockAuthScreen")).not.toBeInTheDocument();
   });
 
@@ -272,9 +307,26 @@ describe("App route/auth entry handling", () => {
     await user.click(await screen.findByRole("link", { name: "MockLoginLink" }));
 
     expect(window.location.pathname).toBe("/app");
+    expect(window.location.search).toBe("");
     expect(screen.getByText("MockAuthScreen")).toBeInTheDocument();
     expect(document.title).toBe("로그인 | Hypofit");
     expect(window.history.state.__hypofit.intent).toBe("auth");
+  });
+
+  it("shows account choice instead of entering the app immediately for an existing session", () => {
+    window.history.replaceState(null, "", "/app?account=choose");
+    mockUseAuth.mockReturnValue({
+      accessToken: "access-token",
+      appUser: { id: "user-1", role: "respondent" },
+      errorMessage: null,
+      isLoading: false,
+      user: { id: "user-1" },
+    });
+
+    render(<App />);
+
+    expect(screen.getByText("MockAuthScreen")).toBeInTheDocument();
+    expect(screen.queryByTestId("mock-app-shell")).not.toBeInTheDocument();
   });
 
   it("routes a same-page landing hash through anchor scrolling", async () => {

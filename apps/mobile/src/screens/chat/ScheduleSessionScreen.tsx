@@ -107,7 +107,7 @@ export function ScheduleSessionScreen() {
 
           {!isLoading && !isError ? (
             <ScrollView
-              contentContainerClassName="gap-4 pb-8 pt-3"
+              contentContainerClassName="gap-4 pb-24 pt-3"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >

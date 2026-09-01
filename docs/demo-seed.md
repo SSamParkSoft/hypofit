@@ -1,188 +1,156 @@
-# Hypofit Demo Seed
+# Hypofit Store Review Data
 
 Status: reference
 
-Last updated: 2026-08-11
-
-This document describes legacy demo seed data and the current store-review seed
-data used instead of frontend mock data.
+Last updated: 2026-08-12
 
 ## Purpose
 
-Seed Supabase Auth and Supabase Postgres with test accounts and connected MVP
-data so clients can be tested through the canonical Spring API.
+Prepare deterministic, API-backed product data for a provider-authenticated
+store reviewer. This is not a frontend mock mode and does not create a hidden
+email/password login.
 
-Do not use the legacy demo accounts for production users. Supply a temporary
-password through `DEMO_PASSWORD`; it must follow the same 8-character,
-English-letter, and special-character policy as the clients and Supabase Auth.
-Public production/review data should use the store-review seed flow below.
-
-## Current Production/Review Policy
-
-- Runtime frontend mock data should stay disabled.
-- General users should not see old broad demo posts in public discovery.
-- Official store-review data should be connected to the submitted reviewer
-  account and helper fixture accounts.
-- Store-review fixture posts should be archived/hidden from general public
-  discovery unless a release-specific review flow explicitly needs otherwise.
-- Test data that is not part of the store-review fixture can be deleted before
-  or after review because Hypofit is not yet operating with real production
-  users.
-
-## Legacy Local/Staging Demo Accounts
-
-Set one temporary password for every account before running the script:
-
-```bash
-export DEMO_PASSWORD="replace-with-a-compliant-demo-password"
-```
-
-Founder accounts:
+## Current Reviewer Account
 
 ```text
-founder1@hypofit.demo
-founder2@hypofit.demo
-founder3@hypofit.demo
-founder4@hypofit.demo
+Provider: Google
+Email: hypofit.review@gmail.com
+Role: founder and respondent
 ```
 
-Respondent accounts:
+The Google account must already exist in Supabase Auth and must have completed
+the normal Hypofit social-login onboarding before the seed runs. The seed does
+not know, change, or store the Google password.
+
+Play Console owns the password entered for review access. Keep that account
+free of OTP, passkeys, two-step verification, recovery prompts, and location-
+dependent access challenges during the review window.
+
+## Seeded Product State
+
+`apps/api/scripts/seed_social_store_review_data.sql` creates or resets only the
+deterministic store-review fixture:
+
+- reviewer role `both` plus founder/respondent profiles;
+- two reviewer-owned interview posts;
+- two applications submitted by the reviewer;
+- two applications received by the reviewer;
+- four chat rooms with representative open, selected, and completed states;
+- scheduled and completed interview sessions;
+- read and unread notifications;
+- one open and one answered support inquiry;
+- two synthetic counterpart profiles that cannot sign in.
+
+Fixture posts use `archived` status. The reviewer can still see posts they own
+or applied to through the authenticated visibility rules, while ordinary users
+do not receive the fixture in public discovery.
+
+## Run On Lightsail
+
+Copy the SQL to the host and invoke it with the production database URL already
+stored in `/opt/hypofit/config/api.env`:
+
+```bash
+scp apps/api/scripts/seed_social_store_review_data.sql \
+  deploy@54.116.198.195:/tmp/seed_social_store_review_data.sql
+
+ssh deploy@54.116.198.195
+DB=$(sed -n 's/^DATABASE_URL=//p' /opt/hypofit/config/api.env)
+docker run --rm \
+  -v /tmp/seed_social_store_review_data.sql:/seed.sql:ro \
+  postgres:16-alpine \
+  psql "$DB" \
+  -v review_email='hypofit.review@gmail.com' \
+  -f /seed.sql
+```
+
+The script aborts unless exactly one active `app_users` row matches the supplied
+email. It uses one transaction, deterministic UUIDs, and deletes only its own
+fixture rows before recreating them. Rerunning it is the supported reset path.
+
+## Verification
+
+After seeding:
+
+1. Sign out and sign in with `hypofit.review@gmail.com` through the Google
+   button in the final Android build.
+2. Confirm both `내 신청` and `내 모집글` states are populated.
+3. Open chat, notifications, support inquiry history, profile/legal links, and
+   account deletion without mutating the reviewer account.
+4. Confirm a different ordinary account does not see the archived fixture in
+   the public interview list or map.
+5. Repeat the login on a clean device or browser profile to detect Google
+   security challenges before submission.
+
+## Play Console App Access
+
+Use the following values in the restricted app-access declaration:
 
 ```text
-respondent1@hypofit.demo
-respondent2@hypofit.demo
-respondent3@hypofit.demo
-respondent4@hypofit.demo
+Name: Google Play Reviewer Account
+Username: hypofit.review@gmail.com
+Password: enter the Google account password directly in Play Console
 ```
 
-## Seeded Data
-
-The seed script creates:
-
-- 4 founder users
-- 4 respondent users
-- founder/respondent profile rows
-- 14 interview posts
-- 14 applications
-- application statuses across applied, selected, rejected, completed, and no-show
-- chat rooms and messages for every application
-- session rows for selected/completed/no-show examples
-- viewed post rows for respondent accounts
-
-Map-facing demo posts are centered around the mobile simulator test location
-`37.296513, 126.837080` near Hanyang University ERICA in Ansan. Offline-capable
-fixtures use real nearby place coordinates instead of frontend keyword fallback
-coordinates.
-
-## Run
-
-Required environment variables:
-
-```bash
-export SUPABASE_URL="https://xxxxx.supabase.co"
-export SUPABASE_SERVICE_ROLE_KEY="..."
-export DATABASE_URL="postgresql+asyncpg://..."
-export DEMO_PASSWORD="replace-with-a-compliant-demo-password"
-```
-
-Run:
-
-```bash
-apps/api/.venv/bin/python apps/api/scripts/seed_demo_data.py
-```
-
-The script is idempotent for the demo dataset. It reuses existing Supabase Auth
-users by email, resets their password to `DEMO_PASSWORD`, clears prior seeded product
-data, and writes fresh connected data.
-
-## Seed One Rich Account
-
-Use this when one real test account needs both founder and respondent flows.
-The script updates the target auth/app user role, keeps existing unrelated demo
-data, clears only product data connected to the target account, and writes fresh
-connected posts, applications, chats, sessions, and post views.
-
-```bash
-TARGET_EMAIL="sehyeon73@gmail.com" \
-TARGET_NAME="박세현" \
-TARGET_ROLE="both" \
-DEMO_PASSWORD="replace-with-a-compliant-demo-password" \
-apps/api/.venv/bin/python apps/api/scripts/seed_account_demo_data.py
-```
-
-## Store Review Smoke
-
-Use this after API deployment and reviewer-account seeding to confirm reviewers
-can reach the live backend with the prepared account.
-
-```bash
-HYPOFIT_API_BASE_URL="https://hypofit-api.bukae.co.kr" \
-SUPABASE_URL="https://xxxxx.supabase.co" \
-SUPABASE_ANON_KEY="..." \
-REVIEW_EMAIL="sehyeon73@gmail.com" \
-REVIEW_PASSWORD="replace-with-the-configured-review-password" \
-apps/api/.venv/bin/python apps/api/scripts/store_review_smoke.py
-```
-
-## Store Review and Screenshot Seed
-
-Use this for the official App Store / Google Play review account and screenshot
-capture data. It creates one submitted reviewer account, helper fixture
-accounts, marks them email-confirmed, and seeds realistic API-backed data
-connected to the official account.
-
-This is the preferred seed path for store review and screenshot capture.
-
-Official submitted reviewer account:
+English access instructions:
 
 ```text
-review-both@hypofit.demo / <STORE_REVIEW_PASSWORD>
+Open the app and tap "Continue with Google". Sign in with the reviewer Google
+account above. No in-app OTP, subscription, payment, invite code, or location-
+based restriction is required. The account has both founder and respondent
+roles and contains preloaded interview posts, applications, chats,
+notifications, and support history. Location and notification permissions are
+optional for the main review flow.
 ```
 
-Helper fixture accounts, not submitted as reviewer credentials:
+Keep the account on the Google OAuth tester allowlist until the production OAuth
+consent configuration is approved. Recheck the same instructions in the final
+release-signed Android build before every submission.
 
-```text
-review-founder@hypofit.demo
-review-respondent@hypofit.demo
-```
+## Runtime Mock Policy
 
-Run:
+Runtime frontend mock data remains disabled. Store review and screenshots use
+the real mobile app, Spring API, Supabase Auth, and Supabase Postgres path.
+
+## Pre-launch Personal QA Account
+
+`apps/api/scripts/seed_sehyeon_home_test_data.sql` is a separate idempotent
+fixture for `sehyeon73@gmail.com`. It does not reuse or delete the store-review
+UUID ranges. It creates:
+
+- six open interview posts, including real coordinates around the configured
+  Ansan test area;
+- four open surveys covering `opened`, `submitted`, and organizer-side
+  `confirmed` participation states;
+- three open beta-test posts covering applied, selected/chat, and
+  organizer-side applicant-review states;
+- two applications received by the account and four submitted by the account;
+- four chat rooms with read/unread messages;
+- one future scheduled session;
+- four notifications.
+
+Survey rows deliberately use the Google Forms host landing page, not a real
+response form. They are for product-state and UI verification only; do not use
+them to test actual external-form completion.
+
+The open posts are intentionally public while Hypofit remains pre-launch. Run
+the fixture on Lightsail with the production database URL already stored on the
+host:
 
 ```bash
-ALLOW_STORE_REVIEW_SEED=true \
-STORE_REVIEW_SEED_ENV=production \
-apps/api/.venv/bin/python apps/api/scripts/seed_store_review_data.py
+scp apps/api/scripts/seed_sehyeon_home_test_data.sql \
+  deploy@54.116.198.195:/tmp/seed_sehyeon_home_test_data.sql
+
+ssh deploy@54.116.198.195
+DB=$(sed -n 's/^DATABASE_URL=//p' /opt/hypofit/config/api.env)
+docker run --rm \
+  -v /tmp/seed_sehyeon_home_test_data.sql:/seed.sql:ro \
+  postgres:16-alpine \
+  psql "$DB" \
+  -v target_email='sehyeon73@gmail.com' \
+  -f /seed.sql
 ```
 
-Override the default password if needed:
-
-```bash
-ALLOW_STORE_REVIEW_SEED=true \
-STORE_REVIEW_PASSWORD="replace-with-review-password" \
-apps/api/.venv/bin/python apps/api/scripts/seed_store_review_data.py
-```
-
-Reset fixture product data while preserving the auth users:
-
-```bash
-ALLOW_STORE_REVIEW_SEED=true \
-STORE_REVIEW_SEED_MODE=reset \
-apps/api/.venv/bin/python apps/api/scripts/seed_store_review_data.py
-```
-
-The script refuses to run unless `ALLOW_STORE_REVIEW_SEED=true` is present.
-Run it against the deployed review backend before App Store / Play submission
-and before screenshot capture.
-
-If store-review fixture posts must be hidden from general public discovery,
-archive them after seeding or keep the seed script default status archived.
-
-## Mock Data Policy
-
-Runtime frontend mock data has been removed. Keep:
-
-```text
-VITE_USE_MOCK_DATA=false
-```
-
-in local and deployed environments.
+Rerunning the command resets only UUID ranges `81*` through `86*` owned by this
+fixture. Remove or archive its `82*` interview-post range before real public
+traffic starts.

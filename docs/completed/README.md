@@ -2,7 +2,7 @@
 
 Status: completed-index
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 This directory stores planning documents whose main design or analysis work has
 already been completed.
@@ -19,6 +19,8 @@ Current completed documents:
 - `android-map-current-location-hardening-plan.md`
 - `admin-operations-console-plan.md`
 - `api-operations-readiness-plan.md`
+- `api-operations-readiness-implementation-history.md`
+- `api-bluegreen-deployment-runbook.md`
 - `product-design-redesign-plan.md`
 - `mobile-first-responsive-uiux-plan.md`
 - `web-desktop-uiux-enhancement-plan.md`
@@ -31,8 +33,11 @@ Current completed documents:
 - `chat-thread-fullscreen-composer-plan.md`
 - `chat-thread-ios-ui-hardening-plan.md`
 - `code-remediation-implementation-plan.md`
+- `code-qa-remediation-plan.md`
+- `contracts-coverage-inventory.md`
 - `db-concurrency-chat-transaction-hardening-plan.md`
 - `email-otp-verification-transition-plan.md`
+- `email-verification-resend-mvp-plan.md`
 - `fastapi-to-spring-boot-backend-migration-plan.md`
 - `interview-detail-page-enhancement-plan.md`
 - `interview-detail-application-state-redesign-plan.md`
@@ -42,12 +47,14 @@ Current completed documents:
 - `profile-activity-summary-plan.md`
 - `production-code-quality-hardening-plan.md`
 - `react-web-architecture-modularization-refactoring-plan.md`
+- `react-web-to-expo-mobile-migration-plan.md`
 - `home-feed-surface-refinement-plan.md`
 - `map-experience-hardening-plan.md`
 - `map-list-mode-overlay-plan.md`
 - `map-place-search-autocomplete-plan.md`
 - `mobile-api-ui-integration-completion-plan.md`
 - `mobile-auth-testflight-debugging-status.md`
+- `mobile-auth-failure-observability-hardening-plan.md`
 - `mobile-auth-session-logout-scope-hardening-plan.md`
 - `mobile-nested-tab-stack-migration-plan.md`
 - `mobile-navigation-structure-hardening-plan.md`
@@ -64,5 +71,7 @@ Current completed documents:
 - `responsive-web-auth-entry-experience-plan.md`
 - `founder-review-reputation-summary-plan.md`
 - `store-review-demo-account-seed-plan.md`
+- `store-review-readiness-audit-2026-06-22.md`
 - `spring-single-runtime-gpu-to-lightsail-plan.md`
+- `spring-feature-mvc-simplification-plan.md`
 - `web-navigation-motion-system-plan.md`

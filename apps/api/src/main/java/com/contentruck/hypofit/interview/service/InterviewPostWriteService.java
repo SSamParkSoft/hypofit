@@ -21,6 +21,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,26 +66,109 @@ public class InterviewPostWriteService {
     private final AuditWriteService auditWriteService;
     private final HypofitProperties properties;
     private final AiSummaryEnqueueService aiSummaryEnqueueService;
+    private final MeterRegistry meterRegistry;
 
+    @Autowired
     public InterviewPostWriteService(
             InterviewPostWriteRepository repository,
             AuditWriteService auditWriteService,
             HypofitProperties properties,
-            AiSummaryEnqueueService aiSummaryEnqueueService
+            AiSummaryEnqueueService aiSummaryEnqueueService,
+            MeterRegistry meterRegistry
     ) {
         this.repository = repository;
         this.auditWriteService = auditWriteService;
         this.properties = properties;
         this.aiSummaryEnqueueService = aiSummaryEnqueueService;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional
     public InterviewPostReadModel createPost(UUID actorUserId, InterviewPostCreateCommand command) {
-        requireActiveUser(actorUserId);
-        InterviewPostCreateCommand normalizedCommand = normalizeCreateCommand(command);
-        InterviewPostWriteModel created = repository.createPost(actorUserId, normalizedCommand);
-        enqueueWhenOpen(created);
-        return toWriteResponse(created);
+        return createPost(actorUserId, command, null);
+    }
+
+    @Transactional
+    public InterviewPostReadModel createPost(
+            UUID actorUserId,
+            InterviewPostCreateCommand command,
+            UUID clientSubmissionId
+    ) {
+        try {
+            requireActiveUser(actorUserId);
+            InterviewPostCreateCommand normalizedCommand = normalizeCreateCommand(command);
+            if (clientSubmissionId != null) {
+                repository.lockClientSubmission(actorUserId, clientSubmissionId);
+                InterviewPostReadModel existing = repository
+                        .findPostByClientSubmissionId(actorUserId, clientSubmissionId)
+                        .map(this::toWriteResponse)
+                        .orElse(null);
+                if (existing != null) {
+                    if (!matchesNormalizedCreateCommand(existing, normalizedCommand)) {
+                        throw new InterviewPostIdempotencyConflictException();
+                    }
+                    recordCreateOutcome("replayed");
+                    return existing;
+                }
+            }
+            InterviewPostWriteModel created = clientSubmissionId == null
+                    ? repository.createPost(actorUserId, normalizedCommand)
+                    : repository.createPost(actorUserId, normalizedCommand, clientSubmissionId);
+            enqueueWhenOpen(created);
+            recordCreateOutcome("created");
+            return toWriteResponse(created);
+        } catch (InterviewPostIdempotencyConflictException exception) {
+            recordCreateOutcome("idempotency_conflict");
+            throw exception;
+        } catch (RuntimeException exception) {
+            recordCreateOutcome("failed");
+            throw exception;
+        }
+    }
+
+    private void recordCreateOutcome(String outcome) {
+        meterRegistry.counter("hypofit.interview_post.create", "outcome", outcome).increment();
+    }
+
+    private boolean matchesNormalizedCreateCommand(
+            InterviewPostReadModel existing,
+            InterviewPostCreateCommand command
+    ) {
+        return Objects.equals(existing.recruitmentType(), command.recruitmentType())
+                && Objects.equals(existing.title(), command.title())
+                && Objects.equals(existing.serviceSummary(), command.serviceSummary())
+                && Objects.equals(existing.targetDescription(), command.targetDescription())
+                && Objects.equals(existing.rewardAmount(), command.rewardAmount())
+                && Objects.equals(existing.compensations(), command.compensations())
+                && Objects.equals(existing.durationMinutes(), command.durationMinutes())
+                && Objects.equals(existing.recruitCount(), command.recruitCount())
+                && Objects.equals(existing.externalProvider(), command.externalProvider())
+                && Objects.equals(existing.externalUrl(), command.externalUrl())
+                && Objects.equals(existing.participationDeadlineAt(), command.participationDeadlineAt())
+                && Objects.equals(existing.externalDataNotice(), command.externalDataNotice())
+                && Objects.equals(existing.betaTestPlatforms(), command.betaTestPlatforms())
+                && Objects.equals(existing.betaTestStartsAt(), command.betaTestStartsAt())
+                && Objects.equals(existing.betaTestEndsAt(), command.betaTestEndsAt())
+                && Objects.equals(existing.interviewMode(), command.interviewMode())
+                && Objects.equals(existing.location(), location(command))
+                && Objects.equals(existing.locationText(), locationText(command))
+                && Objects.equals(existing.locationAddress(), command.locationAddress())
+                && Objects.equals(existing.locationPlaceName(), command.locationPlaceName())
+                && Objects.equals(existing.locationLatitude(), command.locationLatitude())
+                && Objects.equals(existing.locationLongitude(), command.locationLongitude())
+                && Objects.equals(existing.locationPrecision(), command.locationPrecision())
+                && Objects.equals(existing.locationSource(), command.locationSource())
+                && Objects.equals(existing.scheduleOptions(), command.scheduleOptions())
+                && Objects.equals(existing.status(), command.status())
+                && Objects.equals(existing.entryMode(), command.entryMode());
+    }
+
+    private String location(InterviewPostCreateCommand command) {
+        return command.location() != null ? command.location() : command.locationText();
+    }
+
+    private String locationText(InterviewPostCreateCommand command) {
+        return command.locationText() != null ? command.locationText() : command.location();
     }
 
     @Transactional
@@ -245,7 +330,8 @@ public class InterviewPostWriteService {
                     online ? null : command.locationPrecision(),
                     online ? null : command.locationSource(),
                     safeScheduleOptions(command.scheduleOptions()),
-                    command.status()
+                    command.status(),
+                    command.entryMode()
             );
         }
 
@@ -285,7 +371,8 @@ public class InterviewPostWriteService {
                     null,
                     null,
                     List.of(),
-                    command.status()
+                    command.status(),
+                    command.entryMode()
             );
         }
 
@@ -318,7 +405,8 @@ public class InterviewPostWriteService {
                     null,
                     null,
                     List.of(),
-                    command.status()
+                    command.status(),
+                    command.entryMode()
             );
         }
 
@@ -349,7 +437,8 @@ public class InterviewPostWriteService {
                     null,
                     null,
                     List.of(),
-                    command.status()
+                    command.status(),
+                    command.entryMode()
             );
         }
 
@@ -381,6 +470,9 @@ public class InterviewPostWriteService {
         }
         if (command.hasField("externalProvider")) {
             changes.put("externalProvider", command.externalProvider());
+        }
+        if (command.hasField("entryMode")) {
+            changes.put("entryMode", command.entryMode());
         }
         if (command.hasField("externalUrl")) {
             changes.put("externalUrl", command.externalUrl());
@@ -471,6 +563,7 @@ public class InterviewPostWriteService {
     private Map<String, Object> serialize(InterviewPostWriteModel post) {
         Map<String, Object> serialized = new LinkedHashMap<>();
         serialized.put("recruitmentType", post.recruitmentType());
+        serialized.put("entryMode", post.entryMode());
         serialized.put("title", post.title());
         serialized.put("serviceSummary", post.serviceSummary());
         serialized.put("targetDescription", post.targetDescription());
@@ -503,10 +596,12 @@ public class InterviewPostWriteService {
                 post.id(),
                 post.founderId(),
                 post.recruitmentType(),
+                post.entryMode(),
                 post.title(),
                 post.serviceSummary(),
                 post.targetDescription(),
                 post.rewardAmount(),
+                post.compensations(),
                 post.durationMinutes(),
                 post.recruitCount(),
                 post.externalProvider(),
@@ -530,6 +625,7 @@ public class InterviewPostWriteService {
                 post.createdAt(),
                 null,
                 null,
+                null,
                 null
         );
     }
@@ -537,6 +633,7 @@ public class InterviewPostWriteService {
     private Map<String, Object> serializeForAudit(InterviewPostWriteModel post) {
         Map<String, Object> serialized = new LinkedHashMap<>();
         serialized.put("recruitment_type", post.recruitmentType());
+        serialized.put("entry_mode", post.entryMode());
         serialized.put("title", post.title());
         serialized.put("service_summary", post.serviceSummary());
         serialized.put("target_description", post.targetDescription());

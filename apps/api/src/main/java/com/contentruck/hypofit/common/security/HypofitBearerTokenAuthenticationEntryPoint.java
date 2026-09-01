@@ -62,6 +62,15 @@ public class HypofitBearerTokenAuthenticationEntryPoint implements Authenticatio
     }
 
     private HypofitAuthFailure classify(AuthenticationException exception) {
+        HypofitJwtException verifierUnavailable = find(exception, HypofitJwtException.class);
+        if (verifierUnavailable != null) {
+            return new HypofitAuthFailure(
+                    verifierUnavailable.getCode(),
+                    verifierUnavailable.getUserMessage(),
+                    verifierUnavailable.getStatus(),
+                    verifierUnavailable.getDebugMessage()
+            );
+        }
         if (exception instanceof InsufficientAuthenticationException) {
             return new HypofitAuthFailure("auth_required", "로그인이 필요해요.", 401, "Missing bearer token");
         }

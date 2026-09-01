@@ -27,7 +27,7 @@ export function EmptyState({ action, children, className, title }: StateBlockPro
     <div
       data-state-block="empty"
       className={cn(
-        "grid justify-items-center gap-2 rounded-hypo-md border border-dashed border-hypo-border bg-hypo-surface/55 px-5 py-8 text-center",
+        "grid justify-items-center gap-2 rounded-hypo-lg border border-hypo-border bg-hypo-surface px-5 py-8 text-center",
         className,
       )}
     >
@@ -75,7 +75,7 @@ export function LoadingState({
       aria-busy={busy || undefined}
       data-state-block="loading"
       className={cn(
-        "ui-control-text flex min-h-14 items-center rounded-hypo-md border border-hypo-border bg-hypo-surface px-4 py-3 text-hypo-text-muted",
+        "ui-control-text flex min-h-14 items-center rounded-hypo-lg border border-hypo-border bg-hypo-surface px-4 py-3 text-hypo-text-muted",
         className,
       )}
       {...liveRegionProps}
@@ -90,12 +90,12 @@ export function ErrorState({ children, className, title }: StateBlockProps) {
     <div
       data-state-block="error"
       className={cn(
-        "rounded-hypo-md border border-hypo-danger/20 bg-hypo-danger-soft/70 px-4 py-4 text-hypo-danger",
+        "rounded-hypo-lg border border-hypo-danger/24 bg-hypo-surface px-4 py-4 text-hypo-text",
         className,
       )}
     >
-      <h3 className="ui-label">{title}</h3>
-      {children ? <div className="ui-body mt-2 text-hypo-danger">{children}</div> : null}
+      <h3 className="ui-label text-hypo-danger">{title}</h3>
+      {children ? <div className="ui-body mt-2 text-hypo-text-muted">{children}</div> : null}
     </div>
   );
 }

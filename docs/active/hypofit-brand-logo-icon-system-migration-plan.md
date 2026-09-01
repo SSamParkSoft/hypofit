@@ -12,8 +12,7 @@ Owner surfaces:
 - native and runtime splash screens,
 - Android notification and themed icons,
 - App Store binary icon and Google Play upload assets,
-- Open Graph and public sharing artwork,
-- final Figma brand asset synchronization.
+- Open Graph and public sharing artwork.
 
 Related documents:
 
@@ -61,7 +60,6 @@ Still open in this active plan:
 - installed PWA update-behavior verification,
 - store-binary comparison and store upload follow-through,
 - GitHub repository settings upload of the prepared social-preview image,
-- final Figma synchronization,
 - optional review-sheet exports under `docs/store-assets/brand/review/`.
 
 ## 1. Objective
@@ -91,7 +89,7 @@ The migration is complete only when:
   their platform's masking and alpha rules,
 - old service-worker and installed-app caches cannot leave users with a mixed
   old/new identity,
-- the final approved asset family is documented and then synchronized to Figma.
+- the final approved asset family is documented.
 
 ## 2. Approved Visual Input
 
@@ -750,29 +748,11 @@ Recommended rollout order:
 7. Export final App Store and Google Play upload icons.
 8. Verify store-upload files against current console constraints.
 9. Update landing/store creative templates to use the new identity.
-10. Synchronize approved assets to the existing Figma file.
-11. Update reference documentation and close this plan.
+10. Update reference documentation and close this plan.
 
 Do not submit an iOS build or upload a new Play listing icon before the
 corresponding binary uses the same identity. Store listing and installed-app
 icon mismatches make the release look unfinished and can confuse review.
-
-## 11. Figma Synchronization
-
-Figma is intentionally deferred until code and exported assets are approved.
-
-Final Figma work:
-
-- create one clearly named brand asset section near the current rules/design
-  sections,
-- include full-color, inverse, monochrome, small optical, wordmark, iOS,
-  Android adaptive, Android monochrome, notification, favicon, and store
-  previews,
-- show safe zones and mask previews,
-- group mobile assets together and web assets together,
-- remove or mark the old speech-bubble/checkmark system as deprecated,
-- keep the approved vector geometry editable,
-- do not upload every intermediate raster exploration.
 
 ## 12. Documentation Updates During Implementation
 
@@ -810,7 +790,6 @@ This plan does not:
 - create a mascot,
 - add a speech bubble or checkmark back into the mark,
 - promise payment, verification, or matching guarantees through iconography,
-- update Figma before the asset system is approved,
 - retain every AI-generated intermediate image in the repository.
 
 ## 14. Implementation Checklist
@@ -872,13 +851,12 @@ This plan does not:
 - [ ] Compare store icon with the actual iOS and Android binaries.
 - [ ] Update store creative renderer and feature graphic inputs.
 
-### Phase G: Documentation And Figma
+### Phase G: Documentation
 
 - [x] Update the brand asset reference document.
 - [x] Update the mobile parity checklist.
 - [x] Update landing/store creative references.
 - [x] Add durable brand rules to service docs where needed.
-- [ ] Sync final variants and safe-zone previews to Figma.
 - [ ] Move this plan to completed after release verification.
 
 ## 15. Acceptance Criteria
@@ -895,7 +873,6 @@ This plan does not:
 - [ ] Browser and service-worker caches do not leave a mixed identity after
   update.
 - [x] Store-release icons satisfy current Apple and Google requirements.
-- [ ] The final Figma section matches approved code assets.
 - [x] Brand reference and parity documentation describe the final system.
 
 ## 16. Official References

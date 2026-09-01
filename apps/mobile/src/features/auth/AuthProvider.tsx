@@ -93,14 +93,13 @@ function buildDefaultSyncInput(user: User): SyncMeInput {
       ? metadata.name.trim()
       : user.email?.split("@")[0] || "Hypofit user";
 
-  const role = metadata.role === "founder" || metadata.role === "both" ? metadata.role : "respondent";
   const bio = typeof metadata.bio === "string" ? metadata.bio : null;
   const phone = typeof metadata.phone === "string" ? metadata.phone : null;
 
-  return { name, bio, phone, role };
+  return { name, bio, phone, role: "both" };
 }
 
-function hasUserMetadataRole(user: User | null | undefined) {
+function hasCompletedCompatibilityOnboarding(user: User | null | undefined) {
   const role = user?.user_metadata?.role;
   return role === "founder" || role === "respondent" || role === "both";
 }
@@ -401,7 +400,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
             throw error;
           }
 
-          if (error.code === "role_onboarding_required" || !hasUserMetadataRole(user)) {
+          if (
+            error.code === "role_onboarding_required" ||
+            error.code === "legal_consent_required" ||
+            !hasCompletedCompatibilityOnboarding(user)
+          ) {
             addAppBreadcrumb("auth_provider_app_user_needs_role_onboarding");
             if (isMounted) {
               setIsSyncing(false);
@@ -519,7 +522,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       appUser,
       accessToken: session?.access_token ?? null,
       requiresRoleOnboarding,
-      async completeOnboardingWithRole(role) {
+      async completeOnboardingWithRole(_role) {
         const token = session?.access_token;
         const user = session?.user;
 
@@ -539,7 +542,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const syncedUser = await syncOnboardingProfile(
           {
             ...defaultInput,
-            role,
+            role: "both",
           },
           token,
         );

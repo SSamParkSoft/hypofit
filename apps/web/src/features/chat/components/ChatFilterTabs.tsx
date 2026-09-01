@@ -23,10 +23,10 @@ export function ChatFilterTabs({
           <button
             key={filter}
             className={cn(
-              "inline-flex h-[30px] shrink-0 items-center gap-1 rounded-hypo-pill px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20",
+              "inline-flex h-[30px] shrink-0 items-center gap-1 rounded-hypo-pill border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20",
               isActive
-                ? "bg-hypo-brand-soft text-hypo-brand"
-                : "bg-hypo-surface text-hypo-text-muted hover:bg-hypo-bg hover:text-hypo-text min-[1200px]:bg-hypo-bg/80",
+                ? "border-hypo-brand/25 bg-hypo-brand-soft text-hypo-brand"
+                : "border-hypo-border bg-hypo-bg text-hypo-text-muted hover:border-hypo-brand/30 hover:bg-hypo-surface-muted hover:text-hypo-text",
             )}
             type="button"
             onClick={() => onChange(filter)}

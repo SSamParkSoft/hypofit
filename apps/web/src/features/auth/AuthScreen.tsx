@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 
-import type { UserRole } from "../../shared/api/types";
 import { replacePath } from "../../shared/navigation/appNavigation";
 import {
   AuthFooterLinks,
   AuthPublicSocialEntryStep,
   AuthRoleOnboardingStep,
+  AuthSessionContinuationStep,
 } from "./AuthScreenSteps";
 import {
   type AuthFeedback,
@@ -16,14 +16,14 @@ import { useSocialAuthEntry } from "./social/useSocialAuthEntry";
 import { useAuth } from "./useAuth";
 
 export function AuthScreen() {
-  const { completeRoleOnboarding, requiresRoleOnboarding, session } = useAuth();
+  const { appUser, completeRoleOnboarding, requiresRoleOnboarding, session, signOut } = useAuth();
+  const [sessionChoiceFeedback, setSessionChoiceFeedback] = useState<AuthFeedback>(null);
+  const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
   const {
     feedback,
     hasAcceptedTerms,
     isSubmitting,
-    role,
     setHasAcceptedTerms,
-    setRole,
     submit,
   } = useRoleOnboardingController({
     completeRoleOnboarding,
@@ -32,13 +32,16 @@ export function AuthScreen() {
   });
   const {
     feedback: socialAuthFeedback,
+    lastUsedProviderId,
     pendingProviderId,
     providers: socialAuthProviders,
     startSocialAuth,
   } = useSocialAuthEntry();
   const isRoleOnboarding = requiresRoleOnboarding && Boolean(session?.user);
-  const accountEmail = session?.user.email ?? "";
+  const isSessionContinuation = Boolean(session?.user) && !requiresRoleOnboarding;
+  const accountEmail = appUser?.email ?? session?.user.email ?? "";
   const accountName =
+    appUser?.name ||
     (typeof session?.user.user_metadata?.name === "string"
       ? session.user.user_metadata.name
       : "") ||
@@ -46,8 +49,26 @@ export function AuthScreen() {
     "Hypofit user";
 
   useEffect(() => {
-    document.title = isRoleOnboarding ? "역할 선택 | Hypofit" : "로그인 | Hypofit";
-  }, [isRoleOnboarding]);
+    document.title = isRoleOnboarding
+      ? "가입 완료 | Hypofit"
+      : isSessionContinuation
+        ? "계정 선택 | Hypofit"
+        : "로그인 | Hypofit";
+  }, [isRoleOnboarding, isSessionContinuation]);
+
+  const handleUseOtherAccount = async () => {
+    try {
+      setIsSwitchingAccount(true);
+      setSessionChoiceFeedback(null);
+      await signOut();
+    } catch {
+      setSessionChoiceFeedback({
+        message: "다른 계정으로 전환하지 못했어요. 다시 시도해 주세요.",
+        tone: "error",
+      });
+      setIsSwitchingAccount(false);
+    }
+  };
 
   useEffect(() => {
     if (!isRoleOnboarding) {
@@ -55,7 +76,7 @@ export function AuthScreen() {
     }
 
     const frameId = window.requestAnimationFrame(() => {
-      document.getElementById("auth-role-founder")?.focus();
+      document.getElementById("auth-legal-consent")?.focus();
     });
 
     return () => window.cancelAnimationFrame(frameId);
@@ -67,28 +88,34 @@ export function AuthScreen() {
         <section className="mx-auto flex w-full max-w-[440px] flex-col">
           <a
             aria-label="Hypofit 처음으로"
-            className="mb-6 inline-flex w-fit items-center gap-2.5 self-center rounded-hypo-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
+            className="mb-7 inline-flex w-fit items-center gap-3 self-center rounded-hypo-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
             href="/"
           >
             <img
               alt=""
               aria-hidden="true"
-              className="size-9 object-contain"
+              className="size-12 object-contain"
               src="/brand/hypofit-mark.svg"
             />
-            <strong className="font-brand text-xl font-black text-hypo-text">Hypofit</strong>
+            <strong className="font-brand text-2xl font-black text-hypo-text">Hypofit</strong>
           </a>
 
           <div className="sm:rounded-hypo-lg sm:border sm:border-hypo-border sm:bg-hypo-surface sm:p-7 sm:shadow-hypo-panel">
             <div className="auth-mode-panel grid gap-6">
               <div className="grid gap-2">
                 <h1 className="text-[2rem] font-black leading-[1.2] text-hypo-text">
-                  {isRoleOnboarding ? "역할을 골라 주세요" : "로그인"}
+                  {isRoleOnboarding
+                    ? "가입을 완료해 주세요"
+                    : isSessionContinuation
+                      ? "계정을 선택해 주세요"
+                      : "로그인"}
                 </h1>
                 <p className="text-sm leading-6 text-hypo-text-muted">
                   {isRoleOnboarding
-                    ? "창업자와 인터뷰어 중 먼저 시작할 역할을 고르세요. 프로필에서 언제든 바꿀 수 있어요."
-                    : "사용 중인 소셜 계정으로 바로 시작할 수 있어요."}
+                    ? "만 19세 이상 여부와 약관 동의를 확인하면 바로 시작할 수 있어요."
+                    : isSessionContinuation
+                      ? "이 계정으로 계속하거나 다른 계정으로 로그인할 수 있어요."
+                      : "사용 중인 소셜 계정으로 바로 시작할 수 있어요."}
                 </p>
               </div>
 
@@ -106,15 +133,24 @@ export function AuthScreen() {
                     feedback={feedback}
                     hasAcceptedTerms={hasAcceptedTerms}
                     isSubmitting={isSubmitting}
-                    role={role}
                     submitLabel={isSubmitting ? "처리 중" : "시작하기"}
                     onAcceptedTermsChange={setHasAcceptedTerms}
-                    onRoleChange={setRole}
                   />
                 </form>
+              ) : isSessionContinuation ? (
+                <AuthSessionContinuationStep
+                  accountEmail={accountEmail}
+                  accountImageUrl={appUser?.profile_image_url}
+                  accountName={accountName}
+                  feedback={sessionChoiceFeedback}
+                  isSwitchingAccount={isSwitchingAccount}
+                  onContinue={() => replacePath("/app", { intent: "auth" })}
+                  onUseOtherAccount={() => void handleUseOtherAccount()}
+                />
               ) : (
                 <AuthPublicSocialEntryStep
                   feedback={socialAuthFeedback}
+                  lastUsedSocialProviderId={lastUsedProviderId}
                   pendingSocialProviderId={pendingProviderId}
                   socialAuthProviders={socialAuthProviders}
                   onSocialStart={(providerId) => void startSocialAuth(providerId, "sign_in")}
@@ -135,7 +171,7 @@ function useRoleOnboardingController({
   requiresRoleOnboarding,
   session,
 }: {
-  completeRoleOnboarding: (input: { role: UserRole }) => Promise<unknown>;
+  completeRoleOnboarding: (input: { role: "both" }) => Promise<unknown>;
   requiresRoleOnboarding: boolean;
   session:
     | {
@@ -145,14 +181,12 @@ function useRoleOnboardingController({
       }
     | null;
 }) {
-  const [role, setRole] = useState<UserRole>("founder");
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<AuthFeedback>(null);
 
   useEffect(() => {
     if (!requiresRoleOnboarding || !session?.user) {
-      setRole("founder");
       setHasAcceptedTerms(false);
       setIsSubmitting(false);
       setFeedback(null);
@@ -171,7 +205,7 @@ function useRoleOnboardingController({
     try {
       setIsSubmitting(true);
       setFeedback(null);
-      await completeRoleOnboarding({ role });
+      await completeRoleOnboarding({ role: "both" });
       replacePath(getPostAuthPath(), { intent: "auth" });
     } catch (error) {
       setFeedback({
@@ -190,14 +224,9 @@ function useRoleOnboardingController({
     feedback,
     hasAcceptedTerms,
     isSubmitting,
-    role,
     setHasAcceptedTerms: (value: boolean) => {
       setFeedback(null);
       setHasAcceptedTerms(value);
-    },
-    setRole: (value: UserRole) => {
-      setFeedback(null);
-      setRole(value);
     },
     submit,
   };

@@ -52,6 +52,9 @@ For responsive customer-web or web authentication UI work:
    cards, rows, list/detail panes, or route-level visual quality.
 9. `docs/completed/responsive-web-auth-entry-experience-plan.md` for landing-to-login,
    web auth bootstrap, splash/loading, login/signup, or protected return paths.
+10. `docs/active/brainwave-inspired-landing-visual-reconstruction-plan.md` for
+    public landing structure, product-led hero imagery, section rhythm, pricing,
+    and Brainwave/Figma-derived visual adaptation.
 
 For authentication, identity, or account-deletion policy work:
 
@@ -72,9 +75,7 @@ For backend/API work:
 4. `08-data-state-and-permissions.md`
 5. `docs/reference/error-observability-contract.md`
 6. `docs/completed/api-operations-readiness-plan.md`
-7. `docs/completed/fastapi-to-spring-boot-backend-migration-plan.md` only for
-   historical contract and schema-baseline context.
-8. `docs/active/ai-interview-and-applicant-summary-plan.md` when changing AI
+7. `docs/active/ai-interview-and-applicant-summary-plan.md` when changing AI
    interview/applicant summaries, provider calls, summary workers, structured
    output, source minimization, or AI-specific authorization and observability.
 

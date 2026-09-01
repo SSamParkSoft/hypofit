@@ -135,6 +135,6 @@ Still out of scope unless explicitly requested:
 - Interview recording and transcription.
 - Complex admin dashboard beyond the current MVP operator needs.
 - Multi-tenant organization features.
-- GPU-based processing.
+- Compute-heavy media processing.
 
 These can be added after the basic recruitment and completion loop proves useful.

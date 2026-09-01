@@ -60,7 +60,7 @@ export function ChatRoomActionMenu({
         aria-controls={isOpen ? menuId : undefined}
         aria-expanded={isOpen}
         aria-label="채팅방 메뉴"
-        className="grid size-8 translate-x-1 place-items-center rounded-hypo-md text-hypo-text-soft transition-colors hover:bg-hypo-surface-muted hover:text-hypo-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
+        className="grid size-8 place-items-center rounded-hypo-md text-hypo-text-soft transition-colors hover:bg-hypo-surface-muted hover:text-hypo-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
         type="button"
         onClick={() => setIsOpen((open) => !open)}
       >
@@ -77,7 +77,7 @@ export function ChatRoomActionMenu({
           <div
             id={menuId}
             className={cn(
-              "absolute top-9 z-40 grid w-44 overflow-hidden rounded-hypo-lg border border-hypo-border bg-hypo-surface py-1 text-left shadow-hypo-floating",
+              "absolute top-9 z-40 grid w-44 overflow-hidden rounded-hypo-lg border border-hypo-border bg-hypo-surface py-1 text-left",
               align === "right"
                 ? "right-0"
                 : "right-0 min-[1200px]:left-0 min-[1200px]:right-auto",
@@ -126,7 +126,7 @@ function ActionMenuItem({
   return (
     <button
       className={cn(
-        "flex min-h-10 items-center gap-2 px-3 text-left text-xs font-black transition-colors hover:bg-hypo-surface-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20",
+        "flex min-h-10 items-center gap-2 px-3 text-left text-xs font-semibold transition-colors hover:bg-hypo-surface-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20",
         danger ? "text-hypo-danger" : "text-hypo-text-muted",
       )}
       type="button"

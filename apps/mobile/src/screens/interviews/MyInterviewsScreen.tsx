@@ -11,13 +11,7 @@ import { Feather } from "@expo/vector-icons";
 import { router, type Href, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Application, InterviewPost } from "@hypofit/contracts";
-import {
-  canUseFounderTools,
-  formatRecruitCount,
-  formatReward,
-  formatUserDisplayName,
-  interviewModeLabels,
-} from "@hypofit/contracts";
+import { formatRecruitCount, formatUserDisplayName, interviewModeLabels } from "@hypofit/contracts";
 import { useApplications } from "@/features/applications/useApplications";
 import { useChatRooms } from "@/features/chat/useChat";
 import {
@@ -33,6 +27,7 @@ import {
 } from "@/features/workflow/readModels";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { StateMessage } from "@/screens/home/HomeScreen";
+import { getPostingCompensationLabel, getPostingModeLabel, getPostingTypeLabel } from "@/shared/format/postings";
 import { goBackOrReplaceFallback, resolveReturnTo } from "@/shared/navigation/backNavigation";
 import { ListRow, ListSection } from "@/shared/ui/ListSurface";
 
@@ -44,7 +39,6 @@ export function MyInterviewsScreen() {
   const backTo = resolveReturnTo(params.returnTo, "/(tabs)/interviews");
   const { accessToken, appUser } = useAuth();
   const [activeTab, setActiveTab] = useState<MyInterviewTab>("applications");
-  const canManageFounderPosts = canUseFounderTools(appUser?.role);
   const { data: posts = [], isError: isPostsError, isLoading: isPostsLoading } = useInterviewPosts(undefined, accessToken);
   const {
     data: applications = [],
@@ -62,9 +56,8 @@ export function MyInterviewsScreen() {
     [myApplications, posts, sessions],
   );
   const myFounderPosts = useMemo(
-    () =>
-      appUser && canManageFounderPosts ? posts.filter((post) => post.founder_id === appUser.id) : [],
-    [appUser, canManageFounderPosts, posts],
+    () => (appUser ? posts.filter((post) => post.founder_id === appUser.id) : []),
+    [appUser, posts],
   );
   const applicationsByPostId = useMemo(() => {
     const grouped = new Map<string, Application[]>();
@@ -82,18 +75,12 @@ export function MyInterviewsScreen() {
   const isLoading = isPostsLoading || isApplicationsLoading || isSessionsLoading;
   const isError = isPostsError || isApplicationsError;
 
-  useEffect(() => {
-    if (!canManageFounderPosts && activeTab === "posts") {
-      setActiveTab("applications");
-    }
-  }, [activeTab, canManageFounderPosts]);
-
   if (!accessToken) {
     return (
       <SafeAreaView className="flex-1 bg-hypo-bg">
         <View className="flex-1 px-4 pt-3">
           <Header backTo={backTo} />
-          <StateMessage title="로그인이 필요해요." description="신청한 인터뷰와 모집글 진행 상태는 로그인 후 볼 수 있어요." />
+          <StateMessage title="로그인이 필요해요." description="신청한 공고와 내 공고의 진행 상태는 로그인 후 볼 수 있어요." />
         </View>
       </SafeAreaView>
     );
@@ -104,33 +91,31 @@ export function MyInterviewsScreen() {
       <View className="flex-1 px-4 pt-3">
         <Header backTo={backTo} />
 
-        {canManageFounderPosts ? (
-          <View className="mb-3 mt-2 flex-row rounded-full bg-hypo-surface p-1">
-            <SegmentButton
-              count={myApplicationRows.length}
-              isActive={activeTab === "applications"}
-              label="신청한 인터뷰"
-              onPress={() => setActiveTab("applications")}
-            />
-            <SegmentButton
-              count={myFounderPosts.length}
-              isActive={activeTab === "posts"}
-              label="내 모집글"
-              onPress={() => setActiveTab("posts")}
-            />
-          </View>
-        ) : null}
+        <View className="mb-3 mt-2 flex-row rounded-[12px] bg-hypo-surface p-1">
+          <SegmentButton
+            count={myApplicationRows.length}
+            isActive={activeTab === "applications"}
+            label="내 참여"
+            onPress={() => setActiveTab("applications")}
+          />
+          <SegmentButton
+            count={myFounderPosts.length}
+            isActive={activeTab === "posts"}
+            label="내 공고"
+            onPress={() => setActiveTab("posts")}
+          />
+        </View>
 
-        {isLoading ? <StateMessage title="내 인터뷰를 불러오는 중입니다." loading /> : null}
+        {isLoading ? <StateMessage title="내 활동을 불러오는 중이에요." loading /> : null}
         {isError ? (
           <StateMessage
-            title="내 인터뷰를 불러오지 못했습니다."
-            description="API 연결 상태를 확인한 뒤 다시 시도하세요."
+            title="내 활동을 불러오지 못했어요."
+            description="잠시 후 다시 시도해 주세요."
           />
         ) : null}
 
         {!isLoading && !isError ? (
-          <ScrollView contentContainerClassName="pb-[30px]" showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerClassName="pb-24" showsVerticalScrollIndicator={false}>
             {activeTab === "applications" ? (
               myApplicationRows.length ? (
                 <ListSection chrome="plain" surface="background">
@@ -151,14 +136,11 @@ export function MyInterviewsScreen() {
                   ))}
                 </ListSection>
               ) : (
-                <View className="gap-3">
-                  <StateMessage title="아직 신청한 인터뷰가 없어요." description="조건에 맞는 모집글을 찾고 신청하면 이곳에서 진행 상태를 볼 수 있어요." />
-                  {!canManageFounderPosts ? <FounderRoleHint /> : null}
-                </View>
+                <StateMessage title="아직 참여한 공고가 없어요." description="관심 있는 공고를 찾아 신청하면 진행 상태를 볼 수 있어요." />
               )
             ) : null}
 
-            {activeTab === "posts" && canManageFounderPosts ? (
+            {activeTab === "posts" ? (
               myFounderPosts.length ? (
                 <ListSection chrome="plain" surface="background">
                   {myFounderPosts.map((post) => (
@@ -179,7 +161,7 @@ export function MyInterviewsScreen() {
                   ))}
                 </ListSection>
               ) : (
-                <StateMessage title="아직 만든 모집글이 없어요." description="인터뷰 화면에서 모집글을 만들면 지원자와 진행 상태를 이곳에서 관리할 수 있어요." />
+                <StateMessage title="아직 만든 공고가 없어요." description="공고 탭에서 공고를 만들면 참여자와 진행 상태를 관리할 수 있어요." />
               )
             ) : null}
           </ScrollView>
@@ -197,7 +179,6 @@ export function FounderPostApplicantsScreen() {
   const [activeManagementTab, setActiveManagementTab] = useState<FounderPostManagementTab>("applicants");
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const canManageFounderPosts = canUseFounderTools(appUser?.role);
   const { data: posts = [], isError: isPostsError, isLoading: isPostsLoading } = useInterviewPosts(undefined, accessToken);
   const {
     data: applications = [],
@@ -226,7 +207,7 @@ export function FounderPostApplicantsScreen() {
   }, [chatRooms]);
   const isLoading = isPostsLoading || isApplicationsLoading || isChatRoomsLoading;
   const isError = isPostsError || isApplicationsError || isChatRoomsError;
-  const canAccessPost = Boolean(appUser && post && canManageFounderPosts && post.founder_id === appUser.id);
+  const canAccessPost = Boolean(appUser && post && post.founder_id === appUser.id);
   const canEditPost = Boolean(post && canFounderChangePostContent(post.status));
   const canDeletePost = Boolean(post && canFounderDeletePost(post.status));
   const managementReturnTo = postId
@@ -237,8 +218,8 @@ export function FounderPostApplicantsScreen() {
     return (
       <SafeAreaView className="flex-1 bg-hypo-bg">
         <View className="flex-1 px-4 pt-3">
-          <Header backTo={backTo} title="내 모집글" />
-          <StateMessage title="로그인이 필요해요." description="내가 만든 모집글은 로그인 후 관리할 수 있어요." />
+          <Header backTo={backTo} title="내 공고" />
+          <StateMessage title="로그인이 필요해요." description="내가 만든 공고는 로그인 후 관리할 수 있어요." />
         </View>
       </SafeAreaView>
     );
@@ -249,13 +230,13 @@ export function FounderPostApplicantsScreen() {
       <View className="flex-1 px-4 pt-3">
         <Header
           backTo={backTo}
-          title={post?.title ?? "내 모집글"}
+          title={post?.title ?? "내 공고"}
           right={
             post && canAccessPost ? (
               <View className="flex-row items-center gap-2">
                 <StatusTag {...getPostStatusDisplay(post.status)} />
                 <Pressable
-                  accessibilityLabel="모집글 메뉴 열기"
+                  accessibilityLabel="공고 메뉴 열기"
                   accessibilityRole="button"
                   hitSlop={12}
                   className="h-10 w-9 items-center justify-center"
@@ -277,11 +258,11 @@ export function FounderPostApplicantsScreen() {
               setIsPostMenuOpen(false);
               if (!post) return;
               if (!canDeletePost) {
-                Alert.alert("삭제할 수 없어요", "완료된 모집글은 기록 보존을 위해 삭제할 수 없어요.");
+                Alert.alert("삭제할 수 없어요", "완료된 공고는 기록 보존을 위해 삭제할 수 없어요.");
                 return;
               }
               Alert.alert(
-                "모집글을 삭제할까요?",
+                "공고를 삭제할까요?",
                 "삭제하면 목록에서 보이지 않아요. 진행 중인 지원자와 채팅 기록은 보존됩니다.",
                 [
                   { style: "cancel", text: "취소" },
@@ -303,10 +284,10 @@ export function FounderPostApplicantsScreen() {
             onEditPost={() => {
               setIsPostMenuOpen(false);
               if (!canEditPost) {
-                Alert.alert("수정할 수 없어요", "완료된 모집글은 기록 보존을 위해 수정할 수 없어요.");
+                Alert.alert("수정할 수 없어요", "완료된 공고는 기록 보존을 위해 수정할 수 없어요.");
                 return;
               }
-              Alert.alert("수정 기능을 준비 중이에요", "모집글 수정 화면을 연결할 예정이에요.");
+              Alert.alert("수정 기능을 준비 중이에요", "공고 수정 화면을 연결할 예정이에요.");
             }}
             onOpenStatus={() => {
               setIsStatusModalOpen(true);
@@ -325,22 +306,22 @@ export function FounderPostApplicantsScreen() {
           />
         ) : null}
 
-        {isLoading ? <StateMessage title="모집글을 불러오는 중입니다." loading /> : null}
+        {isLoading ? <StateMessage title="공고를 불러오는 중이에요." loading /> : null}
         {isError ? (
           <StateMessage
-            title="모집글을 불러오지 못했습니다."
-            description="API 연결 상태를 확인한 뒤 다시 시도하세요."
+            title="공고를 불러오지 못했어요."
+            description="잠시 후 다시 시도해 주세요."
           />
         ) : null}
         {!isLoading && !isError && !post ? (
-          <StateMessage title="모집글을 찾을 수 없어요." description="삭제되었거나 더 이상 접근할 수 없는 모집글일 수 있어요." />
+          <StateMessage title="공고를 찾을 수 없어요." description="삭제되었거나 더 이상 접근할 수 없는 공고일 수 있어요." />
         ) : null}
         {!isLoading && !isError && post && !canAccessPost ? (
-          <StateMessage title="관리 권한이 없어요." description="내가 만든 모집글만 지원자를 관리할 수 있어요." />
+          <StateMessage title="관리 권한이 없어요." description="내가 만든 공고만 신청자를 확인할 수 있어요." />
         ) : null}
 
         {!isLoading && !isError && post && canAccessPost ? (
-          <ScrollView contentContainerClassName="pb-[30px]" showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerClassName="pb-24" showsVerticalScrollIndicator={false}>
             <View className="mb-3 mt-2 flex-row rounded-full bg-hypo-surface p-1">
               <ManagementTabButton
                 isActive={activeManagementTab === "applicants"}
@@ -349,7 +330,7 @@ export function FounderPostApplicantsScreen() {
               />
               <ManagementTabButton
                 isActive={activeManagementTab === "post"}
-                label="모집글 정보"
+                label="공고 정보"
                 onPress={() => setActiveManagementTab("post")}
               />
             </View>
@@ -391,7 +372,7 @@ export function FounderPostApplicantsScreen() {
 function Header({
   backTo = "/(tabs)/interviews",
   right,
-  title = "내 인터뷰",
+  title = "내 활동",
 }: {
   backTo?: Href;
   right?: ReactNode;
@@ -408,7 +389,7 @@ function Header({
       >
         <Text className="text-[34px] font-semibold leading-9 text-hypo-text">‹</Text>
       </Pressable>
-      <Text numberOfLines={1} className="flex-1 text-lg font-black text-hypo-text">{title}</Text>
+      <Text numberOfLines={1} className="flex-1 text-lg font-bold text-hypo-text">{title}</Text>
       {right ?? <View className="w-10" />}
     </View>
   );
@@ -434,9 +415,9 @@ function SegmentButton({
       }`}
       onPress={onPress}
     >
-      <Text className={`text-[13px] font-black ${isActive ? "text-white" : "text-hypo-muted"}`}>{label}</Text>
+      <Text className={`text-[13px] font-semibold ${isActive ? "text-white" : "text-hypo-muted"}`}>{label}</Text>
       <View className={`min-w-[22px] items-center rounded-full px-[7px] py-[3px] ${isActive ? "bg-white/20" : "bg-hypo-bg"}`}>
-        <Text className={`text-[11px] font-black ${isActive ? "text-white" : "text-hypo-muted"}`}>{count}</Text>
+        <Text className={`text-[11px] font-semibold ${isActive ? "text-white" : "text-hypo-muted"}`}>{count}</Text>
       </View>
     </Pressable>
   );
@@ -460,7 +441,7 @@ function ManagementTabButton({
       }`}
       onPress={onPress}
     >
-      <Text className={`text-[13px] font-black ${isActive ? "text-white" : "text-hypo-muted"}`}>{label}</Text>
+      <Text className={`text-[13px] font-semibold ${isActive ? "text-white" : "text-hypo-muted"}`}>{label}</Text>
     </Pressable>
   );
 }
@@ -509,7 +490,7 @@ function MenuAction({
   tone?: "danger" | "neutral";
 }) {
   const iconColor = tone === "danger" ? "#B91C1C" : "#59645D";
-  const textClassName = tone === "danger" ? "text-[13px] font-black text-hypo-danger" : "text-[13px] font-black text-hypo-text";
+  const textClassName = tone === "danger" ? "text-[13px] font-semibold text-hypo-danger" : "text-[13px] font-semibold text-hypo-text";
 
   return (
     <Pressable
@@ -532,14 +513,14 @@ function ApplicationRow({ model, onPress }: { model: ApplicationReadModel; onPre
     <ListRow appearance="flat" className="py-4" onPress={onPress}>
       <View className="flex-row items-start gap-3">
         <View className="min-w-0 flex-1">
-          <Text numberOfLines={1} className="text-[15px] font-black leading-[22px] text-hypo-text">
+          <Text numberOfLines={1} className="text-[16px] font-semibold leading-[22px] text-hypo-text">
             {model.displayTitle}
           </Text>
           <View className="mt-1.5 flex-row flex-wrap gap-2">
             {model.post ? (
               <>
-                <Text className="text-xs font-black text-[#087C43]">{formatReward(model.post.reward_amount)}</Text>
-                <Text className="text-xs font-extrabold text-hypo-muted">{interviewModeLabels[model.post.interview_mode]}</Text>
+                <Text className="text-[12px] font-medium text-hypo-brand">{getPostingCompensationLabel(model.post)}</Text>
+                <Text className="text-[12px] text-hypo-muted">{`${getPostingTypeLabel(model.post)} · ${getPostingModeLabel(model.post)}`}</Text>
               </>
             ) : null}
           </View>
@@ -550,27 +531,6 @@ function ApplicationRow({ model, onPress }: { model: ApplicationReadModel; onPre
         </View>
       </View>
     </ListRow>
-  );
-}
-
-function FounderRoleHint() {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      className="min-h-[58px] flex-row items-center gap-3 border-t border-hypo-border py-3"
-      onPress={() => router.push("/(tabs)/profile/role")}
-    >
-      <View className="size-9 items-center justify-center rounded-full bg-hypo-brandSoft">
-        <Text className="text-[15px] font-black text-hypo-brand">+</Text>
-      </View>
-      <View className="min-w-0 flex-1">
-        <Text className="text-[14px] font-black text-hypo-text">모집글도 만들 수 있어요</Text>
-        <Text className="mt-1 text-xs font-bold leading-[18px] text-hypo-muted">
-          역할 설정에서 창업자 기능을 켜면 모집 관리를 사용할 수 있어요.
-        </Text>
-      </View>
-      <Text className="text-[23px] font-light leading-7 text-hypo-muted">›</Text>
-    </Pressable>
   );
 }
 
@@ -590,7 +550,7 @@ function FounderPostRow({
     <ListRow appearance="flat" className="py-4" onPress={onPress}>
       <View className="flex-row items-start gap-3">
         <View className="min-w-0 flex-1">
-          <Text numberOfLines={1} className="text-[15px] font-black leading-[22px] text-hypo-text">{post.title}</Text>
+          <Text numberOfLines={1} className="text-[16px] font-semibold leading-[22px] text-hypo-text">{post.title}</Text>
           <Text numberOfLines={1} className="mt-1 text-xs font-extrabold leading-[18px] text-hypo-muted">
             지원 {applications.length}명 · 선정 {selectedCount}명
           </Text>
@@ -613,10 +573,10 @@ function FounderPostInfoView({
     <View>
       <View>
         <InfoRow label="서비스" value={post.service_summary} />
-        <InfoRow label="찾는 사람" value={post.target_description} />
+        <InfoRow label="찾는 참여자" value={post.target_description} />
         <InfoRow label="방식" value={interviewModeLabels[post.interview_mode]} />
         <InfoRow label="모집 인원" value={formatRecruitCount(post.recruit_count)} />
-        <InfoRow label="사례비" value={formatReward(post.reward_amount)} />
+        <InfoRow label="보상" value={getPostingCompensationLabel(post)} />
         <InfoRow label="소요 시간" value={`${post.duration_minutes}분`} />
         <InfoRow label="가능 일정" value={formatScheduleOptions(post.schedule_options)} />
         {post.interview_mode !== "online" ? (
@@ -817,7 +777,6 @@ export function FounderApplicantDetailScreen() {
     postId ? `/(tabs)/interviews/my-posts/${postId}` : "/(tabs)/interviews/my-interviews",
   );
   const { accessToken, appUser } = useAuth();
-  const canManageFounderPosts = canUseFounderTools(appUser?.role);
   const { data: posts = [], isError: isPostsError, isLoading: isPostsLoading } = useInterviewPosts(undefined, accessToken);
   const {
     data: applications = [],
@@ -844,13 +803,9 @@ export function FounderApplicantDetailScreen() {
     appUser
       && post
       && application
-      && canManageFounderPosts
       && post.founder_id === appUser.id
       && application.interview_post_id === post.id,
   );
-  const respondentLabel = application
-    ? formatUserDisplayName(application.respondent)
-    : "지원자 정보";
 
   if (!accessToken) {
     return (
@@ -880,14 +835,14 @@ export function FounderApplicantDetailScreen() {
           />
         ) : null}
         {!isLoading && !isError && (!post || !application) ? (
-          <StateMessage title="지원자 정보를 찾을 수 없어요." description="모집글이나 신청 정보가 삭제되었을 수 있어요." />
+          <StateMessage title="신청자 정보를 찾을 수 없어요." description="공고나 신청 정보가 삭제되었을 수 있어요." />
         ) : null}
         {!isLoading && !isError && post && application && !canAccessApplication ? (
-          <StateMessage title="관리 권한이 없어요." description="내가 만든 모집글의 지원자 정보만 볼 수 있어요." />
+          <StateMessage title="관리 권한이 없어요." description="내가 만든 공고의 신청자 정보만 볼 수 있어요." />
         ) : null}
 
         {!isLoading && !isError && post && application && canAccessApplication ? (
-          <ScrollView contentContainerClassName="pb-[30px]" showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerClassName="pb-24" showsVerticalScrollIndicator={false}>
             <ApplicantSubmittedContent application={application} />
 
             <View className="mt-4 flex-row gap-2">

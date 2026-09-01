@@ -155,7 +155,7 @@ function NotificationRow({
         <View className="relative w-8 items-center pt-0.5">
           {isUnread ? <View className="absolute left-0 top-1 h-2 w-2 rounded-full bg-hypo-brand" /> : null}
           <View className="h-7 w-7 items-center justify-center rounded-full bg-transparent">
-            <Feather color={isUnread ? "#176B5D" : "#66706B"} name={iconName} size={16} />
+            <Feather color="#66706B" name={iconName} size={16} />
           </View>
         </View>
 
@@ -164,7 +164,7 @@ function NotificationRow({
             <Text
               numberOfLines={1}
               className={`min-w-0 flex-1 text-[15px] leading-[22px] ${
-                isUnread ? "font-black text-hypo-text" : "font-bold text-hypo-muted"
+                isUnread ? "font-bold text-hypo-text" : "font-medium text-hypo-muted"
               }`}
             >
               {notification.title}
@@ -177,7 +177,7 @@ function NotificationRow({
           <Text
             numberOfLines={2}
             className={`mt-1 text-[13px] leading-5 ${
-              isUnread ? "font-bold text-hypo-muted" : "font-medium text-[#8A9387]"
+              isUnread ? "font-medium text-hypo-muted" : "font-medium text-[#8A9387]"
             }`}
           >
             {notification.body}
@@ -186,7 +186,7 @@ function NotificationRow({
           {destinationLabel || isSubmitting ? (
             <View className="mt-1.5 flex-row items-center gap-2">
               {destinationLabel ? (
-                <Text className={`text-[11px] font-black ${isUnread ? "text-hypo-brand" : "text-hypo-muted"}`}>
+                <Text className={`text-[11px] font-semibold ${isUnread ? "text-hypo-brand" : "text-hypo-muted"}`}>
                   {destinationLabel}
                 </Text>
               ) : null}
@@ -263,11 +263,11 @@ function getNotificationDestinationLabel(targetType: string | null) {
       return "채팅";
     case "application":
     case "interview_session":
-      return "내 인터뷰";
+      return "내 참여";
     case "support_ticket":
       return "문의";
     case "interview_post":
-      return "모집글";
+      return "공고";
     default:
       return null;
   }

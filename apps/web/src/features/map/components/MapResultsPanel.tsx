@@ -45,7 +45,7 @@ export function MapResultsPanel({
   return (
     <aside
       aria-busy={isRefreshing}
-      className="hidden h-full min-h-0 overflow-hidden bg-hypo-surface/90 min-[1200px]:grid min-[1200px]:grid-rows-[auto_auto_minmax(0,1fr)] min-[1200px]:border-l min-[1200px]:border-hypo-border/80"
+      className="hidden h-full min-h-0 overflow-hidden bg-hypo-surface min-[1200px]:grid min-[1200px]:grid-rows-[auto_auto_minmax(0,1fr)] min-[1200px]:border-l min-[1200px]:border-hypo-border"
     >
       <div className="flex items-start justify-between gap-3 border-b border-hypo-border px-4 py-4">
         <div className="min-w-0">
@@ -54,7 +54,7 @@ export function MapResultsPanel({
             검색, 현재 위치, 목록 비교를 한 화면에서 이어가세요.
           </p>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-hypo-pill bg-hypo-bg px-3 py-1 text-xs font-semibold text-hypo-brand">
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-hypo-pill border border-hypo-border bg-hypo-surface px-3 py-1 text-xs font-semibold text-hypo-brand">
           {isRefreshing ? (
             <LoaderCircle aria-label="지도 모집글 업데이트 중" className="animate-spin" size={12} />
           ) : null}
@@ -74,7 +74,7 @@ export function MapResultsPanel({
         <MapFilterChips activeFilter={activeFilter} onFilterChange={onFilterChange} />
 
         {selectedView ? (
-          <div className="overflow-hidden rounded-hypo-lg border border-hypo-border/80 bg-hypo-surface">
+          <div className="overflow-hidden rounded-hypo-lg border border-hypo-border bg-hypo-bg">
             <SelectedMapPostCard view={selectedView} />
           </div>
         ) : null}

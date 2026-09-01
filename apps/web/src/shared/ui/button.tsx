@@ -4,26 +4,26 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "./cn";
 
 const buttonVariants = cva(
-  "ui-control-text inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-hypo-md transition-[background-color,border-color,color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20 focus-visible:ring-offset-2 focus-visible:ring-offset-hypo-bg active:translate-y-px disabled:pointer-events-none disabled:translate-y-0 disabled:opacity-45",
+  "ui-control-text inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-hypo-lg border border-transparent bg-transparent text-hypo-text transition-[background-color,border-color,color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/18 focus-visible:ring-offset-2 focus-visible:ring-offset-hypo-bg active:translate-y-px disabled:pointer-events-none disabled:translate-y-0 disabled:opacity-45",
   {
     variants: {
       variant: {
         primary:
-          "border border-transparent bg-hypo-brand text-white hover:bg-hypo-brand-strong",
+          "bg-hypo-brand text-white hover:bg-hypo-brand-strong",
         secondary:
-          "border border-hypo-border bg-hypo-surface text-hypo-text hover:bg-hypo-bg",
+          "border-hypo-border bg-hypo-surface text-hypo-text hover:border-hypo-border-strong hover:bg-hypo-surface-muted",
         tonal:
-          "border border-transparent bg-hypo-brand-soft text-hypo-brand hover:bg-[#dcebe7]",
+          "bg-hypo-brand-soft text-hypo-brand hover:bg-hypo-brand-soft/80",
         ghost:
-          "border border-transparent text-hypo-text-muted hover:bg-hypo-surface-muted hover:text-hypo-text",
+          "text-hypo-icon hover:bg-hypo-surface-muted hover:text-hypo-text",
         quiet:
-          "border border-transparent text-hypo-brand hover:bg-hypo-brand-soft/80",
+          "text-hypo-brand hover:bg-hypo-brand-soft/85",
         danger:
-          "border border-transparent bg-hypo-danger text-white hover:bg-red-800",
+          "bg-hypo-danger text-white hover:bg-hypo-danger-strong",
         outlineDanger:
-          "border border-hypo-danger/35 bg-hypo-surface text-hypo-danger hover:bg-hypo-danger-soft",
+          "border-hypo-danger/28 bg-hypo-surface text-hypo-danger hover:border-hypo-danger/40 hover:bg-hypo-danger-soft/85",
         success:
-          "border border-transparent bg-hypo-success text-white hover:bg-green-800",
+          "bg-hypo-success text-white hover:bg-hypo-success-strong",
       },
       size: {
         sm: "min-h-9 px-3.5",

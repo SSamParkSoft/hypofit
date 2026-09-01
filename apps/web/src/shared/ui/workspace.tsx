@@ -5,7 +5,8 @@ import { cn } from "./cn";
 export const workspaceHeightClassNames = {
   content:
     "min-h-[var(--app-workspace-content-height)] md:max-[1199px]:h-[var(--app-workspace-content-height)]",
-  framedDesktop: "min-[1200px]:h-[var(--app-workspace-framed-height)] min-[1200px]:min-h-0",
+  framedDesktop:
+    "min-[1200px]:h-[var(--app-workspace-framed-height)] min-[1200px]:min-h-0",
   stickyPanel: "max-h-[var(--app-workspace-sticky-panel-max-height)]",
 } as const;
 
@@ -15,7 +16,8 @@ export const workspaceOffsetClassNames = {
 
 export const workspaceScrollOwnershipClassNames = {
   clip: "overflow-hidden",
-  panel: "min-h-0 overflow-y-auto overscroll-contain",
+  panel:
+    "min-h-0 overflow-y-auto overscroll-contain min-[1200px]:overscroll-auto",
 } as const;
 
 export interface WorkspaceRegionClassNameOptions {
@@ -78,7 +80,7 @@ export function ListSurface({
     <section
       aria-labelledby={labelledBy}
       className={cn(
-        "ui-pane min-w-0 border-y border-hypo-border bg-hypo-surface sm:rounded-hypo-md sm:border",
+        "ui-pane min-w-0 border-y border-hypo-border bg-hypo-surface sm:rounded-hypo-lg sm:border",
         getWorkspaceRegionClassName({ scroll: "clip" }),
         className,
       )}
@@ -88,11 +90,17 @@ export function ListSurface({
   );
 }
 
-export function ContextPanel({ children, className }: { children: ReactNode; className?: string }) {
+export function ContextPanel({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div
       className={cn(
-        "ui-pane sticky rounded-hypo-md border border-hypo-border bg-hypo-surface",
+        "ui-pane sticky rounded-hypo-lg border border-hypo-border bg-hypo-surface shadow-hypo-panel",
         getWorkspaceRegionClassName({
           height: "stickyPanel",
           offset: "frameGap",

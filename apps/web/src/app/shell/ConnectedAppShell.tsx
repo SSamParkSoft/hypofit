@@ -1,10 +1,3 @@
-import {
-  ClipboardList,
-  House,
-  Map,
-  MessageCircle,
-  UserRound,
-} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useAuth } from "../../features/auth/useAuth";
@@ -13,6 +6,13 @@ import { useNotifications } from "../../features/notifications/useNotifications"
 import { ProfileAccountMenu } from "../../features/profiles/components/ProfileAccountMenu";
 import { APP_DESTINATION_DEFINITIONS } from "../../shared/navigation/appRoutes";
 import type { AppUser } from "../../shared/api/types";
+import {
+  ChatNavIcon,
+  HomeNavIcon,
+  InterviewsNavIcon,
+  MapNavIcon,
+  ProfileNavIcon,
+} from "../../shared/ui/icon";
 import { NotificationButtonStateProvider } from "../../shared/ui/notification-button";
 import { AppShell } from "../../shared/ui/navigation/AppShell";
 import type {
@@ -22,11 +22,11 @@ import type {
 } from "../../shared/ui/navigation/types";
 
 const navIconMap = {
-  home: House,
-  interviews: ClipboardList,
-  map: Map,
-  chat: MessageCircle,
-  profile: UserRound,
+  home: HomeNavIcon,
+  interviews: InterviewsNavIcon,
+  map: MapNavIcon,
+  chat: ChatNavIcon,
+  profile: ProfileNavIcon,
 } as const;
 
 const appShellNavItems: AppShellNavItem[] = APP_DESTINATION_DEFINITIONS.map(

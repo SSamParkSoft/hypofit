@@ -62,15 +62,12 @@ them. The current app shell and service docs win.
   `docs/active/current-mvp-execution-roadmap.md`, then open the linked domain
   plan for implementation detail.
 - Do not replace the architecture without an explicit request.
-- Backend work uses the canonical Spring implementation in `apps/api`. Read
-  `docs/completed/fastapi-to-spring-boot-backend-migration-plan.md` only when
-  historical compatibility context is needed, and use the Lightsail runbook
-  for deployment operations.
+- Backend work uses the canonical Spring implementation in `apps/api` and the
+  Lightsail runbook for deployment operations.
 - Mobile app-store work uses `apps/mobile`, not a thin WebView wrapper.
 - Web/PWA fallback remains in `apps/web`, but it is not the primary mobile
   release strategy.
-- The school GPU server has been returned. The canonical API is one Spring
-  container on Lightsail behind Nginx/TLS.
+- The canonical API is one Spring container on Lightsail behind Nginx/TLS.
 - Supabase owns durable database/auth state.
 - Lightsail must not become the primary database, durable queue, lock service,
   or permanent file store.
@@ -96,11 +93,29 @@ For Spring Boot API, Flyway, Spring Security, or container deployment changes,
 read `docs/service/07-api-and-backend-map.md`, `docs/deployment.md`, and the
 Lightsail deployment runbook first.
 
+Before materially changing chat workflow, session lifecycle, account deletion,
+or recruitment-type write rules, also read
+`docs/active/spring-mvc-maintainability-hardening-plan.md`. Keep the current
+feature-first MVC shape and extract only observed responsibility hotspots.
+
 For AI-generated interview summaries, founder-only applicant summaries,
 provider integration, background summary work, summary persistence, prompt
 contracts, or related privacy/store declarations, read
 `docs/active/ai-interview-and-applicant-summary-plan.md`. AI output remains
 optional enrichment and must never become workflow authority.
+
+For removal of founder/respondent roles, ownership-based customer permissions,
+interview/survey/beta-test recruitment types, external-form participation, or
+licensed web-template adoption, read
+`docs/active/multi-format-participant-recruitment-and-web-template-adoption-plan.md`.
+The plan does not authorize a native survey builder, generic task marketplace,
+or arbitrary link directory.
+
+For public `/` or `/landing` hero, section rhythm, product-story imagery,
+workflow, pricing, CTA, footer, or Brainwave/Figma-inspired visual adaptation,
+read `docs/active/brainwave-inspired-landing-visual-reconstruction-plan.md`.
+Keep its implementation separate from authenticated `/app` UI and do not copy
+the downloaded Figma-to-Vite export into the product codebase.
 
 For responsive web splash, login, signup, or `/app` auth-entry work, read
 `docs/completed/responsive-web-auth-entry-experience-plan.md` before changing the
@@ -151,4 +166,3 @@ When finishing work, state:
 - What validation actually ran.
 - What was not run and why.
 - Whether deployment/build/upload was performed.
-- Whether Figma sync was deferred or requested.

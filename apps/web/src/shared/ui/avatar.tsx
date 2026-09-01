@@ -21,11 +21,11 @@ export function Avatar({
   return (
     <div
       className={cn(
-        "grid size-10 shrink-0 place-items-center overflow-hidden bg-hypo-surface-muted text-hypo-text-soft ring-inset",
+        "grid size-10 shrink-0 place-items-center overflow-hidden border bg-hypo-surface text-hypo-icon",
         shape === "circle" ? "rounded-full" : "rounded-hypo-lg",
         borderTone === "strong"
-          ? "ring-2 ring-hypo-text-muted/90"
-          : "ring-1 ring-hypo-border",
+          ? "border-hypo-text-muted/55"
+          : "border-hypo-border",
         className,
       )}
     >
@@ -34,10 +34,10 @@ export function Avatar({
       ) : (
         <span
           aria-label={alt}
-          className="grid size-full place-items-center bg-gradient-to-br from-hypo-surface to-hypo-brand-soft"
+          className="grid size-full place-items-center bg-hypo-surface-muted"
           role="img"
         >
-          <UserRound className="text-hypo-brand/75" size="52%" strokeWidth={2.2} />
+          <UserRound className="text-hypo-icon-muted" size="52%" strokeWidth={2.1} />
         </span>
       )}
     </div>

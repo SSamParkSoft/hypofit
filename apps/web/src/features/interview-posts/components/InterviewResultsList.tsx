@@ -38,7 +38,7 @@ export function InterviewResultsList({
 }: InterviewResultsListProps) {
   return (
     <ListSurface
-      className="min-h-0 border-0 bg-transparent shadow-none sm:rounded-none sm:border-0 sm:bg-transparent sm:shadow-none min-[1200px]:flex"
+      className="min-h-0 min-[1200px]:flex"
       labelledBy="interviews-page-list-heading"
     >
       <h2 id="interviews-page-list-heading" className="sr-only">
@@ -46,7 +46,7 @@ export function InterviewResultsList({
       </h2>
       <div
         aria-label="인터뷰 모집글 목록"
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain divide-y divide-hypo-border"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain min-[1200px]:overscroll-auto divide-y divide-hypo-border"
         role="list"
       >
         {isLoading ? <OpportunityListSkeleton /> : null}
@@ -86,7 +86,7 @@ export function InterviewResultsList({
               <div className="min-h-0">
                 <OpportunityExpandedDetail
                   canApply={canApply}
-                  className="rounded-none border-0 border-t border-hypo-border bg-transparent px-4 pb-4 pt-3 sm:px-5"
+                  className="border-t border-hypo-border px-4 pb-5 pt-4 sm:px-5"
                   errorMessage={errorMessage}
                   existingApplication={applicationByPostId.get(post.id) ?? null}
                   isApplying={isApplying}

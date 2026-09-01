@@ -12,6 +12,9 @@ import { Field, SelectInput, TextareaInput, TextInput } from "../shared/ui/field
 import { PageLayout } from "../shared/ui/page";
 import { ErrorState } from "../shared/ui/state";
 
+const formSurfaceClassName =
+  "overflow-hidden rounded-hypo-lg border border-hypo-border bg-hypo-surface shadow-hypo-panel";
+
 const reportCategories: Array<{ label: string; value: SupportTicketCategory }> = [
   { label: "모집글", value: "interview_post" },
   { label: "채팅", value: "chat" },
@@ -83,7 +86,7 @@ export function ReportPage() {
         </header>
 
         <div className="grid gap-5 min-[1080px]:grid-cols-[minmax(0,720px)_minmax(280px,340px)] min-[1080px]:items-start min-[1080px]:justify-between">
-          <section className="overflow-hidden border-y border-hypo-border bg-hypo-surface sm:border">
+          <section className={formSurfaceClassName}>
             {isComplete ? (
               <div className="grid min-h-[420px] place-items-center px-5 py-10 text-center">
                 <div className="max-w-sm">
@@ -98,7 +101,7 @@ export function ReportPage() {
             ) : (
               <form className="grid gap-5 p-4 sm:p-6" onSubmit={(event) => void handleSubmit(event)}>
                 {context.interviewTitle || context.counterpartName ? (
-                  <div className="border-l-2 border-hypo-brand bg-hypo-brand-soft/60 px-3.5 py-3 text-sm font-semibold leading-6 text-hypo-brand">
+                  <div className="rounded-hypo-lg border border-hypo-brand/15 bg-hypo-brand-soft/60 px-4 py-3 text-sm font-semibold leading-6 text-hypo-brand">
                     {[context.counterpartName, context.interviewTitle].filter(Boolean).join(" · ")}
                   </div>
                 ) : null}
@@ -118,7 +121,7 @@ export function ReportPage() {
                 </Field>
                 <Field label="신고 내용">
                   <TextareaInput
-                    className="min-h-44 resize-y"
+                    className="min-h-48 resize-y"
                     maxLength={2000}
                     minLength={5}
                     placeholder="어떤 문제가 있었는지 관련 상황을 구체적으로 적어주세요."
@@ -131,12 +134,13 @@ export function ReportPage() {
                   <TextInput
                     autoComplete="email"
                     inputMode="email"
+                    placeholder="reply@example.com"
                     required
                     value={contactEmail}
                     onChange={(event) => setContactEmail(event.target.value)}
                   />
                 </Field>
-                <div className="flex flex-wrap justify-end gap-2 border-t border-hypo-border pt-5">
+                <div className="flex flex-wrap justify-end gap-2 border-t border-hypo-border/70 pt-5">
                   <Button disabled={createTicket.isPending} onClick={() => navigateBack("/profile")} variant="secondary">취소</Button>
                   <Button disabled={createTicket.isPending} type="submit">
                     <Send aria-hidden="true" size={16} />
@@ -147,7 +151,7 @@ export function ReportPage() {
             )}
           </section>
 
-          <aside className="border-t border-hypo-border pt-5 min-[1080px]:border-t-0 min-[1080px]:pt-0">
+          <aside className={`${formSurfaceClassName} p-5 sm:p-6`}>
             <div className="flex gap-3">
               <ShieldAlert aria-hidden="true" className="mt-0.5 shrink-0 text-hypo-brand" size={20} />
               <div>
@@ -157,7 +161,7 @@ export function ReportPage() {
                 </p>
               </div>
             </div>
-            <div className="mt-5 border-t border-hypo-border pt-5">
+            <div className="mt-5 border-t border-hypo-border/70 pt-5">
               <p className="text-xs font-semibold leading-[18px] text-hypo-text-soft">긴급한 계정 문의</p>
               <a className="mt-2 inline-flex items-center gap-2 break-all text-sm font-semibold text-hypo-brand hover:underline" href={`mailto:${supportEmail}`}>
                 <Mail aria-hidden="true" size={16} />{supportEmail}

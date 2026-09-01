@@ -124,7 +124,11 @@ public class InterviewPostController {
     ) {
         UUID actorUserId = UUID.fromString(jwt.getSubject());
         return InterviewPostResponse.from(
-                interviewPostWriteService.createPost(actorUserId, InterviewPostRequestParser.parseCreate(request))
+                interviewPostWriteService.createPost(
+                        actorUserId,
+                        InterviewPostRequestParser.parseCreate(request),
+                        InterviewPostRequestParser.parseClientSubmissionId(request)
+                )
         );
     }
 

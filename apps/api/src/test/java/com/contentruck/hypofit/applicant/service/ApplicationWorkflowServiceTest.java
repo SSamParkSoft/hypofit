@@ -108,7 +108,7 @@ class ApplicationWorkflowServiceTest {
                 eq(founderId),
                 eq("application_created"),
                 eq("새 신청이 도착했어요"),
-                eq("모집글에 새 인터뷰 신청이 들어왔어요."),
+                eq("모집글에 새 신청이 들어왔어요."),
                 eq("application"),
                 eq(result.id()),
                 any()
@@ -185,12 +185,34 @@ class ApplicationWorkflowServiceTest {
     }
 
     @Test
-    void createApplicationRejectsSurveyRecruitmentType() {
+    void createApplicationForSurveyDoesNotCreateChatRoomUntilSelection() {
         UUID userId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
         UUID founderId = UUID.randomUUID();
         when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
         when(repository.findInterviewPost(postId)).thenReturn(Optional.of(post(postId, founderId, "survey")));
+        when(repository.hasActiveBlockBetween(founderId, userId)).thenReturn(false);
+        when(repository.existsApplicationForPostAndRespondent(postId, userId)).thenReturn(false);
+        when(repository.createApplication(eq(postId), eq(userId), any(), any()))
+                .thenReturn(readModel(UUID.randomUUID(), postId, userId, "applied", null));
+
+        ApplicationWorkflowService service = service();
+
+        ApplicationReadModel result = service.createApplication(userId, postId, Map.of(), List.of());
+
+        assertThat(result.status()).isEqualTo("applied");
+        verify(chatLifecycleService, never()).ensureRoomForApplication(any(), any(), any(), any());
+    }
+
+    @Test
+    void createApplicationRejectsDirectSurvey() {
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        UUID founderId = UUID.randomUUID();
+        when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
+        when(repository.findInterviewPost(postId)).thenReturn(Optional.of(
+                new InterviewPostOwnership(postId, founderId, "공개 설문", "survey", "direct")
+        ));
 
         ApplicationWorkflowService service = service();
 
@@ -199,7 +221,6 @@ class ApplicationWorkflowServiceTest {
                 .extracting("code")
                 .isEqualTo("recruitment_type_action_not_allowed");
         verify(repository, never()).createApplication(any(), any(), any(), any());
-        verify(chatLifecycleService, never()).ensureRoomForApplication(any(), any(), any(), any());
     }
 
     @Test
@@ -224,7 +245,7 @@ class ApplicationWorkflowServiceTest {
                 eq(founderId),
                 eq("application_created"),
                 eq("새 신청이 도착했어요"),
-                eq("모집글에 새 인터뷰 신청이 들어왔어요."),
+                eq("모집글에 새 신청이 들어왔어요."),
                 eq("application"),
                 eq(created.id()),
                 any()

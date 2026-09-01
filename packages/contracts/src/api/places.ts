@@ -7,5 +7,5 @@ export interface PlaceSearchResult {
   phone: string | null;
   latitude: number;
   longitude: number;
-  source: "kakao" | string;
+  source: "kakao_place";
 }

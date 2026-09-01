@@ -20,14 +20,14 @@ export function SelectedFloatingMapCard({
   const post = view.post;
 
   return (
-    <article className="rounded-[22px] border border-hypo-border bg-hypo-surface p-3 shadow-hypo-floating">
+    <article className="rounded-hypo-lg border border-hypo-border bg-hypo-surface p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
             <span className="rounded-hypo-pill bg-hypo-brand-soft px-2 py-0.5 text-[10px] font-black leading-4 text-hypo-brand">
               {interviewModeLabels[post.interview_mode]}
             </span>
-            <span className="rounded-hypo-pill bg-hypo-bg px-2 py-0.5 text-[10px] font-black leading-4 text-hypo-text-soft">
+            <span className="rounded-hypo-pill border border-hypo-border bg-hypo-bg px-2 py-0.5 text-[10px] font-black leading-4 text-hypo-text-soft">
               {view.distance}
             </span>
           </div>
@@ -111,7 +111,7 @@ export function UnselectedMapSummary({
             마커를 누르면 자세히 볼 수 있어요.
           </p>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-hypo-pill bg-hypo-bg px-2.5 py-1 text-[11px] font-semibold text-hypo-brand">
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-hypo-pill border border-hypo-border bg-hypo-surface px-2.5 py-1 text-[11px] font-semibold text-hypo-brand">
           {isRefreshing ? (
             <LoaderCircle aria-label="지도 모집글 업데이트 중" className="animate-spin" size={11} />
           ) : null}
@@ -184,7 +184,7 @@ export function SelectedMapPostCard({ view }: { view: MapPostView }) {
             <span className="rounded-hypo-pill bg-hypo-brand-soft px-2 py-0.5 text-[10px] font-black leading-4 text-hypo-brand">
               {interviewModeLabels[post.interview_mode]}
             </span>
-            <span className="rounded-hypo-pill bg-hypo-bg px-2 py-0.5 text-[10px] font-black leading-4 text-hypo-text-soft">
+            <span className="rounded-hypo-pill border border-hypo-border bg-hypo-bg px-2 py-0.5 text-[10px] font-black leading-4 text-hypo-text-soft">
               {view.distance}
             </span>
           </div>
@@ -250,7 +250,7 @@ export function MapListRow({
       className={cn(
         "relative w-full px-0 py-3.5 text-left transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20",
         isSelected
-          ? "bg-hypo-brand-soft/45 before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-hypo-pill before:bg-hypo-brand"
+          ? "bg-hypo-brand-soft/35 before:absolute before:inset-y-3 before:left-0 before:w-1 before:rounded-r-hypo-pill before:bg-hypo-brand"
           : isViewed
             ? "hover:bg-hypo-bg/75"
             : "hover:bg-hypo-bg/55",
@@ -291,7 +291,7 @@ export function MapListRow({
 
 function MiniChip({ children }: { children: string }) {
   return (
-    <span className="max-w-full truncate rounded-hypo-pill bg-hypo-surface px-2 py-0.5 text-[10px] font-bold leading-4 text-hypo-text-muted">
+    <span className="max-w-full truncate rounded-hypo-pill border border-hypo-border bg-hypo-surface px-2 py-0.5 text-[10px] font-bold leading-4 text-hypo-text-muted">
       {children}
     </span>
   );

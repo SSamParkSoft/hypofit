@@ -16,10 +16,10 @@ This file defines how coding agents and contributors should work in this reposit
   policy machinery merely because they could be theoretically useful later.
 
 Hypofit is an MVP-stage React web and Expo React Native mobile product. The
-school GPU runtime and FastAPI backend are retired. The canonical Java 21
-Spring Boot API runs on Amazon Lightsail and Flyway owns schema changes. Prefer
-simple, shippable implementation over premature platform abstractions. When in
-doubt, preserve the architecture decisions already documented in `docs/`.
+canonical Java 21 Spring Boot API runs on Amazon Lightsail and Flyway owns
+schema changes. Prefer simple, shippable implementation over premature
+platform abstractions. When in doubt, preserve the architecture decisions
+already documented in `docs/`.
 
 ## Read First
 
@@ -31,12 +31,17 @@ Before making non-trivial changes, read these documents:
 - `docs/active/current-mvp-execution-roadmap.md` before selecting or reordering
   remaining MVP work. It is the current cross-domain execution-order authority;
   use the linked domain plan for implementation details.
-- `docs/completed/fastapi-to-spring-boot-backend-migration-plan.md` when
-  historical contract-parity, schema-baseline, or framework-cutover context is
-  needed. Do not restore the retired FastAPI runtime or Alembic authority.
-- `docs/completed/spring-single-runtime-gpu-to-lightsail-plan.md` for the
-  historical cutover record, and
-  `docs/reference/lightsail-spring-deployment-runbook.md` before changing
+- `docs/completed/spring-feature-mvc-simplification-plan.md` before moving Spring
+  packages, renaming backend layers, splitting large services or repositories,
+  changing transaction ownership, or simplifying backend abstractions. It
+  records the implemented feature-first MVC baseline; preserve the existing API
+  and schema unless an active plan explicitly changes them.
+- `docs/active/spring-mvc-maintainability-hardening-plan.md` before materially
+  changing chat workflow, session lifecycle, account deletion, or
+  recruitment-type write rules. It authorizes targeted responsibility
+  extraction while preserving feature-first MVC, API/schema compatibility, and
+  service-owned transactions; it does not authorize a DDD/hexagonal rewrite.
+- `docs/reference/lightsail-spring-deployment-runbook.md` before changing
   the Lightsail host, Spring container runtime, API/push process ownership,
   secrets, Nginx/TLS, DNS cutover, resource limits, or rollback procedure.
 - `docs/active/ai-interview-and-applicant-summary-plan.md` before adding or
@@ -45,6 +50,12 @@ Before making non-trivial changes, read these documents:
   persistence, summary feature flags, or AI-related privacy/store disclosures.
   This document authorizes source-grounded summaries only, not AI matching,
   applicant ranking, scoring, selection, or rejection.
+- `docs/active/multi-format-participant-recruitment-and-web-template-adoption-plan.md`
+  before removing founder/respondent roles, changing role-based customer
+  authorization, adding interviews, surveys or beta-test recruitment types,
+  supporting external forms, adopting third-party web UI templates or blocks,
+  or exposing new recruitment types to released clients. Keep type-specific
+  participation workflows separate and preserve template license provenance.
 - `docs/service/09-design-and-copy-principles.md` and
   `docs/service/14-design-system-and-screen-patterns.md` before meaningful UI,
   copy, navigation, safe-area, map, chat, profile, or responsive changes.
@@ -54,13 +65,16 @@ Before making non-trivial changes, read these documents:
 - `docs/active/landing-page-and-store-creative-production-plan.md` while
   implementing the public landing page, producing App Store or Google Play
   screenshots, creating the Google Play feature graphic, preparing capture
-  data, building the HTML/CSS asset renderer, or syncing approved store assets
-  to Figma.
+  data, or building the HTML/CSS asset renderer.
+- `docs/active/brainwave-inspired-landing-visual-reconstruction-plan.md` while
+  changing the public `/` or `/landing` section structure, hero, product-story
+  bands, workflow, capability/trust band, pricing presentation, public CTA,
+  landing product imagery, or Brainwave/Figma-derived visual language. Use the
+  source as a composition reference, not as code or assets to copy wholesale.
 - `docs/active/hypofit-brand-logo-icon-system-migration-plan.md` when changing
   the Hypofit mark or wordmark, web brand assets, favicon/PWA icons, Open Graph
   artwork, Expo app/adaptive/themed/notification icons, native or runtime
-  splash assets, store-upload icons, icon caches, or the final Figma brand
-  asset section.
+  splash assets, store-upload icons, or icon caches.
 - `docs/active/desktop-web-service-ui-advancement-plan.md` while changing the
   authenticated customer web UI under `/app`, the desktop app shell, web
   list-detail layouts, responsive customer pages, web auth entry, map/chat
@@ -93,7 +107,7 @@ Before making non-trivial changes, read these documents:
   or changing Apple, Google, Kakao, or Naver login, OAuth/OIDC callbacks,
   native identity tokens, Supabase social providers, account identity linking,
   provider revocation, social-login onboarding, provider feature flags,
-  contact-email continuation, or legacy email/password cleanup. This is the
+  contact-email continuation, or authentication entry policy. This is the
   single authentication authority for the current product.
 - `docs/completed/public-support-and-authenticated-inquiry-experience-plan.md`
   when changing the public `/support` route, login-recovery contact paths,
@@ -117,30 +131,18 @@ Before making non-trivial changes, read these documents:
 - `docs/reference/native-store-submission-readiness-plan.md` when preparing
   release-build smoke, store screenshots, reviewer access, App Privacy/Data
   safety, App Store Connect or Play Console metadata, or review-week operations.
-- `docs/reference/react-web-to-expo-mobile-migration-plan.md` when changing the React web versus Expo React Native mobile split, shared contracts, mobile app scaffolding, native app capabilities, or web re-scoping.
+- `docs/service/06-app-surfaces.md` when changing the React web versus Expo
+  React Native mobile split, native app capabilities, or web re-scoping.
 - `docs/completed/api-operations-readiness-plan.md` when changing API operations, account deletion, soft deletion, support/report handling, user blocking, moderation, notification APIs, audit events, readiness health, reviewer demo access, location/privacy retention, or App Store/Google Play review-sensitive backend behavior.
 - `docs/reference/operator-support-moderation-runbook.md` when changing support tickets, reports, moderation actions, account-deletion operations, audit-event investigation, operator workflows, or review/escalation procedures.
 - `docs/reference/error-observability-contract.md` when changing API exception
   handling, API error response shapes, request IDs, mobile API client errors,
   Supabase Auth error handling, Sentry diagnostics, or release-build crash/error
   triage behavior.
-- `docs/reference/lightsail-spring-deployment-runbook.md` when changing Spring
-  image deployment, Lightsail Docker Compose, Nginx/TLS, runtime files,
-  rollback, or Flyway deployment behavior.
 - `docs/reference/lightsail-spring-deployment-runbook.md` when changing the
   Spring Dockerfile, GHCR image publication, GitHub Actions deployment,
   Lightsail Compose/runtime files, deploy SSH identity, pinned host key,
   readiness rollback, Nginx/TLS setup, or Lightsail disk operations.
-- `docs/reference/mobile-auth-failure-observability-hardening-plan.md` when
-  changing mobile login/signup, Supabase Auth error normalization, auth
-  preflight checks, signup retry/recovery behavior, TestFlight auth diagnostics,
-  or auth-related Sentry telemetry.
-- `docs/completed/email-otp-verification-transition-plan.md` when tracing or
-  removing legacy email/password or signup-email-OTP behavior, compatibility
-  routes, Supabase Auth resend behavior, or historical MVP account-verification
-  copy. Do not treat it as the current public auth policy. Use
-  `docs/reference/email-verification-resend-mvp-plan.md` only as historical
-  link/deep-link confirmation fallback context.
 
 If your change affects architecture, deployment, authentication, database schema, or MVP scope, update the relevant document in the same change.
 If your change affects user-facing UI, interaction flows, or responsive behavior, update the relevant active work document when one exists, or explicitly note that reference-only guidance did not need a backlog update.
@@ -169,19 +171,22 @@ If your change affects user-facing UI, interaction flows, or responsive behavior
 
 ## Product Context
 
-Hypofit helps pre-founders and early-stage founders recruit real target customers for paid customer discovery interviews.
+Hypofit helps teams, researchers, and organizers recruit participants through
+public postings.
 
-The MVP must prioritize this loop:
+The core object is a posting. An interview is one posting type alongside
+surveys, beta tests, usability tests, and research experiments. Keep each
+type's participation workflow explicit; do not force application, selection,
+chat, or scheduling onto every posting.
 
 ```text
-founder creates interview post
-  -> respondent applies
-  -> founder reviews and selects applicant
-  -> interview session is scheduled
-  -> session is completed or marked no-show
+posting owner creates a posting
+  -> participant takes the type-specific action
+  -> the owner and participant continue only where that workflow requires it
 ```
 
-Do not expand the product into a generic survey platform, marketplace, or AI matching system unless explicitly requested. Native mobile work is in scope for iOS and Android releases, but it must stay focused on the MVP interview workflow.
+Do not turn the product into a generic marketplace or AI matching system unless
+explicitly requested. Native mobile work is in scope for iOS and Android.
 
 ## Fixed Architecture Decisions
 
@@ -198,15 +203,13 @@ These decisions are currently intentional:
 - iOS `1.0.0` is the reviewed/released baseline. New mobile uploads should use
   `1.0.1` or later with a new platform build number.
 - Android/Google Play readiness remains an active release track.
-- The school GPU server has been returned and is not an available runtime or
-  rollback target.
 - Spring Boot is the only current API runtime on the dedicated Lightsail host.
 - The current MVP API hostname is `https://hypofit-api.bukae.co.kr`.
 - The Lightsail host uses static IPv4 `54.116.198.195`; canonical DNS and TLS
   route `https://hypofit-api.bukae.co.kr` to its Nginx proxy.
 - Supabase is used for durable database/auth state.
 - Lightsail should reach Supabase through its supported direct or pooler
-  endpoint. Do not recreate the retired GPU-to-EC2 tunnel topology.
+  endpoint.
 
 Do not silently replace these choices with another stack or hosting model.
 
@@ -335,8 +338,8 @@ Expected conventions:
 - Use `EXPO_PUBLIC_*` only for values safe to expose in mobile JavaScript.
 - Keep backend secrets, Supabase service role keys, and payment provider secret
   keys out of mobile code and EAS public env.
-- Read `docs/reference/react-web-to-expo-mobile-migration-plan.md` before adding
-  or changing mobile architecture.
+- Read `docs/service/06-app-surfaces.md` before adding or changing mobile
+  architecture.
 - Before declaring a migrated mobile screen complete, check it against
   `apps/mobile/docs/parity-checklist.md` and
   `docs/reference/ui-final-qa-checklist.md`.
@@ -356,6 +359,73 @@ Expected conventions:
   repository as long-term files.
 
 UI implementation rules:
+
+## Hypofit Mobile UI Rules
+
+### Product
+
+- The core object is `공고`; `인터뷰` is one type of posting.
+- Use `보상`, not `사례비`. Compensation can be cash, gift cards, products,
+  points, subscriptions, or no compensation.
+- Do not force application, selection, chat, or scheduling onto every posting.
+
+### Design Direction
+
+- Direction: **Calm Emerald Native**.
+- Target a native consumer product with marketplace discovery and productivity
+  workflow qualities: content-first, compact, quiet, and precise.
+- Do not make mobile a shrunken web UI.
+
+### Layout And Surface
+
+- Prefer flat rows, whitespace, and subtle dividers for repeated content.
+- Use cards only for independent focus objects such as a current task,
+  important status, or recommendation.
+- Use a document-like open layout for posting detail. Avoid nested cards.
+- Restrict glass/material to functional layers: bottom navigation, header,
+  sheet, modal, popover, and floating map controls. Never use glass cards for
+  posting rows, detail content, chat, or profile settings.
+- Prefer spacing, tonal surfaces, and typography hierarchy over borders.
+
+### Color
+
+- Brand: `#0F7A4D`; strong: `#0B5C3A`; accent: `#B7FF5A`.
+- Target neutral 88-92%, emerald 7-10%, and lime no more than 1-2% of a screen.
+- Use lime only for small active or status indicators.
+- Do not use rainbow type colors, colored icon tiles, gradients, glow, or
+  decorative shadows.
+
+### Navigation And Lists
+
+- Keep mobile bottom navigation as `홈 / 공고 / 지도 / 채팅 / 프로필`.
+- Keep selected tabs subtle. Avoid prominent pill backgrounds.
+- Put search in the `공고` discovery screen, not in a separate tab.
+- A posting row must make type, title, reward, format, time/period, and place
+  or deadline scannable. Do not make each row a shadow card.
+
+### Typography, Icons, And Motion
+
+- Keep Spoqa Han Sans Neo. Use title weight 600-700 and body weight 400-500.
+- Lucide is the canonical icon system. Icons are monochrome by default.
+- Keep interaction feedback to 120-220ms. Use motion only to explain spatial
+  continuity such as row-to-detail, sheets, and selection.
+- Do not add page reveals, parallax, bounce, decorative animation, or CTA arrows.
+- Use light, success, or selection haptics only where the interaction benefits.
+
+### Responsive And Avoid
+
+- Phones use a single flow. Tablets may use an adaptive list-detail layout when
+  it improves the task; do not only stretch width.
+- Avoid `rounded-3xl` overuse, glass-card soup, excessive chips, giant
+  headings, fake analytics, and fake AI features.
+
+### Principle
+
+`INTERVIEW IS A TYPE, NOT THE PRODUCT.`
+`CARD IS NOT A LIST ITEM.`
+`GLASS IS NOT CONTENT.`
+`GREEN IS MEANING, NOT DECORATION.`
+`MOBILE IS NOT A SHRUNK DESKTOP.`
 
 - Before making meaningful UI changes, check `docs/reference/mobile-pwa-responsive-design-trends.md` and follow it as the current design reference unless the user explicitly overrides it.
 - Treat `docs/reference/mobile-safe-area-viewport-hardening-plan.md` as the current reference contract for phone viewport, safe-area, bottom navigation reserve, and fixed overlay hardening.
@@ -387,11 +457,8 @@ UI implementation rules:
 - Avoid stiff admin/dashboard wording, excessive nouns, technical implementation terms, and long explanatory paragraphs in the UI.
 - Button labels should use concrete actions such as `신청하기`, `모집글 만들기`, `저장하기`, `다음으로` rather than vague labels such as `확인` when the action is specific.
 - Error, empty, and loading messages should be calm and helpful. State the situation first, then the next action if needed.
-- During active UI iteration, do not update Figma after every small code change.
 - Verify web UI work in the running web app, and verify mobile UI work in the
   Expo app, simulator/device, or release build path as appropriate.
-- Update the corresponding Figma frames only when the user explicitly asks to sync the approved UI to Figma, or when the UI task is declared final.
-- In final reports for UI work, state whether Figma was synced or intentionally deferred.
 - During active UI iteration, do not run lint/test/build after every small visual adjustment unless the user asks for verification, the change is behaviorally risky, or the work is about to be committed, deployed, or declared complete.
 
 Current design reference:
@@ -413,6 +480,12 @@ Spring Boot is the canonical production backend.
 Expected conventions:
 
 - Keep backend code under `apps/api`.
+- Organize product code by feature, then use the conventional
+  `controller`, `dto`, `service`, `repository`, and `entity` packages inside
+  each feature. Add `client` only for a real external provider integration.
+- Keep this as a simple feature-first Spring MVC modular monolith. Do not
+  introduce mandatory DDD, hexagonal, port/adapter, command/result, or mapper
+  layers without an observed complexity that justifies them.
 - Use Spring MVC controllers for HTTP boundaries.
 - Keep business logic and transaction completion in application services.
 - Keep database access in repositories or clearly named persistence adapters.
@@ -516,6 +589,12 @@ Lightsail server rules:
   credential files must use mode `0600`.
 - Run one Spring Boot container for the API and push loop. Do not run a second
   API or push worker on this 1 GiB host.
+- Keep Spring MVC virtual threads enabled only in the production profile. Keep
+  the long-lived push polling loop on its explicit single platform thread.
+- Keep shared outbound HTTP calls bounded by connection and read timeouts;
+  change the defaults only for an observed provider requirement.
+- Keep Nginx request limiting scoped to unauthenticated mutation endpoints.
+  Validate the checked-in config with `nginx -t` before reloading the host.
 - Bind Spring only to `127.0.0.1:8080`; expose only Nginx ports `80/443`.
 - Use JVM heap `-Xms128m -Xmx320m`, a container memory limit near `700 MiB`,
   and a Hikari pool maximum of `3` unless observed production metrics justify
@@ -533,8 +612,6 @@ Lightsail server rules:
   a durable queue, or permanent file storage on Lightsail.
 - Do not switch canonical DNS until local readiness, temporary-IP HTTP, Nginx,
   TLS, migration, and authenticated smoke all pass.
-- The retired GPU and EC2 reverse-tunnel documents are historical rollback
-  context only and must not be used as the current deploy procedure.
 
 ## Store Readiness Rules
 
@@ -608,7 +685,7 @@ Defer unless explicitly requested:
   `docs/active/ai-interview-and-applicant-summary-plan.md`.
 - Interview recording/transcription.
 - Complex admin dashboard.
-- GPU-heavy processing.
+- Compute-heavy media processing.
 - Multi-tenant organization features.
 
 If a requested feature conflicts with MVP scope, mention the tradeoff and keep the implementation narrowly scoped.
@@ -657,6 +734,12 @@ Rules:
 
 ## Git Workflow
 
+- Assume another Codex session may be modifying the same repository. Check
+  `git status --short` and the relevant file diffs before starting work, again
+  immediately before editing, and once more before reporting completion.
+- If a target file changed after it was first inspected, re-read the current
+  file and diff, preserve the other session's changes, and adapt the edit rather
+  than overwriting or reverting them.
 - Keep diffs focused.
 - Do not mix unrelated refactors with feature work.
 - Do not rewrite history unless explicitly requested.
@@ -675,7 +758,7 @@ Update docs when changing:
 - Database schema.
 - MVP scope.
 - Operational commands.
-- User-facing UI or interaction flows, including whether matching Figma frame updates were synced or intentionally deferred.
+- User-facing UI or interaction flows.
 
 Keep AGENTS.md high-signal. Add rules when they prevent real mistakes or clarify repo-specific behavior. Do not use it as a general engineering handbook.
 

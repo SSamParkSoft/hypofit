@@ -43,7 +43,24 @@ describe("authProfileModel", () => {
     });
   });
 
-  it("fills role-onboarding sync input from metadata, app user, and email fallback", () => {
+  it("falls back to the compatibility role when metadata does not provide one", () => {
+    const user = createUser({
+      user_metadata: {
+        bio: "  새 사용자 소개 ",
+        name: "  새 사용자 ",
+      },
+    });
+
+    expect(getMetadataRole(user)).toBeNull();
+    expect(buildDefaultSyncInput(user)).toEqual({
+      bio: "새 사용자 소개",
+      name: "새 사용자",
+      phone: null,
+      role: "both",
+    });
+  });
+
+  it("fills consent-completion sync input from metadata, app user, and email fallback", () => {
     const metadataUser = createUser({
       user_metadata: {
         bio: "  메타데이터 소개 ",
@@ -59,6 +76,8 @@ describe("authProfileModel", () => {
         email: "existing@example.com",
         id: "user-1",
         name: "기존 이름",
+        organization_name: null,
+        organization_type: null,
         phone: "010-9999-9999",
         profile_image_path: null,
         profile_image_url: null,

@@ -21,6 +21,9 @@ public class SurveyInterviewPostEntity {
     @Column(name = "recruitment_type", nullable = false, length = 30)
     private String recruitmentType;
 
+    @Column(name = "entry_mode", nullable = false, length = 30)
+    private String entryMode;
+
     @Column(name = "status", nullable = false, length = 30)
     private String status;
 
@@ -40,6 +43,10 @@ public class SurveyInterviewPostEntity {
 
     public String getRecruitmentType() {
         return recruitmentType;
+    }
+
+    public String getEntryMode() {
+        return entryMode;
     }
 
     public String getStatus() {

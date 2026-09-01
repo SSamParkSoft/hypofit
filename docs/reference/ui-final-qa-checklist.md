@@ -515,7 +515,7 @@ Scope:
 
 - Frontend-only mock data was used for UI design iteration.
 - As of 2026-05-25, runtime mock data hooks have been removed.
-- Local and deployed UI checks should use seeded Supabase/Auth and FastAPI data.
+- Local and deployed UI checks should use seeded Supabase/Auth and Spring API data.
 - Keep `VITE_USE_MOCK_DATA=false` in local and deployed environments.
 
 Confirmed:

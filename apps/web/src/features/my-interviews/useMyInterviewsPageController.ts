@@ -9,7 +9,6 @@ import { useSessions } from "../sessions/useSessions";
 import { buildApplicationReadModels } from "../workflow/readModels";
 import type { CreateSessionInput } from "../../shared/api/sessions";
 import type { Application, AppUser } from "../../shared/api/types";
-import { canUseFounderTools } from "../../shared/auth/roles";
 import type { MyInterviewTab, MyInterviewsTabMeta } from "./types";
 
 interface UseMyInterviewsPageControllerOptions {
@@ -24,7 +23,7 @@ export function useMyInterviewsPageController({
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
-  const canManageFounderPosts = canUseFounderTools(appUser?.role);
+  const canManageFounderPosts = Boolean(appUser?.id);
   const { data: posts = [], isError: isPostsError, isLoading: isPostsLoading } = useInterviewPosts();
   const {
     data: applications = [],
@@ -50,10 +49,8 @@ export function useMyInterviewsPageController({
 
   const myFounderPosts = useMemo(
     () =>
-      appUser && canManageFounderPosts
-        ? posts.filter((post) => post.founder_id === appUser.id)
-        : [],
-    [appUser, canManageFounderPosts, posts],
+      appUser ? posts.filter((post) => post.founder_id === appUser.id) : [],
+    [appUser, posts],
   );
 
   const applicationsByPostId = useMemo(() => {
@@ -96,23 +93,15 @@ export function useMyInterviewsPageController({
       },
     ];
 
-    if (canManageFounderPosts) {
-      nextTabs.push({
-        count: myFounderPosts.length,
-        description: "지원자 확인과 선정, 일정 생성을 이어가요.",
-        label: "내 모집글",
-        value: "posts",
-      });
-    }
+    nextTabs.push({
+      count: myFounderPosts.length,
+      description: "지원자 확인과 선정, 일정 생성을 이어가요.",
+      label: "내 모집글",
+      value: "posts",
+    });
 
     return nextTabs;
-  }, [canManageFounderPosts, myApplicationRows.length, myFounderPosts.length]);
-
-  useEffect(() => {
-    if (!canManageFounderPosts && activeTab === "posts") {
-      setActiveTab("applications");
-    }
-  }, [activeTab, canManageFounderPosts]);
+  }, [myApplicationRows.length, myFounderPosts.length]);
 
   useEffect(() => {
     if (!myApplicationRows.length) {

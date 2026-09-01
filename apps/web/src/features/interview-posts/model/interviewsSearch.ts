@@ -1,7 +1,9 @@
+import { normalizeCompensations, type CompensationType, type PostingType } from "@hypofit/contracts";
 import type { InterviewMode, InterviewPost } from "../../../shared/api/types";
 
 export type ModeFilter = "all" | InterviewMode;
-export type RewardFilter = "all" | "10000" | "15000" | "20000";
+export type CompensationFilter = "all" | CompensationType;
+export type PostingTypeFilter = "all" | PostingType;
 export type NearbyStatus = "idle" | "requesting" | "granted" | "denied" | "unavailable";
 
 export const modeFilters: Array<{ label: string; value: ModeFilter }> = [
@@ -11,11 +13,26 @@ export const modeFilters: Array<{ label: string; value: ModeFilter }> = [
   { label: "대면/화상", value: "both" },
 ];
 
-export const rewardFilters: Array<{ label: string; value: RewardFilter }> = [
-  { label: "전체 사례비", value: "all" },
-  { label: "1만원 이상", value: "10000" },
-  { label: "1.5만원 이상", value: "15000" },
-  { label: "2만원 이상", value: "20000" },
+export const compensationFilters: Array<{ label: string; value: CompensationFilter }> = [
+  { label: "전체", value: "all" },
+  { label: "현금", value: "cash" },
+  { label: "기프티콘 / 상품권", value: "gift_card" },
+  { label: "포인트", value: "points" },
+  { label: "제품 / 샘플", value: "product" },
+  { label: "쿠폰 / 이용권", value: "coupon_or_access" },
+  { label: "기타", value: "other" },
+  { label: "보상 없음", value: "none" },
+];
+
+export const postingTypeFilters: Array<{ label: string; value: PostingTypeFilter }> = [
+  { label: "전체", value: "all" },
+  { label: "인터뷰", value: "interview" },
+  { label: "설문조사", value: "survey" },
+  { label: "베타테스트", value: "beta_test" },
+  { label: "사용성 테스트", value: "usability_test" },
+  { label: "연구 실험", value: "research_experiment" },
+  { label: "좌담회", value: "focus_group" },
+  { label: "기타", value: "other" },
 ];
 
 export const nearbyRadiusOptions = [1000, 3000, 5000, 10000, 20000] as const;
@@ -26,7 +43,8 @@ export interface InterviewsSearchState {
   nearbyCenter: { lat: number; lng: number } | null;
   nearbyRadiusM: number;
   query: string;
-  rewardFilter: RewardFilter;
+  compensationFilter: CompensationFilter;
+  postingTypeFilter: PostingTypeFilter;
   selectedPostId: string | null;
 }
 
@@ -35,8 +53,9 @@ export function filterInterviewPosts(
   {
     modeFilter,
     query,
-    rewardFilter,
-  }: Pick<InterviewsSearchState, "modeFilter" | "query" | "rewardFilter">,
+    compensationFilter,
+    postingTypeFilter,
+  }: Pick<InterviewsSearchState, "modeFilter" | "query" | "compensationFilter" | "postingTypeFilter">,
 ) {
   return posts.filter((post) => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -46,10 +65,13 @@ export function filterInterviewPosts(
         .filter(Boolean)
         .some((value) => value?.toLowerCase().includes(normalizedQuery));
     const matchesMode = modeFilter === "all" || post.interview_mode === modeFilter;
-    const minimumReward = rewardFilter === "all" ? 0 : Number(rewardFilter);
-    const matchesReward = post.reward_amount >= minimumReward;
+    const compensations = normalizeCompensations(post.compensations, post.reward_amount);
+    const matchesCompensation = compensationFilter === "all" || compensations.some(
+      (compensation) => compensation.type === compensationFilter,
+    );
+    const matchesType = postingTypeFilter === "all" || (post.recruitment_type ?? "interview") === postingTypeFilter;
 
-    return matchesQuery && matchesMode && matchesReward;
+    return matchesQuery && matchesMode && matchesCompensation && matchesType;
   });
 }
 
@@ -58,7 +80,8 @@ export function buildInterviewsSearchParams({
   nearbyCenter,
   nearbyRadiusM,
   query,
-  rewardFilter,
+  compensationFilter,
+  postingTypeFilter,
   selectedPostId,
 }: InterviewsSearchState) {
   const params = new URLSearchParams();
@@ -72,8 +95,12 @@ export function buildInterviewsSearchParams({
     params.set("mode", modeFilter);
   }
 
-  if (rewardFilter !== "all") {
-    params.set("reward", rewardFilter);
+  if (compensationFilter !== "all") {
+    params.set("compensation", compensationFilter);
+  }
+
+  if (postingTypeFilter !== "all") {
+    params.set("type", postingTypeFilter);
   }
 
   if (selectedPostId) {
@@ -96,7 +123,8 @@ export function readInterviewsSearchStateFromUrl(): InterviewsSearchState {
       nearbyCenter: null,
       nearbyRadiusM: defaultNearbyRadiusM,
       query: "",
-      rewardFilter: "all",
+      compensationFilter: "all",
+      postingTypeFilter: "all",
       selectedPostId: null,
     };
   }
@@ -108,7 +136,8 @@ export function readInterviewsSearchStateFromUrl(): InterviewsSearchState {
   const lng = lngParam === null ? Number.NaN : Number(lngParam);
   const radius = Number(params.get("radius"));
   const mode = params.get("mode");
-  const reward = params.get("reward");
+  const compensation = params.get("compensation");
+  const type = params.get("type");
   const nearbyCenter = Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
   const selectedPostId = params.get("post");
 
@@ -119,7 +148,8 @@ export function readInterviewsSearchStateFromUrl(): InterviewsSearchState {
       ? radius
       : defaultNearbyRadiusM,
     query: params.get("q") ?? "",
-    rewardFilter: isRewardFilterValue(reward) ? reward : "all",
+    compensationFilter: isCompensationFilterValue(compensation) ? compensation : "all",
+    postingTypeFilter: isPostingTypeFilterValue(type) ? type : "all",
     selectedPostId: selectedPostId ? selectedPostId : null,
   };
 }
@@ -132,6 +162,10 @@ function isModeFilterValue(value: string | null): value is ModeFilter {
   return modeFilters.some((filter) => filter.value === value);
 }
 
-function isRewardFilterValue(value: string | null): value is RewardFilter {
-  return rewardFilters.some((filter) => filter.value === value);
+function isCompensationFilterValue(value: string | null): value is CompensationFilter {
+  return compensationFilters.some((filter) => filter.value === value);
+}
+
+function isPostingTypeFilterValue(value: string | null): value is PostingTypeFilter {
+  return postingTypeFilters.some((filter) => filter.value === value);
 }

@@ -211,21 +211,6 @@ For `apps/web`:
 - keep desktop and mobile layouts separate where needed,
 - do not import RN/mobile UI patterns directly.
 
-### 7. Figma Handoff
-
-When using Figma or Figma MCP:
-
-- search the design system/components first,
-- reuse variables, components, and styles before creating new elements,
-- group mobile frames together and web frames together,
-- keep frame names simple and current,
-- use real-ish Hypofit content, not lorem ipsum,
-- use current app states and data shapes,
-- add annotations only when they clarify behavior or implementation.
-
-Do not sync every small local UI tweak to Figma. Sync only when the user asks or
-when a UI direction is approved/final.
-
 ## Prompt Template
 
 Use this structure for AI design prompts:
@@ -352,5 +337,4 @@ AI-assisted design work is done only when:
 - required states are covered,
 - accessibility and safe-area risks are checked,
 - implementation path is clear,
-- Figma sync status is explicit,
 - no secrets/PII/reference copying risks remain.

@@ -174,6 +174,115 @@ values
     'open', now() - interval '16 hours', now() - interval '16 hours'
   );
 
+-- Type-specific fixtures use the released recruitment contract. They exercise
+-- survey participation states and beta-test application/selection without
+-- adding unsupported sessions or reward-confirmation workflows.
+insert into interview_posts (
+  id, founder_id, title, service_summary, target_description,
+  reward_amount, compensations, duration_minutes, recruit_count, recruitment_type,
+  external_provider, external_url, participation_deadline_at, external_data_notice,
+  beta_test_platforms, beta_test_starts_at, beta_test_ends_at,
+  interview_mode, location, schedule_options, status,
+  entry_mode, schedule_mode, participation_mode, duration_mode, external_participation,
+  created_at, updated_at
+)
+values
+  (
+    '82000000-0000-4000-8000-000000000007',
+    '81000000-0000-4000-8000-000000000001',
+    '모바일 앱 알림 설정 경험 설문조사',
+    '알림을 켜고 끄는 기준과 실제 사용 경험을 짧게 확인합니다.',
+    '최근 한 달 안에 모바일 앱 알림 설정을 바꿔본 사람',
+    0, '[{"type":"gift_card","label":"커피 기프티콘"}]'::jsonb, 10, 50, 'survey',
+    'google_forms', 'https://docs.google.com/forms/', now() + interval '7 days',
+    '외부 Google Forms에서 응답을 수집하며, Hypofit에는 참여 상태만 기록됩니다.',
+    null, null, null,
+    'online', null, '[]'::jsonb, 'open',
+    'direct', 'none', 'online', 'minutes', true,
+    now() - interval '3 hours', now() - interval '3 hours'
+  ),
+  (
+    '82000000-0000-4000-8000-000000000008',
+    '81000000-0000-4000-8000-000000000001',
+    '구독 서비스 사용 경험 설문조사',
+    '유료 구독을 시작하고 유지하는 기준을 확인합니다.',
+    '현재 하나 이상의 유료 구독 서비스를 이용하는 사람',
+    0, '[{"type":"none"}]'::jsonb, 8, 80, 'survey',
+    'google_forms', 'https://docs.google.com/forms/', now() + interval '5 days',
+    '외부 Google Forms에서 응답을 수집하며, Hypofit에는 참여 상태만 기록됩니다.',
+    null, null, null,
+    'online', null, '[]'::jsonb, 'open',
+    'direct', 'none', 'online', 'minutes', true,
+    now() - interval '6 hours', now() - interval '6 hours'
+  ),
+  (
+    '82000000-0000-4000-8000-000000000009',
+    (select target_user_id from account_seed_context),
+    '대학생 학습 도구 사용 경험 설문조사',
+    '학습 계획과 과제 관리 도구를 사용하는 방식을 조사합니다.',
+    '최근 한 학기 안에 디지털 학습 도구를 사용한 대학생',
+    0, '[{"type":"points","points":3000}]'::jsonb, 12, 60, 'survey',
+    'google_forms', 'https://docs.google.com/forms/', now() + interval '4 days',
+    '외부 Google Forms에서 응답을 수집하며, Hypofit에는 참여 상태만 기록됩니다.',
+    null, null, null,
+    'online', null, '[]'::jsonb, 'open',
+    'direct', 'none', 'online', 'minutes', true,
+    now() - interval '12 hours', now() - interval '12 hours'
+  ),
+  (
+    '82000000-0000-4000-8000-000000000010',
+    (select target_user_id from account_seed_context),
+    '지역 카페 이용 경험 설문조사',
+    '카페에서 공부하거나 일할 때 중요하게 보는 기준을 확인합니다.',
+    '최근 한 달 안에 카페에서 2시간 이상 머문 사람',
+    0, '[{"type":"coupon_or_access","label":"음료 쿠폰"}]'::jsonb, 7, 100, 'survey',
+    'google_forms', 'https://docs.google.com/forms/', now() + interval '3 days',
+    '외부 Google Forms에서 응답을 수집하며, Hypofit에는 참여 상태만 기록됩니다.',
+    null, null, null,
+    'online', null, '[]'::jsonb, 'open',
+    'direct', 'none', 'online', 'minutes', true,
+    now() - interval '18 hours', now() - interval '18 hours'
+  ),
+  (
+    '82000000-0000-4000-8000-000000000011',
+    '81000000-0000-4000-8000-000000000001',
+    '운동 기록 앱 베타테스터 모집',
+    '운동 기록과 주간 리포트 기능을 사용할 베타테스터를 찾습니다.',
+    '최근 3개월 안에 운동 기록 앱을 주 1회 이상 사용한 사람',
+    0, '[{"type":"product","label":"프리미엄 이용권 제공"}]'::jsonb, 0, 8, 'beta_test',
+    null, null, null, null,
+    array['iOS', 'Android'], now() + interval '5 days', now() + interval '19 days',
+    'online', null, '[]'::jsonb, 'open',
+    'application_required', 'none', 'online', 'period', false,
+    now() - interval '4 hours', now() - interval '4 hours'
+  ),
+  (
+    '82000000-0000-4000-8000-000000000012',
+    '81000000-0000-4000-8000-000000000001',
+    '일정 관리 앱 베타테스터 모집',
+    '새로운 일정 공유 기능을 실제 생활에서 사용해 볼 베타테스터를 찾습니다.',
+    '개인 일정과 할 일을 모바일로 관리하는 사람',
+    20000, '[{"type":"cash","amount":20000,"currency":"KRW"}]'::jsonb, 0, 5, 'beta_test',
+    null, null, null, null,
+    array['iOS'], now() - interval '1 day', now() + interval '13 days',
+    'online', null, '[]'::jsonb, 'open',
+    'application_required', 'none', 'online', 'period', false,
+    now() - interval '2 days', now() - interval '1 day'
+  ),
+  (
+    '82000000-0000-4000-8000-000000000013',
+    (select target_user_id from account_seed_context),
+    '지역 행사 탐색 서비스 베타테스터 모집',
+    '근처 행사 탐색과 관심 일정 저장 기능을 점검합니다.',
+    '안산 지역 행사를 월 1회 이상 찾아보는 사람',
+    0, '[{"type":"gift_card","label":"참여 완료 시 커피 기프티콘"}]'::jsonb, 0, 6, 'beta_test',
+    null, null, null, null,
+    array['Android'], now() + interval '3 days', now() + interval '17 days',
+    'online', null, '[]'::jsonb, 'open',
+    'application_required', 'none', 'online', 'period', false,
+    now() - interval '9 hours', now() - interval '9 hours'
+  );
+
 insert into applications (
   id, interview_post_id, respondent_id, answers, available_times,
   status, rejection_reason, moderation_status, created_at, updated_at
@@ -202,7 +311,40 @@ values
     '{"relevant_experience":"혼자 살며 매주 장을 보고 식재료를 관리해요.","motivation":"버리게 되는 식재료와 관리 습관을 솔직하게 이야기할 수 있어요."}'::jsonb,
     '["평일 저녁"]'::jsonb,
     'applied', null, 'visible', now() - interval '8 hours', now() - interval '8 hours'
+  ),
+  (
+    '83000000-0000-4000-8000-000000000004',
+    '82000000-0000-4000-8000-000000000011',
+    (select target_user_id from account_seed_context),
+    '{"relevant_experience":"운동 기록 앱을 꾸준히 사용하고 있어요.","motivation":"주간 리포트와 기록 흐름을 실제 사용 환경에서 점검할 수 있어요."}'::jsonb,
+    '[]'::jsonb,
+    'applied', null, 'visible', now() - interval '2 hours', now() - interval '2 hours'
+  ),
+  (
+    '83000000-0000-4000-8000-000000000005',
+    '82000000-0000-4000-8000-000000000012',
+    (select target_user_id from account_seed_context),
+    '{"relevant_experience":"모바일 일정과 할 일을 매일 관리해요.","motivation":"새 기능을 정해진 기간에 사용하고 피드백을 남길 수 있어요."}'::jsonb,
+    '[]'::jsonb,
+    'selected', null, 'visible', now() - interval '3 days', now() - interval '1 day'
+  ),
+  (
+    '83000000-0000-4000-8000-000000000006',
+    '82000000-0000-4000-8000-000000000013',
+    '81000000-0000-4000-8000-000000000002',
+    '{"relevant_experience":"안산 지역 행사와 전시를 자주 찾아봐요.","motivation":"행사 탐색 흐름을 실제 생활 기준으로 피드백할 수 있어요."}'::jsonb,
+    '[]'::jsonb,
+    'applied', null, 'visible', now() - interval '5 hours', now() - interval '5 hours'
   );
+
+insert into survey_participations (
+  id, post_id, participant_id, status, opened_at, submitted_at, confirmed_at, withdrawn_at, created_at, updated_at
+)
+values
+  ('86000000-0000-4000-8000-000000000001', '82000000-0000-4000-8000-000000000007', (select target_user_id from account_seed_context), 'opened', now() - interval '90 minutes', null, null, null, now() - interval '90 minutes', now() - interval '90 minutes'),
+  ('86000000-0000-4000-8000-000000000002', '82000000-0000-4000-8000-000000000008', (select target_user_id from account_seed_context), 'submitted', now() - interval '4 hours', now() - interval '3 hours', null, null, now() - interval '4 hours', now() - interval '3 hours'),
+  ('86000000-0000-4000-8000-000000000003', '82000000-0000-4000-8000-000000000009', '81000000-0000-4000-8000-000000000002', 'submitted', now() - interval '6 hours', now() - interval '5 hours', null, null, now() - interval '6 hours', now() - interval '5 hours'),
+  ('86000000-0000-4000-8000-000000000004', '82000000-0000-4000-8000-000000000010', '81000000-0000-4000-8000-000000000002', 'confirmed', now() - interval '1 day', now() - interval '22 hours', now() - interval '18 hours', null, now() - interval '1 day', now() - interval '18 hours');
 
 insert into chat_rooms (
   id, interview_post_id, application_id, founder_id, respondent_id,
@@ -211,14 +353,16 @@ insert into chat_rooms (
 values
   ('84000000-0000-4000-8000-000000000001', '82000000-0000-4000-8000-000000000001', '83000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), '81000000-0000-4000-8000-000000000002', 'open', now() - interval '30 minutes', now() - interval '90 minutes', now() - interval '30 minutes'),
   ('84000000-0000-4000-8000-000000000002', '82000000-0000-4000-8000-000000000003', '83000000-0000-4000-8000-000000000002', '81000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), 'selected', now() - interval '1 hour', now() - interval '2 days', now() - interval '1 hour'),
-  ('84000000-0000-4000-8000-000000000003', '82000000-0000-4000-8000-000000000004', '83000000-0000-4000-8000-000000000003', '81000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), 'open', now() - interval '3 hours', now() - interval '8 hours', now() - interval '3 hours');
+  ('84000000-0000-4000-8000-000000000003', '82000000-0000-4000-8000-000000000004', '83000000-0000-4000-8000-000000000003', '81000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), 'open', now() - interval '3 hours', now() - interval '8 hours', now() - interval '3 hours'),
+  ('84000000-0000-4000-8000-000000000004', '82000000-0000-4000-8000-000000000012', '83000000-0000-4000-8000-000000000005', '81000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), 'selected', now() - interval '25 minutes', now() - interval '3 days', now() - interval '25 minutes');
 
 insert into chat_messages (id, room_id, sender_id, message_type, body, metadata, created_at)
 values
   ('84100000-0000-4000-8000-000000000001', '84000000-0000-4000-8000-000000000001', null, 'application_created', '새 신청이 도착했어요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '90 minutes'),
   ('84100000-0000-4000-8000-000000000002', '84000000-0000-4000-8000-000000000001', '81000000-0000-4000-8000-000000000002', 'user', '평일 저녁 7시 이후에 참여할 수 있어요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '30 minutes'),
   ('84100000-0000-4000-8000-000000000003', '84000000-0000-4000-8000-000000000002', '81000000-0000-4000-8000-000000000001', 'user', '수요일 저녁 7시 일정으로 진행하면 좋겠습니다.', '{"seed_source":"sehyeon_home_test"}', now() - interval '1 hour'),
-  ('84100000-0000-4000-8000-000000000004', '84000000-0000-4000-8000-000000000003', '81000000-0000-4000-8000-000000000001', 'user', '신청 내용을 확인했어요. 검토 후 안내드릴게요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '3 hours');
+  ('84100000-0000-4000-8000-000000000004', '84000000-0000-4000-8000-000000000003', '81000000-0000-4000-8000-000000000001', 'user', '신청 내용을 확인했어요. 검토 후 안내드릴게요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '3 hours'),
+  ('84100000-0000-4000-8000-000000000005', '84000000-0000-4000-8000-000000000004', '81000000-0000-4000-8000-000000000001', 'user', '베타테스트 시작 전에 설치 방법과 피드백 방식을 안내드릴게요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '25 minutes');
 
 insert into chat_room_participant_settings (room_id, user_id, is_muted, is_hidden, last_read_at)
 select room_id, user_id, false, false, last_read_at
@@ -229,7 +373,9 @@ from (
     ('84000000-0000-4000-8000-000000000002'::uuid, (select target_user_id from account_seed_context), now() - interval '2 hours'),
     ('84000000-0000-4000-8000-000000000002'::uuid, '81000000-0000-4000-8000-000000000001'::uuid, now() - interval '30 minutes'),
     ('84000000-0000-4000-8000-000000000003'::uuid, (select target_user_id from account_seed_context), now() - interval '4 hours'),
-    ('84000000-0000-4000-8000-000000000003'::uuid, '81000000-0000-4000-8000-000000000001'::uuid, now() - interval '2 hours')
+    ('84000000-0000-4000-8000-000000000003'::uuid, '81000000-0000-4000-8000-000000000001'::uuid, now() - interval '2 hours'),
+    ('84000000-0000-4000-8000-000000000004'::uuid, (select target_user_id from account_seed_context), now() - interval '2 hours'),
+    ('84000000-0000-4000-8000-000000000004'::uuid, '81000000-0000-4000-8000-000000000001'::uuid, now() - interval '20 minutes')
 ) as settings(room_id, user_id, last_read_at);
 
 insert into interview_sessions (
@@ -249,7 +395,8 @@ insert into notifications (
 values
   ('85000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), 'application_created', '새 신청이 도착했어요', '대학생 일정 관리 경험 인터뷰에 새로운 신청이 들어왔어요.', 'application', '83000000-0000-4000-8000-000000000001', '{"seed_source":"sehyeon_home_test"}', null, now() - interval '80 minutes'),
   ('85000000-0000-4000-8000-000000000002', (select target_user_id from account_seed_context), 'application_selected', '인터뷰에 선정됐어요', '중고거래 약속 조율 인터뷰 일정을 확인해 주세요.', 'chat_room', '84000000-0000-4000-8000-000000000002', '{"seed_source":"sehyeon_home_test"}', null, now() - interval '20 hours'),
-  ('85000000-0000-4000-8000-000000000003', (select target_user_id from account_seed_context), 'chat_message', '새 메시지가 도착했어요', '대학생 일정 관리 경험 인터뷰 채팅방에 새 메시지가 있어요.', 'chat_room', '84000000-0000-4000-8000-000000000001', '{"seed_source":"sehyeon_home_test"}', now() - interval '10 minutes', now() - interval '30 minutes');
+  ('85000000-0000-4000-8000-000000000003', (select target_user_id from account_seed_context), 'chat_message', '새 메시지가 도착했어요', '대학생 일정 관리 경험 인터뷰 채팅방에 새 메시지가 있어요.', 'chat_room', '84000000-0000-4000-8000-000000000001', '{"seed_source":"sehyeon_home_test"}', now() - interval '10 minutes', now() - interval '30 minutes'),
+  ('85000000-0000-4000-8000-000000000004', (select target_user_id from account_seed_context), 'application_selected', '베타테스터로 선정됐어요', '일정 관리 앱 베타테스트 안내를 채팅에서 확인해 주세요.', 'chat_room', '84000000-0000-4000-8000-000000000004', '{"seed_source":"sehyeon_home_test"}', null, now() - interval '25 minutes');
 
 commit;
 
@@ -257,7 +404,13 @@ select
   u.email,
   u.role,
   (select count(*) from interview_posts p where p.founder_id = u.id and p.id::text like '82%') as created_posts,
+  (select jsonb_object_agg(recruitment_type, count) from (
+    select recruitment_type, count(*) from interview_posts where id::text like '82%' group by recruitment_type
+  ) as seeded_post_types) as seeded_post_types,
   (select count(*) from applications a where a.respondent_id = u.id and a.id::text like '83%') as applications,
+  (select jsonb_object_agg(status, count) from (
+    select status, count(*) from survey_participations where id::text like '86%' group by status
+  ) as seeded_survey_statuses) as seeded_survey_statuses,
   (select count(*) from chat_rooms r where (r.founder_id = u.id or r.respondent_id = u.id) and r.id::text like '84%') as chat_rooms,
   (select count(*) from notifications n where n.user_id = u.id and n.id::text like '85%') as notifications
 from app_users u

@@ -2,6 +2,7 @@ package com.contentruck.hypofit.common.config;
 
 import com.contentruck.hypofit.common.security.HypofitBearerTokenAuthenticationEntryPoint;
 import com.contentruck.hypofit.common.security.HypofitJwtDecoder;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -51,7 +52,7 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(HypofitProperties properties) {
-        return new HypofitJwtDecoder(properties);
+    JwtDecoder jwtDecoder(HypofitProperties properties, MeterRegistry meterRegistry) {
+        return new HypofitJwtDecoder(properties, meterRegistry);
     }
 }

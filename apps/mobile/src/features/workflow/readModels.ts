@@ -38,12 +38,12 @@ export function buildApplicationReadModels({
       answerCount: Object.keys(application.answers).length,
       applicationLabel: `지원 ${shortId(application.id)}`,
       availableTimeCount: application.available_times.length,
-      displayTitle: post?.title ?? `인터뷰 모집글 ${shortId(application.interview_post_id)}`,
+      displayTitle: post?.title ?? `공고 ${shortId(application.interview_post_id)}`,
       post,
       respondentLabel: formatUserDisplayName(application.respondent),
       session,
       sessionTimeLabel: session ? formatSessionTime(session.scheduled_at) : null,
-      targetSummary: post?.target_description ?? "모집글 정보를 불러오면 타깃 조건이 표시됩니다.",
+      targetSummary: post?.target_description ?? "공고 정보를 불러오면 참여 조건이 표시됩니다.",
     };
   });
 }

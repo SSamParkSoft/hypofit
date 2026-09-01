@@ -2,6 +2,402 @@
 
 Status: active
 
+## 2026-08-26 Calm Emerald Product UI System
+
+### 구현 범위
+
+- `/app`, `/interviews`, `/map`, `/chat`, `/profile`의 기존 route와 정보
+  구조를 유지한 채, 인증 후 web surface를 Calm Emerald product system으로
+  정리한다.
+- desktop은 top navigation과 existing master-detail/workspace 구성을,
+  phone은 5개 destination bottom navigation과 단일 흐름을 유지한다.
+- API, route, data model, map/chat interaction, interview filter와 selection
+  flow는 변경하지 않는다.
+
+### 적용한 규칙
+
+- product token은 neutral surface를 기본으로 하고 `#0F7A4D`를 primary
+  action, selection, current state에만 사용한다. lime은 current progress의
+  작은 accent로 제한한다.
+- top navigation active state는 pill 대신 brand text와 2px bottom indicator를
+  사용한다. mobile tab active surface도 compact marker로 제한한다.
+- home은 현재 이어갈 인터뷰를 focus panel로 유지하고, 일정이 없을 때는 dark
+  surface 대신 compact neutral empty state를 표시한다. 최근 인터뷰는 독립 카드
+  grid 대신 divider 기반 row list로 표시한다.
+- interview desktop filters는 search, quick filter와 `필터` entry로 밀도를
+  낮추되, modal filter panel에서 기존 조건을 모두 유지한다.
+- profile은 긴 설명형 header와 icon tile 반복을 줄이고 identity summary,
+  account edit entry, grouped divider rows로 정리한다.
+- selected list rows, chat outgoing messages, detail panels는 각각
+  `surface-selected`, `brand-soft`, solid border surface를 사용한다. content
+  card의 불필요한 shadow는 제거한다.
+
+### 2026-08-26 검증 기록
+
+- web typecheck, lint(architecture boundary 포함), 전체 test `331`건,
+  production build와 public browser smoke가 통과했다.
+- browser smoke는 공개/보호 auth entry와 `390x844` viewport를 확인한다.
+  인증된 route의 나머지 viewport visual capture는 유효한 review credential로
+  다시 실행할 수 있는 후속 QA 항목으로 남긴다.
+- bundle budget은 현재 CSS asset `119.35 KiB raw / 19.49 KiB gzip`가 기존
+  budget을 초과해 실패한다. landing motion/style 누적을 포함한 repository
+  baseline 차이이므로, 이번 product UI 기능 검증과 분리해 CSS budget 기준 또는
+  stylesheet 분리를 별도로 정리해야 한다.
+
+### 2026-08-26 Profile 2.0 desktop workspace
+
+- `/profile`은 하나의 Profile 2.0 responsive component를 사용한다. `>=1200px`에서
+  `320px` identity surface와 open management column의 two-column workspace로
+  전환하고, 그 아래에서는 같은 정보 구조가 single-column으로 자연스럽게 접힌다.
+  legacy `ProfilePage`로 교체 렌더링하지 않는다.
+- desktop header에는 실제 `모집글 만들기` entry만 두고, `내 인터뷰`는 real count를
+  가진 `내 활동` row로 이동한다. account, notification, inquiry, report, policy,
+  sign-out, deletion route는 모두 유지한다.
+- identity surface는 프로필 사진 upload, 이름, email, 소속, bio, profile edit을
+  소유한다. activity와 management section은 container border 대신 divider, spacing,
+  tonal hover로 hierarchy를 만든다.
+- profile photo upload/state와 activity data loading은 `useProfileWorkspace`로
+  공유해 desktop/compact presentation이 business logic을 중복하지 않는다. 이
+  workflow의 explicit feature dependencies만 web boundary check에 추가했다.
+
+## 2026-08-15 반응형 UI 고도화 실행 계획
+
+### 현재 기준선
+
+- 현재 구현의 종합 반응형 완성도는 `84/100`으로 평가한다.
+- 데스크톱은 상단 내비게이션, 최대 너비, 목록·상세 병렬 구조와 지도·채팅
+  workspace가 안정적이므로 `89/100` 수준이다.
+- 모바일 웹은 `dvh`, safe area, 하단 내비게이션 reserve와 단일 화면 흐름이
+  갖춰져 있어 `84/100` 수준이다.
+- `768~1199px` compact web은 기능상 동작하지만 전용 정보 밀도와 전환 규칙이
+  충분히 검증되지 않아 `78/100` 수준이다.
+- 이번 작업의 목표는 새 레이아웃 체계를 발명하는 것이 아니라 이미 관측된
+  breakpoint 충돌, 높이 중복, scroll ownership 불일치를 제거해 전체 점수를
+  `90/100` 이상으로 올리는 것이다.
+
+### 범위와 비범위
+
+이번 작업에 포함한다.
+
+- 인증 후 `/app`의 홈, 인터뷰, 지도, 채팅, 프로필 공통 shell
+- `320~1199px`의 phone/compact fallback과 `1200px+` desktop 전환
+- viewport 높이, safe area, header/bottom navigation reserve
+- 문서 스크롤과 내부 panel/list 스크롤의 소유권
+- 한국어 긴 문자열, empty/loading/error 상태의 overflow
+- 키보드 탐색, focus, touch target과 `200%` 확대 시 핵심 흐름
+
+이번 작업에서 제외한다.
+
+- iPad 전용 정보 구조와 태블릿 전용 디자인 시스템
+- 모바일 RN 화면 재설계
+- 모든 CSS utility를 새 abstraction으로 감싸는 대규모 리팩터링
+
+### 반응형 계약
+
+| 구간 | 내비게이션 | 기본 구성 | 스크롤 원칙 |
+| --- | --- | --- | --- |
+| `<768px` | 5개 하단 탭 | phone single-column 또는 full-screen task surface | 일반 페이지는 document scroll, 홈·지도·채팅방은 선언된 내부 영역만 scroll |
+| `768~1199px` | 상단 전역 내비게이션 | compact single-column을 기본으로 하고 충분한 폭이 필요한 단순 section만 2열 | body와 내부 panel의 동시 scroll을 피하고 페이지별 owner를 하나로 고정 |
+| `>=1200px` | 상단 전역 내비게이션 | list/detail 또는 workspace split | 지도·채팅 workspace는 내부 scroll, 일반 페이지는 document scroll |
+| `>=1600px` | 상단 전역 내비게이션 | 실제 보조 정보가 있을 때만 third context panel 허용 | `1200px` 계약을 유지하고 빈 공간을 채우기 위한 panel은 추가하지 않음 |
+
+구현 규칙:
+
+- 같은 요소에 범위가 열린 `md:*` grid 규칙과 `min-[1200px]:*` desktop grid
+  규칙을 함께 두지 않는다. compact 규칙은 필요한 경우
+  `md:max-[1199px]:*`로 닫는다.
+- shell에서 header를 제외한 작업 높이를 계산한 뒤 자식 페이지가 다시
+  `100dvh` 또는 `h-dvh`를 적용하지 않는다.
+- 페이지 높이는 공통 CSS 변수와 `PageLayout`/workspace helper가 소유하고,
+  개별 화면은 콘텐츠 배치만 소유한다.
+- 화면 전체와 내부 목록이 동시에 `overflow-y-auto`를 갖지 않도록 한다.
+- breakpoint는 콘텐츠가 실제로 깨지는 지점에만 추가한다. 기기명이나 임의의
+  미세 구간별 breakpoint를 늘리지 않는다.
+
+### Phase R1. Shell과 높이 계약 정리
+
+- [x] `AppShell`의 normal document page와 full-height workspace 계약을
+  명시적으로 분리한다.
+- [x] header, footer, mobile bottom navigation을 제외한 실제 content height를
+  공통 변수로 계산한다.
+- [x] `PageLayout`의 `workspace` variant가 shell 내부에서 `h-dvh`를 중복
+  적용하지 않게 수정한다.
+- [x] `InterviewsPage`의 desktop `h-dvh`를 제거하거나 공통 workspace height로
+  치환해 header 높이만큼 생기는 불필요한 문서 overflow를 막는다.
+- [x] 지도와 채팅은 기존 full-height 동작을 유지하되 footer 접근을 위한 scroll
+  chain이 desktop에서만 작동하는지 확인한다.
+
+완료 기준:
+
+- `1280x720`, `1280x832`, `1440x900`에서 일반 페이지에 의도하지 않은
+  header 높이만큼의 세로 overflow가 없다.
+- 지도와 채팅의 지도 캔버스, 방 목록, 메시지 목록 높이가 footer나 viewport
+  변화 때문에 줄어들거나 가려지지 않는다.
+
+### Phase R2. Compact web `768~1199px` 정리
+
+- [x] 홈 Bento는 `768~1199px`에서 명시적인 2열 또는 full-span 조합만 사용하고
+  implicit grid column이 생기지 않게 한다.
+- [x] 인터뷰와 프로필은 compact에서 단일 읽기 흐름을 유지하고 desktop
+  detail/context panel을 억지로 축소하지 않는다.
+- [ ] 지도는 검색창, 현재 위치 버튼, 결과 sheet가 `768x1024`와
+  `1024x768`에서 겹치지 않게 한다.
+- [x] 채팅은 compact에서 목록과 대화방을 동시에 좁게 표시하지 않고 route
+  기반 단일 pane 전환을 유지한다.
+- [ ] 상단 전역 내비게이션은 `768px`에서 브랜드, 5개 메뉴, 알림, 계정 메뉴가
+  overflow하지 않는지 확인하고 필요하면 라벨 간격만 조정한다.
+
+완료 기준:
+
+- `768x1024`, `1024x768`, `1199x800`에서 가로 스크롤이 없다.
+- 카드나 row의 제목, 상태, CTA가 잘리거나 다른 열을 밀어내지 않는다.
+- compact 화면에서 desktop용 빈 detail panel이 남지 않는다.
+
+### Phase R3. 화면별 scroll ownership 통일
+
+- [x] 홈, 인터뷰, 지도, 채팅, 프로필에 대해 document/panel/list 중 실제 scroll
+  owner를 한 줄짜리 표로 코드 주석이 아닌 이 문서에 확정한다.
+- [x] 홈은 콘텐츠가 늘어난 현재 Bento 구조에 맞춰 document scroll을 기본으로
+  하고, 카드 안에 불필요한 중첩 scroll을 만들지 않는다.
+- [x] 인터뷰는 desktop 목록이 내부 scroll을 소유할 필요가 있을 때만 고정
+  높이를 사용하고 compact/mobile에서는 자연스러운 document flow를 유지한다.
+- [x] 지도는 page scroll을 잠그고 결과 panel 또는 mobile sheet만 scroll한다.
+- [ ] 채팅 목록/방은 메시지 영역만 scroll하고 composer는 viewport와 keyboard에
+  가려지지 않게 고정한다.
+- [x] 프로필과 설정은 document scroll만 사용하고 내부 설정 block에 별도
+  scrollbar를 만들지 않는다.
+
+확정할 scroll owner:
+
+| 화면 | phone | compact web | desktop |
+| --- | --- | --- | --- |
+| 홈 | document | document | document |
+| 인터뷰 | document | document | list panel은 실제 고정 workspace일 때만 internal |
+| 지도 | map viewport + sheet internal | map viewport + result internal | map/result panel internal |
+| 채팅 목록 | document 또는 room list | document | room list internal |
+| 채팅방 | message list internal | message list internal | message list internal |
+| 프로필·설정 | document | document | document |
+
+### Phase R4. 콘텐츠·접근성 stress 보강
+
+- [ ] 이름, 인터뷰 제목, 지역, 상태, 빈 상태 문구에 긴 한국어 fixture를 넣어
+  wrap, truncate, line-clamp 정책을 확인한다.
+- [ ] filter, icon button, bottom navigation의 pointer target을 phone에서 최소
+  `44x44 CSS px`로 유지한다.
+- [ ] `200%` 확대에서 상단 메뉴 접근, 인터뷰 검색, 지도 검색, 채팅 입력,
+  프로필 설정 진입이 가능해야 한다.
+- [ ] keyboard-only에서 skip link, 상단 메뉴, popup, list row, detail CTA의 focus
+  순서와 focus-visible을 확인한다.
+- [ ] `prefers-reduced-motion`에서 route와 popup 동작이 정보 손실 없이 완료되는지
+  확인한다.
+
+### Phase R5. 검증과 회귀 방지
+
+필수 viewport:
+
+```text
+phone:          390 x 844
+large phone:    430 x 932
+compact tall:   768 x 1024
+compact wide:  1024 x 768
+desktop short: 1280 x 720
+desktop entry: 1280 x 832
+desktop:       1440 x 900
+wide desktop: 1728 x 1117
+```
+
+- [ ] 홈, 인터뷰, 지도, 채팅, 프로필을 위 viewport에서 캡처한다.
+- [ ] loading, empty, error, long-content 상태는 대표 화면에서 최소 한 번씩
+  확인한다.
+- [ ] Chrome을 기본 자동 smoke 대상으로 삼고 Safari에서 `dvh`, sticky header,
+  safe area, keyboard 관련 핵심 화면을 수동 확인한다.
+- [x] 기존 authenticated browser smoke를 필수 viewport별 navigation 전환과
+  horizontal overflow 검사로 확장한다.
+- [x] shared shell 또는 workspace 수정 후 web `typecheck`, lint, 전체 test,
+  production build, browser smoke를 실행한다.
+
+최종 완료 기준:
+
+- 필수 viewport 전체에서 `document.documentElement.scrollWidth`가 viewport
+  너비를 초과하지 않는다.
+- fixed/sticky 요소가 콘텐츠, CTA, footer 또는 keyboard와 겹치지 않는다.
+- 각 화면의 실제 scroll owner가 위 표와 일치한다.
+- breakpoint 양쪽 `767/768`, `1199/1200px`에서 내비게이션과 주요 pane이
+  중복되거나 사라지지 않는다.
+- 시각 QA에서 desktop `90+`, compact web `85+`, mobile web `88+`, 종합
+  `90+`를 달성한다.
+
+### 2026-08-15 구현·검증 기록
+
+- `--app-shell-content-height`를 추가해 phone bottom navigation, compact top
+  navigation, desktop header를 제외한 content height 계산을 한 곳으로 모았다.
+- `AppShell`은 normal document page와 map/chat desktop workspace를 분리하고,
+  홈은 모바일 하단 내비게이션 reserve를 다시 갖도록 수정했다.
+- `PageLayout.workspace`와 `InterviewsPage`에서 중복 `h-dvh`를 제거했다.
+- 지도 compact 높이의 `100dvh - 4rem` literal을 제거하고 공통 shell height를
+  사용한다.
+- authenticated browser smoke는 `390x844`, `430x932`, `767x900`,
+  `768x1024`, `1024x768`, `1199x800`, `1200x800`, `1280x720`, `1280x832`,
+  `1440x900`, `1728x1117`에서
+  5개 핵심 route의 horizontal overflow와 상단/하단 navigation 전환을 검사한다.
+- web lint와 architecture boundary, 전체 `305` tests, typecheck, production
+  build, bundle budget, 공개 browser smoke가 통과했다.
+- authenticated responsive smoke 실행은 기존 review account의 Supabase REST
+  sign-in이 `invalid_credentials`를 반환해 완료하지 못했다. 구현은 준비됐지만
+  유효한 smoke credential로 재실행하기 전에는 viewport 시각 QA와 관련 체크를
+  완료 처리하지 않는다.
+
+## 2026-08-15 홈 작업 허브 목업 고도화
+
+- 사용자 검토용 목업으로 홈의 동일한 `icon + title + description + row` 반복을
+  해체했다. 섹션 제목의 장식용 Lucide 아이콘과 `AI 추천` 배지는 제거하고,
+  아이콘은 지원자·채팅·일정처럼 실제 상태나 행동을 설명할 때만 사용한다.
+- 첫 화면은 `오늘의 인터뷰` greeting과 역할과 무관하게 접근 가능한
+  `모집글 만들기` CTA로 시작한다. 바로 아래에는 현재 진행 단계와 다음 행동을
+  함께 보여주는 `CurrentFocusPanel`, 가장 가까운 일정을 강조하는
+  `NextSchedulePanel`을 8:4 비대칭 구성으로 둔다.
+- `최근 올라온 인터뷰`는 행 목록이 아니라 독립적으로 탐색할 수 있는 2열 타일로
+  바꿨다. `오늘의 추천`은 한 건만 강조하되 AI 위젯처럼 보이는 색상 배지와
+  `추천한 이유` 문단 대신 방식·시간·사례비의 실제 모집글 정보를 우선한다.
+  최근 타일과 구별되는 옅은 브랜드색 surface는 유지하되, 내부를 가르는 구분선은
+  사용하지 않는다. 실제 `created_at`을 상대 시각으로 표시해 추천의 최신성을
+  사용자가 직접 판단할 수 있게 한다. 최근 인터뷰와 추천 모두 제목 아래에 작은
+  프로필 이미지와 모집자 이름을 표시해 게시물의 신뢰 주체가 바로 보이게 한다.
+  모집자 프로필에 팀 또는 회사 정보가 있으면 이름과 함께 소속명도 표시한다.
+  계정정보 편집에서는 창업자 역할을 사용할 때만 선택형 소속 유형과 소속명을
+  입력할 수 있게 하며, 이는 별도 조직 계정이나 권한 모델을 만들지 않는다.
+  홈 하단 공지는 제거하고 전역 알림 진입점에 맡긴다.
+- elevation은 현재 진행 패널 한 곳에 집중한다. 다음 일정은 브랜드색의 평면
+  decision surface, 최근 인터뷰는 낮은 경계선 타일, 추천은 중립 반투명 surface와
+  사례비 강조 typography를 사용해 AI 위젯이나 동일한 카드 반복처럼 보이지 않게 한다.
+- 작은 화면에서는 모든 영역을 단일 열로 재배치하고, 최근 인터뷰만 `sm` 이상에서
+  2열을 사용한다. 데스크톱은 핵심 영역 `8:4`, 하단 영역 `8:4` 비율을 사용하며
+  각 카드 내부에 독립 scroll을 만들지 않는다.
+- 최근 인터뷰 타일과 오늘의 추천은 곧바로 route를 바꾸지 않고 중앙 미리보기
+  dialog를 연다. 미리보기는 제목, 방식, 사례비, 요약, 찾는 대상을 보여주며
+  `상세 보기`에서 기존 인터뷰 경로로 이동한다. ESC, overlay, 명시적인 닫기
+  버튼으로 취소할 수 있고 실제 신청 입력은 상세 화면에 남긴다.
+- 이번 변경은 실데이터 연결 전 시각·정보 구조 검토를 위한 목업이다. 사용자 시각
+  승인 전이므로 production aggregator 연결은 진행하지 않는다.
+
+## 2026-08-15 홈 작업 허브 실데이터 연결
+
+- `/app` 홈의 정적 mock data를 제거하고 기존 Spring API 응답을 조합하는
+  `useHomeDashboard`와 순수 read-model builder로 교체했다. 별도 홈 전용
+  endpoint를 추가하지 않고 현재 MVP 규모에 필요한 네 API만 병렬 조회한다.
+  - 공개 모집글: `GET /api/v1/interview-posts/?status=open&sort=newest&limit=8`
+  - 내가 신청했거나 내 모집글에 들어온 신청: `GET /api/v1/applications/`
+  - 내 인터뷰 일정: `GET /api/v1/sessions/`
+  - 내 채팅방과 unread count: `GET /api/v1/chat/rooms/`
+- web architecture boundary에는 `home -> applications/chat/interview-posts/sessions`
+  네 방향만 명시적인 workflow edge로 등록했다. `shared`나 다른 feature 전체를
+  우회하는 광범위한 allowlist는 추가하지 않았다.
+- `내 진행 상황`은 새 지원자 확인, 선정 후 일정 조율, 신청 결과 대기, 읽지 않은
+  채팅, 예정된 인터뷰 순서로 지금 이어갈 한 가지 행동을 고른다. 가장 가까운 미래
+  일정은 별도 `다음 일정` surface에 표시한다.
+- `최근 올라온 인터뷰`는 API의 최신순 open 모집글 최대 4건을 사용한다. 데이터가
+  없거나 일부 조회가 실패하면 가짜 모집글을 대신 노출하지 않고 skeleton,
+  재시도 가능한 오류, 명시적인 empty state를 보여준다.
+- `오늘의 추천`은 AI 매칭이나 지원자 ranking이 아니다. 현재는 본인의 모집글과
+  이미 신청한 모집글을 제외한 최신 open 후보 중 사례비가 가장 높은 한 건을
+  선택하는 결정적 규칙이다. UI는 생성형 추천 사유를 만들지 않고 실제 모집
+  상태·방식·시간·사례비만 보여준다. AI 추천·점수·선정 가능성은 주장하지 않는다.
+- 홈 타일과 추천 미리보기의 상세 경로는 실제 interview post id를 사용하고,
+  현재 진행·다음 일정은 실제 내 인터뷰와 채팅 경로로 연결한다.
+
+## 2026-08-13 홈 mock Bento 프로토타입
+
+- 시각 검토 후 `내 진행 상황`을 Bento의 첫 번째이자 왼쪽 상단 카드로 이동했다.
+  역할 배지는 제거하고 greeting은 `{이름}님, 안녕하세요`로 단순화했다.
+- 별도 `다음 일정` 카드는 `내 진행 상황` 하단으로 합쳤다. 신청·지원자·채팅·알림을
+  숫자로 나열하던 통계 grid는 제거하고 실제로 이어갈 행과 가장 가까운 일정만
+  보여준다.
+- `내 진행 상황`은 데스크톱 첫 행 전체 폭으로 확장한다. 다음 행은 최근 인터뷰
+  7열과 맞춤 추천 5열로 구성하며, 맞춤 추천은 대표 인터뷰 한 건만 노출한다.
+  별도 `내 주변` 카드는 제거하고 위치 탐색은 지도 탭에 맡긴다.
+- 모든 카드를 불투명한 흰색 패널로 반복하지 않고, 배경이 은은하게 비치는
+  저투명 흰색 surface와 부드러운 부유 shadow를 사용한다. 아이콘의 별도 색상
+  박스도 제거해 생성형 AI 대시보드처럼 보이는 반복 장식을 줄인다.
+- `1200px` desktop grid는 `min-[1200px]` span과 일반 `md:` grid 규칙을 동시에
+  적용하지 않는다. Tailwind CSS 4 생성 순서에서 `md:grid-cols-2`가 desktop
+  12열을 덮는 동안 자식의 7열·5열 span은 남아 implicit column이 생기는 문제가
+  재현됐다. medium 규칙을 `md:max-[1199px]` 범위로 한정해 desktop 12열과
+  명확히 배타적으로 유지한다.
+- `/app` 홈은 기존 recent-interview list/detail/apply 중복 구조를 제거하고,
+  `apps/web/src/features/home/` 아래의 feature-owned mock Bento dashboard로
+  재구성한다.
+- 이번 단계는 데스크톱 정보 구조와 시각 밀도를 빠르게 검증하기 위한 mock UI
+  프로토타입이다. 포함 섹션은 `맞춤 추천`, `내 진행 상황`, `다음 일정`,
+  `최근 올라온 인터뷰`, `공지와 안내`다.
+- 각 섹션은 nested card를 만들지 않고 row, divider, compact section header로
+  구성한다. 상위 shell의 global notification은 유지하고, 홈 route에서는 현재
+  auth 사용자 이름을 greeting에 사용한다.
+- `맞춤 추천`은 production AI나 ranking을 의미하지 않는다. 실제 recommendation
+  logic, 실데이터 집계, notice source, nearby source, founder/respondent별 live
+  composition은 후속 작업으로 남긴다.
+- production follow-up:
+  - mock home cards를 실제 recent/progress/schedule/notice data
+    aggregator로 교체
+  - recommendation section을 승인된 AI summary/recommendation 범위와 다시
+    연결할지 결정
+  - mock route target을 실제 post/detail/deep-link target으로 치환
+
+## 2026-08-13 데스크톱 상단 내비게이션 통합
+
+- `768px` 이상 웹 셸은 브랜드, `홈 / 인터뷰 / 지도 / 채팅 / 프로필`, 알림,
+  계정 메뉴를 하나의 전역 상단 헤더에 배치한다. `1200px` 이상에서 사용하던
+  232px 왼쪽 rail과 분리된 브랜드·유틸리티 헤더는 제거했다.
+- 메뉴 수가 5개이고 2차 내비게이션을 상시 펼칠 필요가 없는 현재 정보 구조에
+  맞춰 텍스트 중심 메뉴와 현재 위치를 나타내는 연한 브랜드 배경을 사용한다.
+  별도의 하단 강조선은 두지 않으며, 모바일 `<768px`의 5개 하단 탭은 유지한다.
+- 전역 이동 수단이 헤더 하나로 통합되므로 헤더는 viewport 상단에 sticky로
+  유지한다. 중간 화면과 데스크톱 모두 64px 높이를 사용하고, 반투명 배경과
+  backdrop blur 및 저대비 1px 하단 구분선으로 본문과 가볍게 구별한다. 두꺼운
+  divider나 장식적인 카드 형태는 사용하지 않는다.
+- 사이드바가 차지하던 가로 공간을 지도, 채팅, 목록·상세 화면에 반환한다.
+  지도와 채팅은 기존 `100dvh - header` 작업 높이와 내부 패널 스크롤을
+  유지했다. 당시 문서형 푸터는 workspace 다음 행에 두었으나, 이 결정은
+  2026-08-25의 25절에서 제거로 변경됐다.
+
+## 2026-08-13 데스크톱 내부 목록 스크롤 체인 (2026-08-25 변경 전 기록)
+
+- 지도, 채팅, 인터뷰 목록처럼 내부 스크롤을 소유하는 패널은 콘텐츠가 overflow할
+  때 기존처럼 패널 내부를 스크롤한다.
+- 데스크톱에서는 목록이 비어 있거나 스크롤 시작·끝에 도달한 경우 휠 입력을
+  바깥 문서로 전달해 전체 페이지와 최하단 푸터에 접근할 수 있게 한다. 모바일의
+  바텀시트와 고정 앱 화면은 기존 `overscroll-contain` 제스처 격리를 유지한다.
+
+## 2026-08-13 전체 폭 문서형 푸터 (2026-08-25 제거 전 기록)
+
+- 일반 데스크톱 페이지의 푸터를 셸의 마지막 grid row로 이동했다. 페이지
+  전체를 가로지르는 문서형 바이며, 최하단까지 스크롤했을 때 나타난다.
+- 일반 페이지는 데스크톱 `main` 내부 스크롤 대신 문서 흐름을 사용하고,
+  통합된 전역 header는 sticky 위치를 유지한다.
+- 지도와 채팅은 고정 높이 workspace와 내부 패널 스크롤을 유지한다. 푸터는
+  workspace 바깥의 다음 grid row에 렌더링해, 사용자가 브라우저 페이지를
+  최하단으로 내릴 때만 나타난다.
+- 푸터는 서비스 소유 정보인 `© 2026 contentruck`을 왼쪽에 두고,
+  개인정보처리방침·이용약관·문의하기 링크를 오른쪽에 묶는 compact utility
+  layout을 사용한다.
+
+## 2026-08-13 지도 현재 위치 컨트롤
+
+- 데스크톱 지도에서 현재 위치 컨트롤을 지도 캔버스 오른쪽 위에서 오른쪽
+  아래로 이동했다. 모바일은 바텀시트와 선택 카드 높이에 반응하는 기존 위치를
+  유지한다.
+
+## 2026-08-13 데스크톱 셸 구분선 정리 (상단 내비게이션 통합 전 기록)
+
+- 브랜드 header와 왼쪽 rail을 하나의 연속된 navigation surface로 처리하고,
+  두 영역의 아래·오른쪽 border를 제거했다. 전역 작업 header도 divider를
+  제거하고 본문과 같은 배경색을 사용해 별도 막대처럼 보이지 않게 한다.
+- 당시에는 데스크톱 header를 문서와 함께 스크롤하고 왼쪽 rail의 navigation만
+  sticky로 유지했다. 이후 전역 메뉴를 상단 헤더로 통합하면서 이 동작은 sticky
+  header로 대체했다.
+- 데스크톱 header 높이를 64px에서 56px로 줄이고 일반 페이지와 workspace의
+  상단 여백을 24px에서 20px로 조정했다. 전역 아이콘 버튼의 클릭 영역은
+  유지하면서 본문 시작 위치를 약 12px 위로 올린다.
+
 ## 2026-07-19 문서·구현 상태 대조
 
 - 랜딩의 로그인 진입이 `/app`에 연결되고 관련 테스트가 존재함을 확인했다.
@@ -10,7 +406,7 @@ Status: active
 - 공개 지원 계획에서 문의 목록·상세·작성 흐름이 구현 완료됐음을 반영했다.
 - Vercel production deployment가 `Ready`이고 `/`, `/app`, legal, support,
   delete-account 공개 경로가 HTTP 200임을 확인했다.
-- canonical viewport, 실제 브라우저, 키보드, 확대, 모바일 웹 E2E, Figma
+- canonical viewport, 실제 브라우저, 키보드, 확대, 모바일 웹 E2E
   항목은 확인 근거가 없으므로 완료 처리하지 않았다.
 
 ## 2026-07-16 추가 진행
@@ -41,10 +437,9 @@ Status: active
   통과했다.
 - 현재 세션에서 in-app browser 연결을 사용할 수 없어 canonical viewport
   캡처, 실제 브라우저 시각 QA, 모바일 웹 E2E는 아직 완료 처리하지 않았다.
-- Figma 동기화는 사용자 승인 이후 수행한다. Vercel production 배포와 공개
-  route 확인은 이후 요청에 따라 완료했다.
+- Vercel production 배포와 공개 route 확인은 이후 요청에 따라 완료했다.
 
-Last updated: 2026-07-19
+Last updated: 2026-08-25
 
 Shared web history, scroll restoration, focus handoff, and route-level motion
 implementation history is recorded in
@@ -302,14 +697,14 @@ ticket list/detail/composer behavior, and store-facing support URL verification.
 
 ### 7.2 Medium: 768–1199px
 
-- 축소 가능한 navigation rail 또는 상단 메뉴를 사용한다.
+- 브랜드, 5개 최상위 메뉴, 알림, 계정 메뉴를 포함한 상단 내비게이션을 사용한다.
 - 기본은 단일 본문과 overlay/detail drawer 조합이다.
 - 채팅과 지도는 두 개 영역까지 허용한다.
 - iPad 전용 최적화가 아니라 좁은 노트북·태블릿 fallback이다.
 
 ### 7.3 Desktop: 1200–1599px
 
-- 224–240px 고정 왼쪽 navigation rail을 사용한다.
+- 64px sticky 상단 내비게이션을 사용하고 왼쪽 navigation rail은 두지 않는다.
 - 본문은 페이지 유형에 따라 1열, 2열 split view, full workspace 중 하나를
   선택한다.
 - 인터뷰·홈은 목록과 상세를 병렬 표시한다.
@@ -478,12 +873,17 @@ ticket list/detail/composer behavior, and store-facing support URL verification.
 
 Desktop 구성:
 
-- 상단 compact greeting 또는 서비스 상태, 알림
-- 주 영역: 최근 인터뷰 목록
-- 오른쪽: 선택한 인터뷰 preview/detail
-- 창업자에게 처리할 신청·채팅이 있을 때만 compact activity section 표시
-- 지표 카드는 사용하지 않는다.
+- 상단 compact greeting과 현재 사용자 context를 둔다.
+- 현재 기준 desktop 홈은 full search를 복제하지 않는 compact Bento summary를
+  우선 사용한다.
+- 섹션은 `맞춤 추천`, `내 진행 상황`, `다음 일정`, `최근 올라온 인터뷰`,
+  `공지와 안내`를 기본으로 한다.
+- 각 section 내부는 nested card 대신 row와 divider를 사용한다.
+- recommendation, activity, schedule은 홈에서 이어서 처리할 행동으로 연결하고,
+  full browse는 인터뷰/지도/채팅으로 넘긴다.
 - 인터뷰 전체 검색 기능은 인터뷰 탭에 남기고 홈은 최근성과 진행성에 집중한다.
+- mock prototype 단계에서는 실데이터 aggregation보다 정보 구조와 시각 밀도를
+  먼저 검증한다.
 
 ### 9.4 인터뷰 탐색
 
@@ -660,8 +1060,7 @@ conversation list 320–360px
 
 ### 11.1 Layout
 
-- sidebar: 232px 기본, compact rail은 별도 검증
-- top bar: 56–64px
+- top navigation: medium·desktop 64px
 - desktop page inset: 24–32px
 - wide page inset: 32–40px
 - list-detail gap: 16–24px
@@ -874,7 +1273,11 @@ Skeleton은 실제 row 크기와 같아야 하며 로딩 완료 시 레이아웃
 
 ### Phase 3. 홈과 인터뷰 핵심 흐름
 
-- [x] 홈을 row + selected detail 구조로 재구성한다.
+- [x] 홈 mock Bento prototype을 feature-owned dashboard로 재구성한다.
+- [x] 홈 mock section을 기존 API 기반 recent/progress/schedule/chat read model로
+  교체한다.
+- [x] 홈 recommendation 영역을 deterministic non-AI 규칙으로 연결하고
+  non-ranking AI boundary를 명시한다.
 - [x] 인터뷰 검색·필터 toolbar를 재구성한다.
 - [x] filter/search state를 URL에 보존한다.
 - [x] 인터뷰 row 정보 밀도와 상태 우선순위를 통일한다.
@@ -932,11 +1335,9 @@ Skeleton은 실제 row 크기와 같아야 하며 로딩 완료 시 레이아웃
 - [ ] browser chrome, safe area, virtual keyboard, browser back 회귀를 점검한다.
 - [ ] empty/error/loading/auth-expired 상태를 확인한다.
 
-### Phase 8. 승인·Figma·배포
+### Phase 8. 승인·배포
 
 - [ ] 코드 화면에서 사용자 시각 승인을 받는다.
-- [ ] 승인된 최종 화면만 Figma에 동기화한다.
-- [ ] Figma의 desktop frames를 한 구역에 정리한다.
 - [x] web typecheck, targeted tests, full build를 실행한다.
 - [ ] Vercel preview에서 production env와 API 연결을 smoke한다.
 - [x] 사용자 승인 후 manual production deploy를 진행한다.
@@ -967,7 +1368,9 @@ Skeleton은 실제 row 크기와 같아야 하며 로딩 완료 시 레이아웃
 
 ### Integration
 
-- landing login → `/app` auth → home
+- signed-out landing login → `/app` auth → home
+- signed-in landing `대시보드로 이동` → `/app` home without another login step
+- `/` remains a public landing route and does not auto-redirect an existing session
 - interview search → select → detail → apply
 - applied interview → chat
 - founder post → applicant → chat/detail
@@ -1014,13 +1417,25 @@ auth redirect 테스트를 유지한다.
 대응: 구현 시작 전 현재 랜딩 변경을 commit/push해 production source를 Git과
 맞춘다. 이후 Vercel은 명시적 배포만 수행한다.
 
-## 20. 완료 기준
+## 20. 모바일 웹 앱 설치 정책 (2026-08-15)
+
+- [x] `768px` 미만 랜딩 헤더에서 웹 로그인 진입을 제거한다.
+- [x] 모바일 랜딩의 핵심 CTA를 App Store와 Google Play 설치 경로로 통일한다.
+- [x] 모바일에서 `/app` 또는 보호된 고객 화면을 직접 열면 랜딩으로 돌린다.
+- [x] 약관, 개인정보처리방침, 공개 지원, 계정 삭제, OAuth 콜백은 모바일에서도 유지한다.
+- [x] 데스크톱 웹 로그인과 인증된 고객 작업 공간은 유지한다.
+
+이 정책은 모바일 브라우저에서 제품 기능을 중복 운영하지 않고 네이티브 앱으로
+유도하기 위한 현재 제품 결정이다. 모바일 브라우저를 PWA 고객 앱으로 다시
+확장하려면 별도 제품 결정과 활성 계획이 필요하다.
+
+## 21. 완료 기준
 
 다음 조건을 모두 만족해야 완료 처리한다.
 
 - 모바일의 핵심 기능·상태·문구 계약이 웹에 보존된다.
 - 웹이 모바일 확대판이 아니라 데스크톱 작업 공간으로 보인다.
-- 모바일 웹에서 MVP 핵심 흐름을 앱 설치 강제 없이 완료할 수 있다.
+- 모바일 웹에서는 공개 정보와 지원 경로를 확인하고 네이티브 앱 설치로 이어진다.
 - 홈, 인터뷰, 지도, 채팅, 프로필이 하나의 shell과 spacing 체계를 사용한다.
 - 목록·상세·context panel 책임이 화면별로 명확하다.
 - 랜딩에서 로그인 후 `/app`으로 정상 진입한다.
@@ -1031,6 +1446,49 @@ auth redirect 테스트를 유지한다.
 - keyboard focus, tabs, menus, dialogs, combobox가 접근성 계약을 지킨다.
 - production-like data에서 overflow와 성능 문제가 없다.
 - web build와 관련 테스트가 통과한다.
-- 사용자 승인 후 Figma가 최종 코드 화면과 동기화된다.
 - Vercel production smoke가 완료된다.
 - 이 문서를 `docs/completed/`로 옮기고 active index를 갱신한다.
+
+## 22. 계정 정보 로그인 방법 시각화 (2026-08-16)
+
+- [x] 연결된 Apple, Google, 카카오, 네이버 계정에 공식 공급자 아이콘을 표시한다.
+- [x] 연결 가능한 로그인 버튼에도 동일한 공급자 아이콘 체계를 적용한다.
+- [x] 공급자 이름과 마스킹 이메일은 텍스트로 유지하고 아이콘은 장식 요소로 처리한다.
+- [x] 연결, 해제 진행 중, 해제 상태를 색상과 텍스트로 함께 구분한다.
+- [x] 좁은 화면에서도 아이콘, 계정 정보, 상태 배지가 한 행에서 안정적으로 축소되게 한다.
+- [x] 제공하지 않는 연결 해제 안내와 계정 관리 행의 반복 설명을 제거해 설정 화면 밀도를 낮춘다.
+
+공식 소셜 로고는 기존 `apps/web/public/social-auth` 자산을 사용하며 임의로 다시
+그리거나 변색하지 않는다.
+
+## 23. 랜딩 세션 인지형 진입 (2026-08-17)
+
+- [x] 공개 랜딩 `/`은 유효한 세션이 있어도 자동으로 대시보드로 보내지 않는다.
+- [x] 로그아웃 상태의 데스크톱 랜딩은 `로그인`, 로그인 상태는
+  `대시보드로 이동`을 표시한다.
+- [x] 로그인 상태의 CTA는 `/app`으로 바로 이동하고 기존 세션을 그대로 사용한다.
+- [x] 명시적으로 계정을 다시 선택할 때만 `/app?account=choose`를 사용한다.
+- [x] 공개 Google·카카오 로그인은 공급자의 계정 선택 화면을 요청한다.
+- [x] 계정 연결 흐름은 기존 계정에 새 로그인을 붙이는 별도 계약이므로 변경하지 않는다.
+
+## 24. 대시보드 로그아웃 목적지 (2026-08-17)
+
+- [x] 상단 계정 메뉴와 프로필의 모든 로그아웃 진입점은 세션 종료 성공 후 공개
+  랜딩 `/`으로 이동한다.
+- [x] 보호 화면이 브라우저 뒤로가기에 남지 않도록 현재 경로를 replace한다.
+- [x] 로그인 화면의 `다른 계정으로 로그인`은 별도 흐름으로 유지한다.
+
+## 25. 대시보드 푸터 제거와 법적 문서 접근 경로 (2026-08-25)
+
+- [x] 인증 후 대시보드 셸의 문서형 푸터를 제거한다.
+- [x] 지도와 채팅을 포함한 고객 작업 화면은 푸터를 보기 위한 바깥 문서 스크롤을
+  만들지 않는다.
+- [x] 프로필 설정에 `개인정보처리방침`과 `이용약관` 행을 추가해 로그인 후에도
+  법적 문서에 명확하게 접근할 수 있게 한다.
+- [x] 문의, 신고, 계정 삭제 경로는 기존 프로필·지원 흐름에 그대로 유지한다.
+- [x] 공개 랜딩의 사업자 정보와 개인정보처리방침·이용약관·계정 삭제 링크는
+  대시보드와 별도인 공개 고지 책임으로 유지한다.
+
+대시보드는 인터뷰 모집·탐색·조율 작업에 집중하고, 법적 고지 접근성은 공개
+랜딩과 가입 동의, 프로필 설정이 나누어 소유한다. 내부 모든 화면에서 같은 법적
+링크를 반복하는 전역 푸터는 사용하지 않는다.

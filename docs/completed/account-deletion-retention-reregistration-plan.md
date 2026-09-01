@@ -715,7 +715,7 @@ Update these documents when implementation begins or finishes:
 - `docs/reference/google-play-data-safety-worksheet.md`
 - `docs/reference/ios-store-readiness/apple-app-store-first-launch-readiness-plan.md`
 - `docs/reference/ios-store-readiness/apple-app-privacy-label-worksheet.md`
-- `docs/reference/store-review-readiness-audit-2026-06-22.md`
+- `docs/completed/store-review-readiness-audit-2026-06-22.md`
 - `docs/reference/operator-support-moderation-runbook.md`
 - `docs/completed/api-operations-readiness-plan.md`
 - `docs/completed/legal-pages-implementation-plan.md`

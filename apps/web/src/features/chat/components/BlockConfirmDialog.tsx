@@ -17,7 +17,7 @@ export function BlockConfirmDialog({
     <Dialog.Root open onOpenChange={(isOpen) => !isOpen && onCancel()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[60] bg-hypo-text/35" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-[60] max-h-[calc(100dvh-var(--app-safe-top)-var(--app-safe-bottom)-2rem)] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-hypo-lg border border-hypo-border bg-hypo-surface p-5 shadow-hypo-floating focus:outline-none">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[60] max-h-[calc(100dvh-var(--app-safe-top)-var(--app-safe-bottom)-2rem)] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-hypo-lg border border-hypo-border bg-hypo-surface p-5 focus:outline-none">
           <Dialog.Title className="text-lg font-black text-hypo-text">
             {counterpartName}님을 차단할까요?
           </Dialog.Title>

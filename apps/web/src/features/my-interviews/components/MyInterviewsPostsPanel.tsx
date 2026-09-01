@@ -64,6 +64,7 @@ export function MyInterviewsPostsPanel({
           isUpdatingApplication={isUpdatingApplication}
           post={selectedFounderPost}
           sessionErrorMessage={createSessionErrorMessage}
+          surfaceMode="plain"
           onCreateSession={onCreateSession}
           onRejectApplication={onRejectApplication}
           onSelectApplication={onSelectApplication}

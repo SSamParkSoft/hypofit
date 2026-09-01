@@ -108,6 +108,11 @@ applications, chat, notifications, support, and legal/profile paths as needed.
 Reviewer notes should describe the enabled provider-based login path and any
 tester allowlist, not a hidden email/password fallback.
 
+The current Google Play reviewer is `hypofit.review@gmail.com`, authenticated
+through the visible Google button. Its deterministic product fixture is owned
+by `apps/api/scripts/seed_social_store_review_data.sql`; operational details are
+in `docs/demo-seed.md`.
+
 ## Platform-Specific References
 
 - Google Play: `docs/reference/google-play-first-launch-readiness-plan.md`

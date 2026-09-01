@@ -1,26 +1,6 @@
-import type { UserRole } from "../../shared/api/types";
-import { getRoleLabel } from "../../shared/auth/roles";
 import { resolvePostAuthPath } from "./authEntryState";
 
 export type AuthFeedback = { message: string; tone: "error" | "success" } | null;
-
-export const roleOptions: Array<{ description: string; label: string; value: UserRole }> = [
-  {
-    value: "founder",
-    label: getRoleLabel("founder"),
-    description: "고객 인터뷰를 모집하고 신청자를 검토해요.",
-  },
-  {
-    value: "respondent",
-    label: getRoleLabel("respondent"),
-    description: "내 경험에 맞는 인터뷰를 찾고 신청해요.",
-  },
-  {
-    value: "both",
-    label: getRoleLabel("both"),
-    description: "모집과 신청 흐름을 모두 사용할 수 있어요.",
-  },
-];
 
 export function getPostAuthPath() {
   if (typeof window === "undefined") {

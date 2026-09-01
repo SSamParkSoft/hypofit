@@ -3,6 +3,9 @@ import { ArrowRight } from "lucide-react";
 
 import type { Feedback } from "../model/accountDeletionFlow";
 
+const stateSurfaceClassName =
+  "mt-10 max-w-[760px] rounded-hypo-lg border border-hypo-border bg-hypo-surface p-5 shadow-hypo-panel sm:p-7";
+
 export function AccountDeletionInlineFeedback({ feedback }: { feedback: Feedback }) {
   if (!feedback) {
     return null;
@@ -14,7 +17,7 @@ export function AccountDeletionInlineFeedback({ feedback }: { feedback: Feedback
       className={`mt-5 rounded-hypo-md border px-4 py-3 text-sm font-bold leading-6 ${
         isError
           ? "border-hypo-danger/20 bg-hypo-danger-soft text-hypo-danger"
-          : "border-hypo-brand/15 bg-hypo-brand-soft/45 text-hypo-text"
+          : "border-hypo-brand/12 bg-hypo-brand-soft/35 text-hypo-text"
       }`}
       role={isError ? "alert" : "status"}
     >
@@ -51,15 +54,13 @@ export function AccountDeletionStatePanel({
 }) {
   return (
     <section
-      className={`mt-10 max-w-[760px] rounded-hypo-lg border p-5 sm:p-7 ${
-        tone === "danger"
-          ? "border-hypo-danger/20 bg-hypo-danger-soft"
-          : "border-hypo-brand/15 bg-hypo-surface"
+      className={`${stateSurfaceClassName} ${
+        tone === "danger" ? "border-hypo-danger/20 bg-hypo-danger-soft/40" : ""
       }`}
     >
       <span
         className={`grid size-12 place-items-center rounded-hypo-lg ${
-          tone === "danger" ? "bg-white/75 text-hypo-danger" : "bg-hypo-brand-soft text-hypo-brand"
+          tone === "danger" ? "bg-hypo-danger-soft text-hypo-danger" : "bg-hypo-brand-soft text-hypo-brand"
         }`}
       >
         {icon}

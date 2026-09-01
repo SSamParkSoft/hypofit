@@ -1,4 +1,3 @@
-import { ArrowRight, Bell } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -13,6 +12,7 @@ import { createPortal } from "react-dom";
 
 import { navigateTo } from "../../../shared/navigation/appNavigation";
 import { cn } from "../../../shared/ui/cn";
+import { AppIcon } from "../../../shared/ui/icon";
 import { NotificationTriggerButton } from "../../../shared/ui/notification-button";
 import {
   NotificationIcon,
@@ -30,6 +30,8 @@ const NOTIFICATION_PREVIEW_LIMIT = 6;
 const POPOVER_GAP = 8;
 const POPOVER_MARGIN = 16;
 const POPOVER_MAX_WIDTH = 380;
+const popoverSurfaceClassName =
+  "fixed z-[80] flex max-h-[calc(100dvh-2rem)] origin-top-right flex-col overflow-hidden rounded-hypo-lg border border-hypo-border bg-hypo-surface shadow-hypo-floating outline-none";
 
 interface PopoverPosition {
   left: number;
@@ -272,19 +274,16 @@ export function NotificationPopover({
               id={popoverId}
               aria-labelledby={titleId}
               className={cn(
-                "fixed z-[80] flex max-h-[calc(100dvh-2rem)] origin-top-right flex-col overflow-hidden rounded-hypo-lg border border-hypo-border bg-hypo-surface shadow-hypo-floating outline-none",
+                popoverSurfaceClassName,
                 position ? "opacity-100" : "pointer-events-none opacity-0",
               )}
               role="dialog"
               style={popoverStyle}
               tabIndex={-1}
             >
-              <header className="flex min-h-16 items-center justify-between gap-4 border-b border-hypo-border px-4">
+              <header className="flex min-h-[68px] items-center justify-between gap-4 border-b border-hypo-border/70 px-4 py-3.5">
                 <div className="min-w-0">
-                  <h2
-                    id={titleId}
-                    className="text-sm font-bold text-hypo-text"
-                  >
+                  <h2 id={titleId} className="text-sm font-bold text-hypo-text">
                     알림
                   </h2>
                   <p className="mt-0.5 text-xs leading-4 text-hypo-text-soft">
@@ -293,7 +292,7 @@ export function NotificationPopover({
                 </div>
                 {hasUnread ? (
                   <button
-                    className="min-h-9 shrink-0 rounded-hypo-md px-2.5 text-xs font-medium text-hypo-brand transition-colors hover:bg-hypo-brand-soft focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20 disabled:cursor-wait disabled:opacity-50"
+                    className="min-h-9 shrink-0 rounded-hypo-md px-2.5 text-xs font-bold text-hypo-brand transition-colors hover:bg-hypo-brand-soft/80 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20 disabled:cursor-wait disabled:opacity-50"
                     disabled={markAllRead.isPending}
                     type="button"
                     onClick={() => markAllRead.mutate()}
@@ -329,9 +328,10 @@ export function NotificationPopover({
                 {!isLoading && !isError && notifications.length === 0 ? (
                   <div className="grid min-h-40 place-items-center px-6 py-8 text-center">
                     <div>
-                      <Bell
+                      <AppIcon
                         aria-hidden="true"
                         className="mx-auto text-hypo-text-soft"
+                        name="notification"
                         size={22}
                       />
                       <p className="mt-3 text-sm font-semibold text-hypo-text">
@@ -359,12 +359,12 @@ export function NotificationPopover({
               </div>
 
               <a
-                className="flex min-h-11 items-center justify-center gap-1.5 border-t border-hypo-border px-4 text-xs font-semibold text-hypo-text-muted transition-colors hover:bg-hypo-surface-muted hover:text-hypo-brand focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20"
+                className="flex min-h-11 items-center justify-center gap-1.5 border-t border-hypo-border/70 px-4 text-xs font-semibold text-hypo-text-muted transition-colors hover:bg-hypo-surface-muted/70 hover:text-hypo-brand focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20"
                 href="/notifications"
                 onClick={handleAllNotificationsClick}
               >
                 알림 전체 보기
-                <ArrowRight aria-hidden="true" size={14} />
+                <AppIcon aria-hidden="true" name="chevron-right" size={14} />
               </a>
             </div>,
             document.body,
@@ -394,10 +394,10 @@ function NotificationPopoverItem({
       <span
         aria-hidden="true"
         className={cn(
-          "mt-0.5 grid size-8 shrink-0 place-items-center rounded-full [&_svg]:size-4",
+          "mt-0.5 grid size-8 shrink-0 place-items-center rounded-full border border-transparent [&_svg]:size-4",
           isUnread
-            ? "bg-hypo-brand-soft text-hypo-brand"
-            : "bg-hypo-bg text-hypo-text-soft",
+            ? "border-hypo-brand/10 bg-hypo-brand-soft/90 text-hypo-brand"
+            : "bg-hypo-bg/85 text-hypo-text-soft",
         )}
       >
         <NotificationIcon notification={notification} />
@@ -435,11 +435,11 @@ function NotificationPopoverItem({
     </>
   );
   const itemClassName =
-    "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-hypo-surface-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20";
+    "flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-hypo-surface-muted/70 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20";
 
   return (
     <div
-      className="border-b border-hypo-border last:border-b-0"
+      className="border-b border-hypo-border/70 last:border-b-0"
       role="listitem"
     >
       {href ? (
@@ -482,7 +482,7 @@ function NotificationPopoverSkeleton() {
       {[0, 1, 2].map((item) => (
         <div
           key={item}
-          className="flex min-h-[76px] animate-pulse items-start gap-3 border-b border-hypo-border px-4 py-3 last:border-b-0"
+          className="flex min-h-[76px] animate-pulse items-start gap-3 border-b border-hypo-border/70 px-4 py-3.5 last:border-b-0"
         >
           <div className="size-8 shrink-0 rounded-full bg-hypo-bg" />
           <div className="min-w-0 flex-1 pt-0.5">

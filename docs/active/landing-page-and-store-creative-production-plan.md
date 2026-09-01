@@ -2,7 +2,7 @@
 
 Status: active
 
-Last updated: 2026-07-29
+Last updated: 2026-08-12
 
 Shared web history, scroll, focus, route transition, and reduced-motion
 implementation history is recorded in
@@ -10,18 +10,31 @@ implementation history is recorded in
 continues to own landing content, layout, responsive composition, and creative
 assets.
 
+The focused Brainwave-inspired public landing reconstruction is executed through
+`docs/active/brainwave-inspired-landing-visual-reconstruction-plan.md`. That plan
+owns the current section-by-section visual implementation; this document remains
+the broader authority for public creative truth, store assets, capture systems,
+SEO, performance, and release-asset QA.
+
 ## Current Implementation Progress
 
-Updated 2026-07-29:
+Updated 2026-08-18:
 
 - Public landing draft implemented at `/`.
+- Outreach-only landing variant implemented at `/landing`; it reuses the
+  approved public composition without exposing web login or dashboard entry.
 - Existing authenticated web product root separated to `/app`.
 - Existing interview, map, chat, profile, legal, support, account-deletion, and
   auth-callback routes retained.
-- Founder-first message, audience split, four-step workflow, product proof,
+- Participant recruitment-and-participation message, organizer/participant audience split, conditional four-step workflow, product proof,
   trust/safety, final CTA, and legal footer implemented.
+- Public positioning now includes customer validation, product/user research,
+  and academic or field-research interview use cases without claiming survey
+  creation, research-compliance tooling, AI matching, or payment guarantees.
 - Official Apple App Store badge and live App Store listing linked.
-- Google Play CTA intentionally remains unavailable until the listing is live.
+- Mobile landing now uses Google's official localized Korean Google Play badge
+  and links to the configured Play listing alongside the official App Store
+  badge. Confirm public listing reachability before the production launch.
 - Basic SEO, Open Graph, Smart App Banner, robots, and sitemap metadata added.
 - The new Fit Node brand family is now wired into the public web surfaces:
   landing, legal, support, account-deletion, auth entry, and web app shell all
@@ -53,9 +66,12 @@ Updated 2026-07-29:
   and progressively reaches the two-column desktop layout. Only the selected
   composition is rendered, so phone and web product-preview trees are not
   duplicated in the DOM.
-- Mobile landing now exposes both web login and App Store entry, uses a real
+- Mobile landing keeps app installation as its primary entry, uses a real
   `main` landmark, increases small user-facing support/legal text, and provides
   mandatory carousel snapping with accessible slide controls and progress.
+- Desktop and mobile landing footers now share the confirmed corporate operator
+  information for `주식회사 콘텐츠럭`, including representative, business
+  registration number, business address, and support email.
 - Landing tests now lock the single-tree phone/compact-web breakpoint behavior,
   login/legal links, role switching, product truth, and main landmark.
 
@@ -70,9 +86,27 @@ Still open:
 - final art direction approval,
 - installed PWA/browser cache update behavior review after the new brand rollout,
 - real iOS/Android source captures,
-- HTML/CSS store-creative renderer and Playwright export pipeline,
-- Figma review sync,
-- final App Store and Google Play asset exports.
+- final Android release-candidate source captures,
+- Google Play source replacement and final upload review.
+
+Store creative update, 2026-08-12:
+
+- Added the internal HTML/CSS renderer under `tools/store-creative/`.
+- Added deterministic local Chrome export through
+  `corepack pnpm store:creative:export`; the script produces and validates
+  three Apple `1320 x 2868` PNGs, four Play `1080 x 1920` PNGs, and one
+  README `2400 x 1260` 2x PNG.
+- Implemented the approved Play four-frame story: core value, discovery/map,
+  chat coordination, and progress tracking. Apple retains the approved
+  three-frame set.
+- Replaced the logo-only README social panel with the generated product
+  showcase image.
+- Verified exact dimensions and no alpha channel across all seven outputs.
+- Apple and README assets use the public iOS `1.0.0` App Store captures.
+- Google Play composition is complete, but its current source screens are
+  layout-review placeholders. Replace them with Android release-candidate
+  captures before Play Console upload; do not submit iPhone status-bar imagery
+  as the final Android set.
 
 ## 1. Purpose
 
@@ -85,8 +119,7 @@ This plan covers executable work for:
 - App Store iPhone screenshots,
 - Google Play phone screenshots,
 - the Google Play feature graphic,
-- reusable HTML/CSS creative templates, Playwright export rules, and Figma
-  review frames,
+- reusable HTML/CSS creative templates and Playwright export rules,
 - deterministic demo data and screen-capture preparation,
 - AI-assisted exploration, production, and critique,
 - accessibility, performance, legal, and store-policy QA.
@@ -100,7 +133,7 @@ Console access is available. Asset strategy and production can proceed now.
 The public creative system must explain one product loop:
 
 ```text
-founder describes the target customer and interview
+organizer describes the purpose, participant conditions, and interview
   -> a matching respondent discovers and applies
   -> both sides coordinate in chat
   -> the interview is completed and recorded as a workflow outcome
@@ -108,8 +141,8 @@ founder describes the target customer and interview
 
 Primary audience jobs:
 
-- Founder: `내 서비스에 맞는 실제 고객을 찾고 인터뷰하고 싶다.`
-- Respondent: `내 경험과 조건에 맞는 인터뷰를 찾고 참여하고 싶다.`
+- Organizer: `고객 검증, 사용자 조사 또는 연구 목적에 맞는 참여자를 찾고 인터뷰하고 싶다.`
+- Participant: `내 경험과 조건에 맞는 인터뷰를 찾고 참여하고 싶다.`
 
 The public promise must stay narrower than the implementation:
 
@@ -241,16 +274,16 @@ Brand headline:
 Hypofit
 ```
 
-Primary supporting message candidate:
+Primary supporting message:
 
 ```text
-실제 고객과 검증 인터뷰를 시작하세요
+필요한 사람과 만나 인터뷰로 답을 찾으세요
 ```
 
-Founder-specific supporting message:
+Organizer-specific supporting message:
 
 ```text
-내 서비스에 맞는 고객을 찾고, 신청부터 일정까지 한곳에서 조율하세요.
+목적과 조건에 맞는 참여자를 찾고, 신청부터 일정까지 한곳에서 조율하세요.
 ```
 
 Respondent-specific supporting message:
@@ -316,6 +349,7 @@ Target routing after implementation:
 
 ```text
 /                         public landing page
+/landing                  outreach landing without web auth entry
 /app                      existing web product/auth fallback
 /legal/privacy            public privacy policy
 /legal/terms              public terms
@@ -371,8 +405,9 @@ inspectable and readable.
 
 Use a full-width band with two clear roles, not nested cards:
 
-- `창업자`: target customer recruitment and applicant coordination.
-- `인터뷰어`: relevant opportunity discovery and application.
+- `인터뷰 모집자`: participant recruitment and applicant coordination for
+  customer validation, user research, and academic or field interviews.
+- `인터뷰 참여자`: relevant opportunity discovery and application.
 
 Each side gets one job sentence and one real interface crop. This section must
 make it clear that one account can use both roles without presenting Hypofit as
@@ -396,7 +431,7 @@ Use alternating, unframed page bands:
 - Interview discovery: search, filters, reward, mode, and target customer.
 - Map discovery: current location, place search, markers, and nearby list.
 - Chat coordination: interview context, unread state, schedule, and workflow.
-- Founder management: post state, applicants, preview/edit, and chat entry.
+- Organizer management: post state, applicants, preview/edit, and chat entry.
 
 Every section must answer:
 
@@ -447,9 +482,7 @@ Landing page:
 - implement directly in the existing React/Vite application,
 - use Tailwind CSS 4 and existing Hypofit web tokens,
 - do not create a separate plain-HTML prototype that must later be rewritten,
-- review the running page at real responsive widths,
-- sync the approved result to Figma only when collaboration or design archive
-  value justifies it.
+- review the running page at real responsive widths.
 
 Store creative:
 
@@ -458,8 +491,7 @@ Store creative:
 - use CSS variables for brand colors, typography, safe areas, and platform
   canvases,
 - export deterministic PNG files through Playwright at exact viewport sizes,
-- keep Figma as the visual review and handoff surface, not as the only source of
-  reproducibility.
+- keep the HTML/CSS renderer as the reproducible source for exported assets.
 
 Why this is the default for Hypofit:
 
@@ -468,8 +500,6 @@ Why this is the default for Hypofit:
 - Korean copy, sequence changes, and platform size variants remain cheap.
 - Playwright can reproduce exact exports after source screenshots change.
 - The same approved brand variables can drive landing and store assets.
-- Figma still supports human visual review without forcing every iteration to
-  be redrawn manually.
 
 Do not interpret code-first as design-free. Direction selection, composition,
 copy hierarchy, visual QA, and human approval still happen before production
@@ -559,7 +589,7 @@ as a coherent story without requiring the user to swipe further.
 Overlay candidate:
 
 ```text
-실제 고객과 검증 인터뷰를 시작하세요
+필요한 사람과 만나 인터뷰로 답을 찾으세요
 ```
 
 Use:
@@ -634,7 +664,7 @@ Use:
 - date/system message treatment,
 - no real personal data.
 
-### Frame 6: Founder Workflow
+### Frame 6: Organizer Workflow
 
 Overlay candidate:
 
@@ -644,7 +674,7 @@ Overlay candidate:
 
 Use:
 
-- founder post management,
+- organizer post management,
 - applicant list or application information,
 - status and chat entry.
 
@@ -699,9 +729,6 @@ tools/store-creative/
 
 The renderer must not be linked from production navigation or deployed as a
 public product route. It is an internal deterministic asset-production tool.
-
-After a code direction is approved, bring representative frames and shared
-tokens into Figma for visual review, designer edits, and archive continuity.
 
 Do not scale one flattened Apple image into Google Play dimensions. Recompose
 from the same master primitives so type and screenshots remain proportionate.
@@ -796,7 +823,7 @@ Pass 2, convergence:
 
 - score directions with the rubric below,
 - combine only compatible strengths,
-- translate the chosen direction into Figma variables/components.
+- translate the chosen direction into the shared renderer tokens and components.
 
 Pass 3, adversarial QA:
 
@@ -872,11 +899,9 @@ docs/store-assets/
   prompts/
   apple/
     source/
-    figma/
     export/ko-KR/
   google-play/
     source/
-    figma/
     export/ko-KR/
     feature-graphic/
   landing/
@@ -899,35 +924,6 @@ play-ko-01-core-value-1080x1920.png
 play-ko-feature-1024x500.png
 landing-hero-product-1440.webp
 ```
-
-## 13. Code-To-Figma Review Workflow
-
-Use the existing Hypofit Figma file unless the user explicitly requests a new
-file.
-
-First create and review the coded landing/creative directions. Then sync the
-approved or shortlisted output into adjacent, clearly named Figma sections:
-
-- `Landing / Exploration`,
-- `Landing / Approved`,
-- `Store / Apple / 6.9 / KO`,
-- `Store / Google Play / Phone / KO`,
-- `Store / Google Play / Feature Graphic`,
-- `Store / Components And Safe Areas`.
-
-Rules:
-
-- Keep landing and store assets grouped but not mixed with current mobile
-  product screens.
-- Recreate or import shared colors, typography, spacing, and screenshot masks
-  as variables/components rather than flattening every frame.
-- Maintain auto layout for text regions and sequence templates.
-- Keep source screenshots as replaceable image fills.
-- Mark exploration frames clearly so they are not exported accidentally.
-- Do not manually fork the code renderer and Figma into two independent design
-  systems. Record which side owns each change before syncing it back.
-- Code remains the truth for app UI and repeatable exported assets. Figma is the
-  review, collaboration, and design-history surface.
 
 ## 14. Execution Phases
 
@@ -1001,15 +997,16 @@ Exit criteria:
 
 ### Phase 4: Store Asset Production
 
-- [ ] Build the HTML/CSS creative renderer and platform variants.
-- [ ] Build deterministic Playwright export and asset-validation scripts.
-- [ ] Compose Apple 6.9-inch Korean set.
-- [ ] Compose Google Play phone Korean set.
-- [ ] Compose Google Play feature graphic.
-- [ ] Sync approved frames and tokens to Figma for final visual review.
-- [ ] Draft alt text for all Google Play assets.
+- [x] Build the HTML/CSS creative renderer and platform variants.
+- [x] Build deterministic local Chrome export and asset-validation scripts.
+- [x] Compose Apple 6.9-inch Korean set.
+- [x] Compose Google Play phone Korean layout and copy system.
+- [ ] Replace Google Play source screens with Android release-candidate captures.
+- [x] Compose Google Play feature graphic.
+- [x] Draft alt text for all Google Play assets.
 - [ ] Run AI adversarial critique and human review.
-- [ ] Export exact platform dimensions.
+- [x] Export exact platform dimensions for the three-frame Apple, four-frame
+      Play draft, feature graphic, and README set.
 
 Exit criteria:
 
@@ -1024,7 +1021,7 @@ Exit criteria:
 - [ ] Check landing at phone, tablet fallback, laptop, and wide desktop widths.
 - [ ] Check keyboard navigation and reduced motion.
 - [ ] Check image loading and layout shift.
-- [ ] Validate App Store and Play asset dimensions with a script.
+- [x] Validate App Store and Play asset dimensions with a script.
 - [ ] Review final claims against app behavior and legal copy.
 - [x] Deploy Vercel only after explicit user approval.
 - [x] Verify the production URL and store links.
@@ -1083,7 +1080,7 @@ The plan is complete only when:
 - Google Play has a reviewed phone screenshot set and `1024 x 500` feature
   graphic,
 - all assets derive from current shipped UI and privacy-safe demo data,
-- Figma masters and export naming are organized,
+- export naming and source manifests are organized,
 - the code renderer can reproduce exact store exports,
 - AI prompts and critique outcomes are documented without secrets or PII,
 - legal/store claims match actual implementation,
@@ -1094,7 +1091,7 @@ The plan is complete only when:
 ## 17. Completion And Document Closeout
 
 Keep this document in `docs/active/` while landing code, capture preparation,
-Figma templates, or store creative exports still require implementation.
+or store creative exports still require implementation.
 
 Move it to `docs/completed/` only after:
 

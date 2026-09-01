@@ -1,15 +1,18 @@
 # API Blue/Green Deployment Runbook
 
-Status: reference
+Status: completed - historical deployment record
 
 Last updated: 2026-06-15
+
+This document is archival. It must not be used to operate or restore the
+current Lightsail Spring deployment.
 
 ## Purpose
 
 This runbook documents the Hypofit FastAPI zero-downtime deployment path for
 the school GPU server and EC2 reverse-proxy topology.
 
-The current public path is:
+The historical public path was:
 
 ```text
 client

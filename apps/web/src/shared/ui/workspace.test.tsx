@@ -29,7 +29,7 @@ describe("workspace shared contracts", () => {
 
     expect(listSurface.className).toContain("ui-pane");
     expect(listSurface.className).toContain("overflow-hidden");
-    expect(listSurface.className).toContain("sm:rounded-hypo-md");
+    expect(listSurface.className).toContain("sm:rounded-hypo-lg");
   });
 
   it("uses shared sticky-panel height and scroll variables", () => {
@@ -42,6 +42,7 @@ describe("workspace shared contracts", () => {
     expect(panel.className).toContain("max-h-[var(--app-workspace-sticky-panel-max-height)]");
     expect(panel.className).toContain("overflow-y-auto");
     expect(panel.className).toContain("overscroll-contain");
+    expect(panel.className).toContain("min-[1200px]:overscroll-auto");
   });
 
   it("exposes reusable workspace class helpers for future page adoption", () => {
@@ -63,5 +64,6 @@ describe("workspace shared contracts", () => {
     expect(framedPanelClassName).toContain("min-[1200px]:h-[var(--app-workspace-framed-height)]");
     expect(framedPanelClassName).toContain("min-[1200px]:min-h-0");
     expect(framedPanelClassName).toContain("overflow-y-auto");
+    expect(framedPanelClassName).toContain("min-[1200px]:overscroll-auto");
   });
 });

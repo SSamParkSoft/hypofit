@@ -33,7 +33,8 @@ public record InterviewPostWriteModel(
         String locationSource,
         List<String> scheduleOptions,
         String status,
-        OffsetDateTime createdAt
+        OffsetDateTime createdAt,
+        String entryMode
 ) {
     public InterviewPostWriteModel(
             UUID id,
@@ -72,7 +73,7 @@ public record InterviewPostWriteModel(
                 externalDataNotice, betaTestPlatforms, betaTestStartsAt, betaTestEndsAt,
                 interviewMode, location, locationText, locationAddress, locationPlaceName,
                 locationLatitude, locationLongitude, locationPrecision, locationSource,
-                scheduleOptions, status, createdAt
+                scheduleOptions, status, createdAt, "application_required"
         );
     }
     public InterviewPostWriteModel(
@@ -127,7 +128,8 @@ public record InterviewPostWriteModel(
                 locationSource,
                 scheduleOptions,
                 status,
-                createdAt
+                createdAt,
+                "application_required"
         );
     }
 }

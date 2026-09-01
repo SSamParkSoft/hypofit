@@ -33,7 +33,7 @@ export function MyInterviewsApplicationListPane({
             상태와 조율 대기 여부를 빠르게 비교하세요.
           </p>
         </div>
-        <span className="shrink-0 text-xs font-bold text-hypo-text-soft">{rows.length}건</span>
+        <span className="shrink-0 text-xs font-semibold text-hypo-text-soft">{rows.length}건</span>
       </div>
       <div>
         {rows.map((model) => (
@@ -71,7 +71,7 @@ function ApplicationListRow({
     <button
       className={cn(
         "w-full border-b border-hypo-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-hypo-bg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-hypo-brand/20",
-        isSelected && "bg-hypo-brand-soft",
+        isSelected && "bg-hypo-brand-soft/35",
       )}
       type="button"
       onClick={onSelect}
@@ -96,7 +96,7 @@ function ApplicationListRow({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-hypo-text-muted">
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-hypo-text-muted">
         <span className="inline-flex items-center gap-1.5">
           <MessageSquareText size={14} />
           답변 {model.answerCount}개

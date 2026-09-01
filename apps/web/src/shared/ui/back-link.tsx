@@ -1,7 +1,6 @@
-import { ArrowLeft } from "lucide-react";
-
 import { navigateBack } from "../navigation/appNavigation";
 import { cn } from "./cn";
+import { AppIcon } from "./icon";
 
 interface BackLinkProps {
   ariaLabel?: string;
@@ -31,7 +30,7 @@ export function BackLink({
         navigateBack(href);
       }}
     >
-      <ArrowLeft size={17} />
+      <AppIcon aria-hidden="true" name="back" size={17} />
     </a>
   );
 }

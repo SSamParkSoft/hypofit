@@ -11,6 +11,18 @@ interface UseChatThreadControllerArgs {
   room: ChatRoom;
 }
 
+function createClientMessageId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = character === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
+}
+
 export function useChatThreadController({
   accessToken,
   isBlocked,
@@ -32,7 +44,10 @@ export function useChatThreadController({
       }
 
       sendMessage.mutate(
-        { roomId: room.id, input: { body } },
+        {
+          roomId: room.id,
+          input: { body, client_message_id: createClientMessageId() },
+        },
         {
           onSuccess: () => setMessage(""),
         },

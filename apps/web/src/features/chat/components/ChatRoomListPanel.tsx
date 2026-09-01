@@ -3,10 +3,7 @@ import { NotificationButton } from "../../../shared/ui/notification-button";
 import { EmptyState, ErrorState } from "../../../shared/ui/state";
 import { cn } from "../../../shared/ui/cn";
 import { getWorkspaceRegionClassName } from "../../../shared/ui/workspace";
-import {
-  type ChatFilter,
-  getRoomDisplayStatus,
-} from "../model/chatRoomModel";
+import { type ChatFilter, getRoomDisplayStatus } from "../model/chatRoomModel";
 import { ChatFilterTabs } from "./ChatFilterTabs";
 import { ChatRoomPreview } from "./ChatRoomPreview";
 
@@ -58,12 +55,12 @@ export function ChatRoomListPanel({
   return (
     <section
       className={cn(
-        "grid grid-rows-[auto_minmax(0,1fr)] bg-hypo-bg min-[1200px]:border-r min-[1200px]:border-hypo-border/80 min-[1200px]:bg-hypo-surface",
+        "grid grid-rows-[auto_minmax(0,1fr)] bg-hypo-surface min-[1200px]:border-r min-[1200px]:border-hypo-border",
         getWorkspaceRegionClassName({ height: "content", scroll: "clip" }),
         isThreadOpen && "hidden min-[1200px]:grid",
       )}
     >
-      <div className="px-5 pb-3 pt-[calc(var(--app-safe-top)+1.25rem)] md:pt-5 min-[1200px]:border-b min-[1200px]:border-hypo-border/80 min-[1200px]:px-5 min-[1200px]:py-4">
+      <div className="px-5 pb-3 pt-[calc(var(--app-safe-top)+1.25rem)] md:pt-5 min-[1200px]:border-b min-[1200px]:border-hypo-border min-[1200px]:px-5 min-[1200px]:py-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-[26px] font-bold leading-8 text-hypo-text min-[1200px]:text-lg min-[1200px]:leading-6">
@@ -75,7 +72,7 @@ export function ChatRoomListPanel({
         <label className="mt-4 block" htmlFor="chat-search">
           <span className="sr-only">채팅 검색</span>
           <input
-            className="h-10 w-full rounded-hypo-pill border-0 bg-hypo-surface-muted px-4 text-sm font-medium text-hypo-text outline-none placeholder:text-hypo-text-soft focus:ring-[3px] focus:ring-hypo-brand/15 min-[1200px]:bg-hypo-bg"
+            className="h-10 w-full rounded-hypo-md border border-hypo-border bg-hypo-bg px-3.5 text-sm font-medium text-hypo-text outline-none placeholder:text-hypo-text-soft focus:border-hypo-brand focus:ring-[3px] focus:ring-hypo-brand/15"
             id="chat-search"
             placeholder="이름, 모집글 검색"
             type="search"
@@ -117,7 +114,10 @@ export function ChatRoomListPanel({
             </EmptyState>
           ) : null}
 
-          {!isLoading && !isError && rooms.length > 0 && visibleRooms.length === 0 ? (
+          {!isLoading &&
+          !isError &&
+          rooms.length > 0 &&
+          visibleRooms.length === 0 ? (
             <EmptyState
               className="rounded-none border-0 bg-transparent px-0 py-8 text-left"
               title="검색 결과가 없습니다."
@@ -162,7 +162,7 @@ function ChatRoomListLoading() {
         <div
           key={index}
           aria-hidden="true"
-          className="grid min-h-[78px] grid-cols-[40px_minmax(0,1fr)_28px] gap-3 px-4 py-3 motion-safe:animate-pulse"
+          className="grid min-h-[74px] grid-cols-[40px_minmax(0,1fr)_28px] gap-3 px-4 py-3 motion-safe:animate-pulse"
         >
           <span className="size-10 rounded-hypo-lg bg-hypo-surface-muted" />
           <span className="grid min-w-0 content-center gap-2">

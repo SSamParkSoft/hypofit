@@ -54,8 +54,8 @@ export function ChatThread({
   const displayStatus = getRoomDisplayStatus(room, isBlocked);
 
   return (
-    <section className="fixed inset-0 z-40 grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-hypo-bg min-[1200px]:static min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:bg-hypo-surface">
-      <header className="border-b border-hypo-border/80 bg-hypo-surface/96 px-4 pb-3 pt-[calc(var(--app-safe-top)+0.75rem)] backdrop-blur md:px-5 md:pb-4 md:pt-[calc(var(--app-safe-top)+1rem)] min-[1200px]:px-5 min-[1200px]:pb-4 min-[1200px]:pt-4">
+    <section className="fixed inset-0 z-40 grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-hypo-surface min-[1200px]:static min-[1200px]:h-full min-[1200px]:min-h-0">
+      <header className="border-b border-hypo-border bg-hypo-surface px-4 pb-3 pt-[calc(var(--app-safe-top)+0.75rem)] md:px-5 md:pb-4 md:pt-[calc(var(--app-safe-top)+1rem)] min-[1200px]:px-5 min-[1200px]:pb-4 min-[1200px]:pt-4">
         <div className="mx-auto w-full max-w-4xl">
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -137,7 +137,7 @@ export function ChatThread({
       </div>
 
       <form
-        className="border-t border-hypo-border/80 bg-hypo-surface px-4 pb-[calc(var(--app-safe-bottom)+0.75rem)] pt-3 md:px-5 min-[1200px]:px-5"
+        className="border-t border-hypo-border bg-hypo-surface px-4 pb-[calc(var(--app-safe-bottom)+0.75rem)] pt-3 md:px-5 min-[1200px]:px-5"
         onSubmit={controller.handleSubmit}
       >
         <div className="mx-auto w-full max-w-4xl">

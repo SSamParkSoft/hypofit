@@ -71,7 +71,7 @@ public class ApplicationWorkflowService {
 
         InterviewPostOwnership post = repository.findInterviewPost(interviewPostId)
                 .orElseThrow(() -> new ApplicationNotFoundException("Interview post not found"));
-        ensureApplicationWorkflowSupported(post.recruitmentType());
+        ensureApplicationCreationSupported(post);
         if (post.founderId().equals(userId)) {
             throw new ApplicationPermissionDeniedException("Cannot apply to your own interview");
         }
@@ -96,7 +96,7 @@ public class ApplicationWorkflowService {
                     post.founderId(),
                     "application_created",
                     "새 신청이 도착했어요",
-                    "모집글에 새 인터뷰 신청이 들어왔어요.",
+                    "모집글에 새 신청이 들어왔어요.",
                     "application",
                     application.id(),
                     Map.of(
@@ -212,17 +212,19 @@ public class ApplicationWorkflowService {
                 )
                 .orElseThrow(() -> new ApplicationConflictException("Application status has already changed"));
         if ("selected".equals(nextStatus)) {
-            chatLifecycleService.markSelectedForApplication(
-                    application.id(),
-                    context.interviewPostId(),
-                    context.founderId(),
-                    application.respondentId()
-            );
+            if (shouldManageSelectedChatRoom(context.recruitmentType())) {
+                chatLifecycleService.markSelectedForApplication(
+                        application.id(),
+                        context.interviewPostId(),
+                        context.founderId(),
+                        application.respondentId()
+                );
+            }
             notificationWriteService.createNotification(
                     context.respondentId(),
                     "application_selected",
-                    "인터뷰 대상자로 선정됐어요",
-                    "채팅에서 일정과 진행 방식을 조율해보세요.",
+                    selectedNotificationTitle(context.recruitmentType()),
+                    selectedNotificationBody(context.recruitmentType()),
                     "application",
                     application.id(),
                     Map.of(
@@ -275,17 +277,23 @@ public class ApplicationWorkflowService {
     }
 
     private void ensureApplicationWorkflowSupported(String recruitmentType) {
-        if (RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType) || RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType)) {
+        if (RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType)
+                || RECRUITMENT_TYPE_SURVEY.equals(recruitmentType)
+                || RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType)) {
             return;
-        }
-        if (RECRUITMENT_TYPE_SURVEY.equals(recruitmentType)) {
-            throw new ApplicationRecruitmentTypeActionNotAllowedException(
-                    "Survey posts do not support the application workflow"
-            );
         }
         throw new ApplicationRecruitmentTypeActionNotAllowedException(
                 "Unsupported recruitment type for the application workflow: " + recruitmentType
         );
+    }
+
+    private void ensureApplicationCreationSupported(InterviewPostOwnership post) {
+        ensureApplicationWorkflowSupported(post.recruitmentType());
+        if (RECRUITMENT_TYPE_SURVEY.equals(post.recruitmentType()) && "direct".equals(post.entryMode())) {
+            throw new ApplicationRecruitmentTypeActionNotAllowedException(
+                    "Direct survey posts do not use the application workflow"
+            );
+        }
     }
 
     private boolean shouldCreateChatRoomOnApply(String recruitmentType) {
@@ -297,6 +305,23 @@ public class ApplicationWorkflowService {
             return true;
         }
         return RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType) && "selected".equals(currentStatus);
+    }
+
+    private boolean shouldManageSelectedChatRoom(String recruitmentType) {
+        return RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType)
+                || RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType);
+    }
+
+    private String selectedNotificationTitle(String recruitmentType) {
+        return RECRUITMENT_TYPE_SURVEY.equals(recruitmentType)
+                ? "설문 참여가 승인됐어요"
+                : "인터뷰 대상자로 선정됐어요";
+    }
+
+    private String selectedNotificationBody(String recruitmentType) {
+        return RECRUITMENT_TYPE_SURVEY.equals(recruitmentType)
+                ? "공고에서 설문을 시작할 수 있어요."
+                : "채팅에서 일정과 진행 방식을 조율해보세요.";
     }
 
     private ApplicationUserAccount requireActiveUser(UUID userId) {

@@ -6,6 +6,7 @@ import { SocialLoginButton } from "./SocialLoginButton";
 interface SocialLoginButtonsProps {
   feedback: AuthFeedback;
   intent: "sign_in" | "sign_up";
+  lastUsedProviderId?: SocialProviderId | null;
   pendingProviderId: SocialProviderId | null;
   providers: SocialProviderOption[];
   showDivider?: boolean;
@@ -15,6 +16,7 @@ interface SocialLoginButtonsProps {
 export function SocialLoginButtons({
   feedback,
   intent,
+  lastUsedProviderId = null,
   pendingProviderId,
   providers,
   showDivider = true,
@@ -41,6 +43,7 @@ export function SocialLoginButtons({
         {providers.map((provider) => (
           <SocialLoginButton
             key={provider.provider}
+            isLastUsed={lastUsedProviderId === provider.provider}
             isBusy={pendingProviderId === provider.provider}
             provider={provider.provider}
             onClick={() => onStart(provider.provider, intent)}

@@ -8,6 +8,7 @@ public record InterviewPostReadModel(
         UUID id,
         UUID founderId,
         String recruitmentType,
+        String entryMode,
         String title,
         String serviceSummary,
         String targetDescription,
@@ -74,7 +75,7 @@ public record InterviewPostReadModel(
             InterviewAiSummaryReadModel aiSummary
     ) {
         this(
-                id, founderId, recruitmentType, title, serviceSummary, targetDescription,
+                id, founderId, recruitmentType, "application_required", title, serviceSummary, targetDescription,
                 rewardAmount, PostingCompensations.legacy(rewardAmount), durationMinutes,
                 recruitCount, externalProvider, externalUrl, participationDeadlineAt,
                 externalDataNotice, betaTestPlatforms, betaTestStartsAt, betaTestEndsAt,
@@ -121,6 +122,7 @@ public record InterviewPostReadModel(
                 id,
                 founderId,
                 recruitmentType,
+                "application_required",
                 title,
                 serviceSummary,
                 targetDescription,
@@ -185,6 +187,7 @@ public record InterviewPostReadModel(
                 id,
                 founderId,
                 recruitmentType,
+                "application_required",
                 title,
                 serviceSummary,
                 targetDescription,

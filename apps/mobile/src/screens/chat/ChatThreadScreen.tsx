@@ -297,7 +297,7 @@ export function ChatThreadScreen() {
         return;
       }
       if (action === "mark_reward_paid") {
-        Alert.alert("사례비 지급을 완료했나요?", "지급 완료로 표시하면 상대에게 수령 확인 요청이 보내져요.", [
+        Alert.alert("보상 지급을 완료했나요?", "지급 완료로 표시하면 상대에게 수령 확인 요청이 보내져요.", [
           { style: "cancel", text: "취소" },
           {
             onPress: () => markRewardPaid.mutate({ roomId, sessionId }),
@@ -307,7 +307,7 @@ export function ChatThreadScreen() {
         return;
       }
       if (action === "confirm_reward_received") {
-        Alert.alert("사례비를 받았나요?", "받았다고 확인하면 후기를 남길 수 있어요.", [
+        Alert.alert("보상을 받았나요?", "받았다고 확인하면 후기를 남길 수 있어요.", [
           { style: "cancel", text: "취소" },
           {
             onPress: () => confirmRewardReceived.mutate({ roomId, sessionId }),
@@ -317,10 +317,10 @@ export function ChatThreadScreen() {
         return;
       }
       if (action === "dispute_reward") {
-        Alert.alert("사례비 확인에 문제가 있나요?", "문제를 접수하면 채팅 기록과 함께 확인할 수 있어요.", [
+        Alert.alert("보상 확인에 문제가 있나요?", "문제를 접수하면 채팅 기록과 함께 확인할 수 있어요.", [
           { style: "cancel", text: "취소" },
           {
-            onPress: () => disputeReward.mutate({ input: { reason: "사례비 수령 확인 필요" }, roomId, sessionId }),
+            onPress: () => disputeReward.mutate({ input: { reason: "보상 수령 확인 필요" }, roomId, sessionId }),
             style: "destructive",
             text: "문제 신고",
           },

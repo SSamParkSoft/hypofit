@@ -17,16 +17,16 @@ import { supportEmail } from "@/screens/profile/profileUtils";
 
 const inquiryCategories: Array<{ label: string; value: SupportTicketCategory }> = [
   { label: "계정", value: "account" },
-  { label: "모집글", value: "interview_post" },
+  { label: "공고", value: "interview_post" },
   { label: "신청과 선정", value: "application" },
   { label: "채팅", value: "chat" },
-  { label: "사례비", value: "reward" },
+  { label: "보상", value: "reward" },
   { label: "개인정보", value: "privacy" },
   { label: "기타", value: "other" },
 ];
 
 const reportCategories: Array<{ label: string; value: SupportTicketCategory }> = [
-  { label: "모집글", value: "interview_post" },
+  { label: "공고", value: "interview_post" },
   { label: "채팅", value: "chat" },
   { label: "개인정보", value: "privacy" },
   { label: "부적절한 내용", value: "abuse" },
@@ -86,7 +86,7 @@ export function SupportForm({ backTo, initialTicket, mode, onCancel, onSubmitted
     ? {
         bodyLabel: "신고 내용",
         bodyPlaceholder: "어떤 문제가 있었는지, 관련 상황을 구체적으로 적어주세요.",
-        description: "부적절한 모집글, 채팅, 개인정보 요구, 노쇼를 알려주세요.",
+        description: "부적절한 공고, 채팅, 개인정보 요구, 노쇼를 알려주세요.",
         kind: "report" as SupportTicketKind,
         success: "신고가 접수됐어요.",
         title: "신고하기",
@@ -103,7 +103,7 @@ export function SupportForm({ backTo, initialTicket, mode, onCancel, onSubmitted
       : {
           bodyLabel: "문의 내용",
           bodyPlaceholder: "무엇이 불편했는지, 어떤 도움이 필요한지 적어주세요.",
-          description: "계정, 신청, 모집글 문제를 남기면 확인 후 답변드릴게요.",
+          description: "계정, 신청, 공고 문제를 남기면 확인 후 답변드릴게요.",
           kind: "inquiry" as SupportTicketKind,
           success: "문의가 접수됐어요.",
           title: isEditing ? "문의 수정" : "문의하기",

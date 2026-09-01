@@ -871,7 +871,7 @@ apps/web/src/features/auth/
 - raw Supabase response containing identity data
 
 기존 `docs/reference/error-observability-contract.md`와
-`docs/reference/mobile-auth-failure-observability-hardening-plan.md`의 error
+`docs/completed/mobile-auth-failure-observability-hardening-plan.md`의 error
 normalization을 재사용한다. web-only error taxonomy를 따로 만들지 않는다.
 
 ## 17. 구현 단계
@@ -1026,7 +1026,7 @@ normalization을 재사용한다. web-only error taxonomy를 따로 만들지 �
 - `docs/service/15-ai-assisted-design-workflow.md`
 - `docs/active/desktop-web-service-ui-advancement-plan.md`
 - `docs/reference/error-observability-contract.md`
-- `docs/reference/mobile-auth-failure-observability-hardening-plan.md`
+- `docs/completed/mobile-auth-failure-observability-hardening-plan.md`
 - `docs/completed/email-otp-verification-transition-plan.md`
 - `docs/reference/mobile-safe-area-viewport-hardening-plan.md`
 

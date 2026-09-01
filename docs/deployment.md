@@ -12,8 +12,7 @@ web app / native mobile app
   -> Supabase Postgres/Auth
 ```
 
-The retired school GPU and FastAPI runtime are not deployment or rollback
-targets. Supabase remains the durable system of record.
+Supabase remains the durable system of record.
 
 ## API CI/CD
 
@@ -72,7 +71,6 @@ COREPACK_HOME=/Users/sehyeon/hypofit/.corepack \
 ```
 
 Canonical public web domain: `https://hypofit.bukae.co.kr`.
-
 Compatibility deployment URL: `https://hypofit-web.vercel.app`.
 
 Browser-exposed `VITE_*` values may include public API, Supabase anon, and

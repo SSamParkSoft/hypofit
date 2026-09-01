@@ -1,6 +1,6 @@
 # Email Verification Resend MVP Plan
 
-Status: reference - superseded by OTP signup verification
+Status: completed - superseded authentication history
 
 Last updated: 2026-06-12
 

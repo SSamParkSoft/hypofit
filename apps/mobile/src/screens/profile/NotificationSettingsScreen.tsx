@@ -211,7 +211,7 @@ export function NotificationSettingsScreen() {
           disabled={preferenceRowsDisabled}
           helper="일정 변경과 취소처럼 놓치면 안 되는 상태를 알려드려요."
           isUpdating={updatingKey === "session_push_enabled"}
-          label="인터뷰 일정"
+          label="참여 일정"
           value={Boolean(preference?.session_push_enabled)}
           onChange={(value) => void updatePreference("session_push_enabled", value)}
         />

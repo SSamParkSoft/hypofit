@@ -7,6 +7,7 @@ export const APP_ROOT_PATH = "/app";
 export type AppRouteAccess = "public" | "auth-entry" | "protected";
 export type AppRouteId =
   | "landing"
+  | "outreach-landing"
   | "auth-entry"
   | "interviews"
   | "interview-detail"
@@ -56,7 +57,7 @@ export interface ResolvedAppRoute {
 
 export const APP_DESTINATION_DEFINITIONS = [
   { id: "home", href: APP_ROOT_PATH, label: "홈" },
-  { id: "interviews", href: "/interviews", label: "인터뷰" },
+  { id: "interviews", href: "/interviews", label: "공고" },
   { id: "map", href: "/map", label: "지도" },
   { id: "chat", href: "/chat", label: "채팅" },
   { id: "profile", href: "/profile", label: "프로필" },
@@ -79,7 +80,7 @@ const PROFILE_SUBPAGE_TITLES = {
   "delete-account": "계정 삭제 | Hypofit",
   "interview-settings": "인터뷰 설정 | Hypofit",
   notifications: "알림 설정 | Hypofit",
-  role: "역할 설정 | Hypofit",
+  role: "계정 정보 | Hypofit",
 } as const;
 
 export const APP_ROUTE_DEFINITIONS: ReadonlyArray<AppRouteDefinition> = [
@@ -87,7 +88,13 @@ export const APP_ROUTE_DEFINITIONS: ReadonlyArray<AppRouteDefinition> = [
     access: "public",
     id: "landing",
     match: matchExact("/"),
-    resolveTitle: () => "Hypofit | 실제 고객과 시작하는 검증 인터뷰",
+    resolveTitle: () => "Hypofit | 참여자 모집과 참여를 한곳에서",
+  },
+  {
+    access: "public",
+    id: "outreach-landing",
+    match: matchExact("/landing"),
+    resolveTitle: () => "Hypofit | 참여자 모집과 참여를 한곳에서",
   },
   {
     access: "auth-entry",
@@ -101,28 +108,28 @@ export const APP_ROUTE_DEFINITIONS: ReadonlyArray<AppRouteDefinition> = [
     access: "protected",
     id: "interviews",
     match: matchExact("/interviews"),
-    resolveTitle: () => "인터뷰 | Hypofit",
+    resolveTitle: () => "공고 | Hypofit",
     shell: { activeDestination: "interviews" },
   },
   {
     access: "protected",
     id: "new-interview",
     match: matchExact("/interviews/new"),
-    resolveTitle: () => "모집글 만들기 | Hypofit",
+    resolveTitle: () => "공고 만들기 | Hypofit",
     shell: { activeDestination: "interviews" },
   },
   {
     access: "protected",
     id: "interview-detail",
     match: matchRegex(/^\/interviews\/(?<postId>[^/]+)$/),
-    resolveTitle: () => "인터뷰 상세 | Hypofit",
+    resolveTitle: () => "공고 상세 | Hypofit",
     shell: { activeDestination: "interviews" },
   },
   {
     access: "protected",
     id: "my-interviews",
     match: matchExact("/my-interviews"),
-    resolveTitle: () => "내 인터뷰 | Hypofit",
+    resolveTitle: () => "내 참여 | Hypofit",
     shell: { activeDestination: "interviews" },
   },
   {

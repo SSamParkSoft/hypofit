@@ -1,4 +1,3 @@
-import { Bell } from "lucide-react";
 import {
   createContext,
   forwardRef,
@@ -9,6 +8,7 @@ import {
 } from "react";
 
 import { cn } from "./cn";
+import { AppIcon } from "./icon";
 
 interface NotificationButtonState {
   hasUnread?: boolean;
@@ -160,7 +160,11 @@ function NotificationBellContent({
 
   return (
     <>
-      <Bell size={isShellUtility ? 19 : 22} strokeWidth={2.2} />
+      <AppIcon
+        aria-hidden="true"
+        name="notification"
+        size={isShellUtility ? 19 : 22}
+      />
       {hasUnread ? (
         <span
           aria-hidden="true"

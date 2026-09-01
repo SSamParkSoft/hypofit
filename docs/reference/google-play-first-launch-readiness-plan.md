@@ -2,7 +2,7 @@
 
 Status: reference
 
-Last updated: 2026-07-12
+Last updated: 2026-08-12
 
 ## Purpose
 
@@ -19,6 +19,33 @@ decisions.
 iOS follow-up work remains out of scope for this Android-specific document.
 
 ## Current Hypofit State
+
+### Play Console checkpoint: 2026-08-12
+
+User-confirmed console work:
+
+- App access and the Google reviewer login are entered.
+- Content rating and app-content declarations are completed.
+- Data safety and account-creation/deletion declarations are completed.
+- Store listing setup is completed.
+
+Repository and backend readiness:
+
+- `hypofit.review@gmail.com` can authenticate through Google and has both
+  founder and respondent roles.
+- `apps/api/scripts/seed_social_store_review_data.sql` provides idempotent,
+  reviewer-only posts, applications, chats, notifications, and inquiries.
+- Non-review synthetic interview posts are archived and are not public.
+
+Still open:
+
+- Freeze the intended Android release commit and run final validation.
+- Build and inspect the production AAB; no current local AAB is recorded.
+- Upload the AAB to internal testing and complete release-signed smoke.
+- Reconcile the final manifest, SDKs, permissions, and behavior with the
+  already-entered Play Console declarations.
+- Confirm whether the developer account is subject to the 12-tester/14-day
+  closed-testing production-access gate.
 
 Mobile app:
 
@@ -39,7 +66,7 @@ Mobile app:
 
 Backend/API:
 
-- FastAPI public API:
+- Spring Boot public API:
   - `https://hypofit-api.bukae.co.kr`
 - Current repo/deploy state includes:
   - authenticated/public account deletion request APIs
@@ -51,7 +78,7 @@ Backend/API:
   - in-app notification table/events plus list/read/read-all APIs
   - readiness endpoint `GET /api/v1/health/ready`
 - Supabase is used for auth, database, and profile image storage.
-- Kakao Local search is proxied through FastAPI so the Kakao REST API key stays
+- Kakao Local search is proxied through the Spring API so the Kakao REST API key stays
   backend-only.
 
 Implemented or partially implemented review-relevant flows:
@@ -77,21 +104,17 @@ Implemented or partially implemented review-relevant flows:
 
 Not yet sufficient for Google Play production:
 
-- Public account deletion web resource returns HTTP 200 at
-  `https://hypofit.bukae.co.kr/account-deletion`; only Play Console URL entry is
-  deferred.
-- Public privacy policy and account deletion URLs still need final Play Console
-  confirmation and final wording review.
+- Public privacy and account-deletion URLs are deployed and their Play Console
+  entries are user-confirmed. Their wording and declared data behavior must be
+  checked once more against the final release artifact.
 - Native and public account deletion use the shared backend deletion service.
 - Public deletion verification email and same-email re-registration have been
   verified against the deployed API. The operator runbook is documented in
   `docs/reference/operator-support-moderation-runbook.md`.
 - Production deletion redaction/Auth-cleanup dry-runs found no pending cleanup
   candidates on 2026-07-12.
-- Data safety has an initial worksheet, but it still needs verification against
+- Data safety is entered in Play Console, but still needs verification against
   the final Android manifest, AAB, SDK list, and privacy policy.
-- Privacy policy needs Google Play-specific details for location, profile
-  image, chat, reports, retention, deletion, and subprocessors.
 - Native notification tab/settings consume the backend notification API, and
   APNs/FCM delivery plus the push worker are configured. Demo-user routing smoke
   and final Data safety/privacy synchronization remain.
@@ -99,9 +122,10 @@ Not yet sufficient for Google Play production:
   durable block/unblock control from chat counterpart profiles, but a
   dedicated blocked-users management list is still open.
 - Production AAB build has not been verified in Play Console.
-- Reviewer seed data exists and reviewer login was verified on an Android
-  emulator. Play App Signing, Play Console authentication, production AAB,
-  physical-device smoke, and closed-testing preparation remain open.
+- The dedicated Google reviewer account and reviewer-only product fixture are
+  prepared. Final release-signed Android login smoke, Play App Signing,
+  production AAB upload, physical-device smoke, and closed-testing preparation
+  remain open.
 
 ## Backend Prerequisite Status
 
@@ -121,7 +145,7 @@ Not yet sufficient for Google Play production:
 - [x] Native notification UI consumes backend notification records.
 - [x] Native app exposes user block/unblock controls.
 - [ ] Account deletion retention/purge follow-up is automated.
-- [ ] Reviewer/demo account smoke has been run against the deployed API.
+- [ ] Final Android release-build reviewer smoke has been run on a clean device.
 
 ## Official Source Basis
 
@@ -281,7 +305,7 @@ Infrastructure/subprocessors to disclose where appropriate:
 
 - Supabase for auth, database, and storage.
 - Vercel for web hosting if the public legal pages or web app remain connected.
-- Hypofit FastAPI server and hosting/tunnel infrastructure.
+- Hypofit Spring API and Lightsail hosting infrastructure.
 - Google Maps SDK on Android if used in the native build.
 - Kakao Local API through backend place search.
 
@@ -432,40 +456,43 @@ Hypofit work:
   - support/report
   - account deletion request
 
-Recommended reviewer accounts:
+Current reviewer account:
 
 ```text
-Founder/respondent demo
-Email: review-both@hypofit.demo
-Password: <STORE_REVIEW_PASSWORD>
+Name: Google Play Reviewer Account
+Provider: Google
+Email: hypofit.review@gmail.com
 Role: founder and respondent
 ```
 
-Helper fixture accounts, not submitted unless Play review explicitly asks for
-additional credentials:
+The password is maintained only in the Google account and Play Console. It is
+not stored in the repository, Supabase product tables, or the seed script.
+
+Synthetic fixture counterparts, not submitted as reviewer credentials:
 
 ```text
-Founder demo
-Email: review-founder@hypofit.demo
-Role: founder
-
-Respondent demo
-Email: review-respondent@hypofit.demo
-Role: respondent
+review-fixture-founder@hypofit.invalid
+review-fixture-respondent@hypofit.invalid
 ```
 
-Do not reuse personal user accounts as official reviewer credentials.
+These rows exist only to provide realistic founder/respondent data and cannot
+sign in.
 
 Seed command:
 
 ```bash
-ALLOW_STORE_REVIEW_SEED=true \
-STORE_REVIEW_SEED_ENV=production \
-apps/api/.venv/bin/python apps/api/scripts/seed_store_review_data.py
+DB=$(sed -n 's/^DATABASE_URL=//p' /opt/hypofit/config/api.env)
+docker run --rm \
+  -v /tmp/seed_social_store_review_data.sql:/seed.sql:ro \
+  postgres:16-alpine \
+  psql "$DB" \
+  -v review_email='hypofit.review@gmail.com' \
+  -f /seed.sql
 ```
 
-The official reviewer accounts must be pre-confirmed and must not require email
-OTP during Play review.
+The reviewer uses the normal Google social-login button. The Google account must
+not require OTP, passkey, two-step verification, or a recovery challenge during
+Play review. See `docs/demo-seed.md` for the full reset and verification flow.
 
 ### 7. Location Permission
 
@@ -684,22 +711,53 @@ Copy guidance:
 
 ### 14. Closed Testing
 
-Requirement:
+Official applicability and counting rules, rechecked on 2026-08-12:
 
-- New personal developer accounts may need closed testing before production.
-- Current official requirement: at least 12 opted-in testers for the previous
-  14 continuous days before applying for production access.
+- The gate applies to personal Play developer accounts created after
+  2023-11-13. The cited Google policy does not apply this exact gate to older
+  personal accounts or organization accounts.
+- The qualifying track is **closed testing**. Internal testing is useful for
+  smoke testing but does not satisfy this production-access gate.
+- At the time of application, at least 12 testers must have remained opted in
+  for the immediately preceding 14 consecutive days.
+- A tester who opts out before completing the period does not count; returning
+  later does not combine separate participation periods.
+- Reaching the number and duration only unlocks the production-access
+  application. Google then reviews tester engagement, collected feedback,
+  resulting changes, intended audience, app value, expected installs, and the
+  team's production-readiness explanation. Review usually takes up to seven
+  days but can take longer.
 
 Hypofit work:
 
-- Decide whether the Play Console account is personal or organization.
-- If personal/new:
-  - recruit at least 12 testers
-  - keep them opted in for 14 continuous days
-  - collect feedback
-  - answer production access questions
+- Check the Play Console Dashboard first. If `Apply for production` is locked
+  behind closed testing, treat the requirement as applicable instead of
+  inferring from repository configuration.
+- If applicable, recruit 15-18 real Android testers as a practical buffer so
+  one opt-out does not drop the count below 12.
+- Ask testers to join through the closed-test opt-in link, install from Google
+  Play, remain opted in, and exercise the actual MVP workflow during the test.
+- Keep a compact test log with device/OS, workflow exercised, feedback,
+  observed issue, and resulting change or explicit no-change decision.
 - Use internal testing first for team smoke.
 - Then closed testing with real Android testers.
+
+No-shortcut policy:
+
+- Do not use fake accounts, automate installs/activity, misrepresent feedback,
+  or claim product changes that were not made. These actions undermine the
+  production-access review and can create account-enforcement risk.
+- A genuine, verified organization may use an organization developer account,
+  but changing account type solely to evade testing is not an implementation
+  shortcut. It requires a valid organization identity/payment profile and
+  Google verification; use it only when it truthfully represents the business.
+- Third-party tester recruitment can reduce recruiting effort, but it does not
+  waive the 12-person, 14-consecutive-day, engagement, or production-access
+  review requirements. Treat any seller promising guaranteed approval or
+  artificial activity as unsafe.
+- The fastest compliant path for the current MVP is to start internal testing
+  immediately, prepare a stable closed-test AAB, recruit a buffer above 12,
+  and begin the 14-day clock once the build and core flows are usable.
 
 Testing checklist:
 
@@ -729,17 +787,16 @@ Production access questions to prepare:
 Risk:
 
 - Google reviewers must be able to access the app whenever review occurs.
-- Hypofit API runs on the school GPU server through reverse tunnel, which may be
-  less stable than a managed API host.
+- Hypofit API runs as a memory-limited Spring container on Lightsail.
 
 Required before submission:
 
 - Confirm API health:
   - `GET https://hypofit-api.bukae.co.kr/api/v1/health`
 - Confirm Supabase auth works.
-- Confirm reverse tunnel and API service restart commands are documented.
+- Confirm the GitHub Actions deployment and rollback procedure is documented.
 - Confirm demo data exists and survives restart.
-- Avoid scheduling review while GPU/server maintenance is likely.
+- Avoid scheduling review during planned server maintenance.
 
 Recommended:
 
@@ -924,14 +981,13 @@ Highest priority:
 ### High
 
 - Production AAB is still unbuilt/unverified.
-- Account deletion still needs final Play Console URL confirmation plus a
-  documented operator processing workflow.
-- Data safety has an initial worksheet but has not been verified against the
-  final Android manifest and production AAB.
-- Privacy policy has been expanded for native Google Play data categories but
-  still needs public deployment and final legal/operator review.
-- Reviewer/demo account creation, real-device smoke, and app-access
-  instructions are still open.
+- Data safety and the legal/account-deletion URLs are entered, but have not been
+  reconciled with the final Android manifest and production AAB.
+- Reviewer account/data preparation is complete; release-signed login and core
+  workflow smoke are still open.
+- The 12-tester/14-day gate may be mandatory depending on the developer account
+  type and creation date; the Play Console Dashboard is the final applicability
+  check.
 
 ### Medium
 
@@ -940,12 +996,11 @@ Highest priority:
 - Native user block/unblock is now exposed from the chat profile modal, but
   real-device smoke and a dedicated blocked-users management list are still
   open.
-- API backend relies on GPU server and reverse tunnel during review.
+- Lightsail API resource and restart behavior require review-week monitoring.
 - Google Maps native key and Android build behavior are not yet verified in a
   production AAB.
-- Closed-testing timeline may delay launch if using a new personal developer
-  account.
-- Store screenshots and listing copy are not prepared.
+- Closed testing and production-access review may add at least 14 days plus
+  Google's review time when the new-personal-account gate applies.
 
 ### Low
 

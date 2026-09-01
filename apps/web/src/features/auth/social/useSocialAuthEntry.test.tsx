@@ -94,6 +94,7 @@ describe("useSocialAuthEntry", () => {
     });
     expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
       options: {
+        queryParams: { prompt: "select_account" },
         redirectTo: `${window.location.origin}/auth/social/callback`,
         skipBrowserRedirect: true,
       },
@@ -144,10 +145,28 @@ describe("useSocialAuthEntry", () => {
     });
     expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
       options: {
+        queryParams: { prompt: "select_account" },
         redirectTo: `${window.location.origin}/auth/social/callback`,
         skipBrowserRedirect: true,
       },
       provider: "google",
+    });
+  });
+
+  it("returns a new account login to the app instead of reopening account choice", async () => {
+    window.history.replaceState(null, "", "/app?account=choose");
+    const { result } = renderHook(() => useSocialAuthEntry(), {
+      wrapper: createWrapper(),
+    });
+
+    await act(async () => {
+      await result.current.startSocialAuth("google", "sign_in");
+    });
+
+    expect(mocks.createSocialAuthAttempt).toHaveBeenCalledWith({
+      intent: "sign_in",
+      provider: "google",
+      returnTo: "/app",
     });
   });
 });

@@ -9,7 +9,7 @@ import {
   getAppRouteTitle,
   resolveAppRoute,
 } from "../shared/navigation/appRoutes";
-import { navigateTo } from "../shared/navigation/appNavigation";
+import { navigateTo, replacePath } from "../shared/navigation/appNavigation";
 import type { AppDestination } from "../shared/ui/navigation/types";
 import { RouteRenderer } from "./routing/RouteRenderer";
 import { useNavigationCoordinator } from "./routing/useNavigationCoordinator";
@@ -30,6 +30,17 @@ function getCurrentRequestedPath() {
   });
 }
 
+function getRequestsAccountChoice() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return (
+    window.location.pathname === "/app" &&
+    new URLSearchParams(window.location.search).get("account") === "choose"
+  );
+}
+
 function getIsOnline() {
   return typeof navigator === "undefined" ? true : navigator.onLine;
 }
@@ -39,6 +50,14 @@ function getUsesDesktopProfileLayout() {
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
     window.matchMedia("(min-width: 1200px)").matches
+  );
+}
+
+function getIsMobileWebViewport() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 767px)").matches
   );
 }
 
@@ -55,12 +74,19 @@ export function App() {
   const [usesDesktopProfileLayout, setUsesDesktopProfileLayout] = useState(
     getUsesDesktopProfileLayout,
   );
+  const [isMobileWebViewport, setIsMobileWebViewport] = useState(
+    getIsMobileWebViewport,
+  );
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const previousIsLoadingRef = useRef(isLoading);
   const requestedPath = getCurrentRequestedPath();
   const isAuthenticated = Boolean(user);
+  const requestsAccountChoice = getRequestsAccountChoice();
   const route = resolveAppRoute(currentPath, { isAuthenticated });
   const routeAccess = route?.access ?? null;
+  const blocksMobileWebProductAccess =
+    isMobileWebViewport &&
+    (routeAccess === "auth-entry" || routeAccess === "protected");
 
   useNavigationCoordinator({
     isAuthenticated,
@@ -83,6 +109,28 @@ export function App() {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsMobileWebViewport(event.matches);
+    };
+
+    setIsMobileWebViewport(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (blocksMobileWebProductAccess) {
+      replacePath("/", { intent: "replace", scroll: "top" });
+    }
+  }, [blocksMobileWebProductAccess]);
 
   useEffect(() => {
     if (typeof window.matchMedia !== "function") {
@@ -118,6 +166,10 @@ export function App() {
     navigateTo(getAppDestinationPath(destination), { intent: "tab" });
   }, []);
 
+  if (blocksMobileWebProductAccess) {
+    return null;
+  }
+
   if (routeAccess === "public") {
     return (
       <RouteRenderer
@@ -149,6 +201,10 @@ export function App() {
   }
 
   if (!user) {
+    return <AuthScreen />;
+  }
+
+  if (requestsAccountChoice) {
     return <AuthScreen />;
   }
 

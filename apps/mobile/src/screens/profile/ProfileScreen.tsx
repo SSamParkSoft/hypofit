@@ -3,11 +3,10 @@ import { ActionSheetIOS, Alert, Image, Platform, Pressable, Text, View } from "r
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { getRoleLabel } from "@hypofit/contracts";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { getSupabaseClient } from "@/shared/api/supabase";
 import { AppScreen } from "@/shared/ui/AppScreen";
-import { appVersion, companyName, roleDescription } from "./profileUtils";
+import { appVersion, companyName, compatibilityRole, formatOrganizationDisplay } from "./profileUtils";
 
 const profileImagePickerOptions: ImagePicker.ImagePickerOptions = {
   allowsEditing: true,
@@ -18,10 +17,11 @@ const profileImagePickerOptions: ImagePicker.ImagePickerOptions = {
 
 export function ProfileScreen() {
   const params = useLocalSearchParams<{ toast?: string }>();
-  const { appUser, signOut, updateCurrentUser, user } = useAuth();
+  const { appUser, updateCurrentUser, user } = useAuth();
   const [isUploadingProfileImage, setIsUploadingProfileImage] = useState(false);
   const [visibleToast, setVisibleToast] = useState<"feedback_submitted" | null>(null);
   const displayName = appUser?.name ?? user?.email?.split("@")[0] ?? "사용자";
+  const organizationDisplay = formatOrganizationDisplay(appUser?.organization_type, appUser?.organization_name);
 
   useEffect(() => {
     if (params.toast !== "feedback_submitted") {
@@ -36,11 +36,6 @@ export function ProfileScreen() {
 
     return () => clearTimeout(timeout);
   }, [params.toast]);
-
-  async function handleSignOut() {
-    await signOut();
-    router.replace("/(auth)/login");
-  }
 
   async function handleProfileImagePress() {
     if (!appUser || isUploadingProfileImage) {
@@ -120,7 +115,9 @@ export function ProfileScreen() {
         name: appUser.name,
         bio: appUser.bio,
         phone: appUser.phone,
-        role: appUser.role,
+        organization_type: appUser.organization_type,
+        organization_name: appUser.organization_name,
+        role: compatibilityRole,
         profile_image_path: imagePath,
         profile_image_url: data.publicUrl,
       });
@@ -133,7 +130,7 @@ export function ProfileScreen() {
 
   return (
     <AppScreen
-      bottomPaddingClassName="pb-2"
+      bottomPaddingClassName="pb-24"
       contentClassName="flex-1"
       safeAreaEdges={["top", "left", "right"]}
       scrollContentContainerStyle={{ flexGrow: 1 }}
@@ -161,22 +158,35 @@ export function ProfileScreen() {
               </View>
             </Pressable>
             <View className="min-w-0 flex-1">
-              <View className="flex-row items-center gap-2">
-                <Text numberOfLines={1} className="min-w-0 flex-1 text-xl font-black text-hypo-text">
+              <View className="flex-row items-center justify-between gap-3">
+                <Text numberOfLines={1} className="min-w-0 flex-1 text-xl font-bold text-hypo-text">
                   {displayName}
                 </Text>
-                {appUser ? (
-                  <View className="rounded-full bg-hypo-brandSoft px-2.5 py-1">
-                    <Text className="text-[11px] font-black text-hypo-brand">{getRoleLabel(appUser.role)}</Text>
-                  </View>
-                ) : null}
+                <Pressable
+                  accessibilityLabel="프로필 편집"
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => router.push("/(tabs)/profile/account")}
+                >
+                  <Text className="text-[13px] font-semibold text-hypo-brand">프로필 편집</Text>
+                </Pressable>
               </View>
               <Text numberOfLines={1} className="mt-1 text-sm font-bold text-hypo-muted">
                 {appUser?.email ?? user?.email ?? "계정 정보를 불러오는 중"}
               </Text>
-              <Text numberOfLines={2} className="mt-2 text-xs font-bold leading-[18px] text-[#8A9387]">
-                {appUser?.bio || roleDescription(appUser?.role)}
-              </Text>
+              {organizationDisplay ? (
+                <View className="mt-2 flex-row items-center gap-1.5">
+                  <Feather
+                    color="#176B5D"
+                    name={appUser?.organization_type === "company" ? "briefcase" : "users"}
+                    size={13}
+                    strokeWidth={2.4}
+                  />
+                  <Text numberOfLines={1} className="min-w-0 flex-1 text-xs font-semibold text-hypo-brand">
+                    {organizationDisplay}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
         </View>
@@ -184,7 +194,6 @@ export function ProfileScreen() {
         <View className="gap-5">
           <MenuSection title="내 정보">
             <MenuRow icon="user" label="계정 정보" onPress={() => router.push("/(tabs)/profile/account")} />
-            <MenuRow icon="briefcase" label="역할 설정" onPress={() => router.push("/(tabs)/profile/role")} />
           </MenuSection>
 
           <MenuSection title="설정">
@@ -215,33 +224,14 @@ export function ProfileScreen() {
             />
           </MenuSection>
 
-          {user ? (
-            <View className="-mx-4 border-t border-hypo-border px-4 pt-3">
-              <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1 px-1">
-                <InlineTextButton
-                  emphasized
-                  label="개인정보 처리방침"
-                  underline={false}
-                  onPress={() => router.push({ pathname: "/legal/privacy", params: { returnTo: "/(tabs)/profile" } })}
-                />
-                <Text className="text-[11px] font-black text-hypo-muted">및</Text>
-                <InlineTextButton
-                  emphasized
-                  label="이용약관"
-                  underline={false}
-                  onPress={() => router.push({ pathname: "/legal/terms", params: { returnTo: "/(tabs)/profile" } })}
-                />
-                <Text className="text-[11px] font-bold text-[#A3ABA0]">|</Text>
-                <InlineTextButton label="계정 삭제" underline={false} onPress={() => router.push("/(tabs)/profile/delete-account")} />
-                <Text className="text-[11px] font-bold text-[#A3ABA0]">|</Text>
-                <InlineTextButton label="로그아웃" underline={false} onPress={() => void handleSignOut()} />
-              </View>
-            </View>
-          ) : null}
+          <MenuSection title="정보">
+            <MenuRow icon="shield" label="개인정보 처리방침" onPress={() => router.push({ pathname: "/legal/privacy", params: { returnTo: "/(tabs)/profile" } })} />
+            <MenuRow icon="file-text" label="이용약관" onPress={() => router.push({ pathname: "/legal/terms", params: { returnTo: "/(tabs)/profile" } })} />
+          </MenuSection>
         </View>
 
         {user ? (
-          <View className="items-center px-2 pt-1">
+      <View className="items-center px-2 pt-1">
             <View className="items-center">
               <Text className="text-[11px] font-bold text-[#8A9387]">Hypofit v{appVersion}</Text>
               <Text className="mt-0.5 text-[11px] font-bold text-[#8A9387]">© 2026 {companyName}</Text>
@@ -286,34 +276,16 @@ function MenuRow({
   return (
     <Pressable
       accessibilityRole="button"
-      className="min-h-[46px] flex-row items-center gap-3 bg-hypo-bg py-2.5"
+      className="min-h-[44px] flex-row items-center gap-3 bg-hypo-bg py-2"
       onPress={onPress}
     >
       <Feather color="#1D2522" name={icon} size={18} strokeWidth={2.5} />
       <View className="min-w-0 flex-1">
-        <Text numberOfLines={1} className="text-[15px] font-black text-hypo-text">
+        <Text numberOfLines={1} className="text-[15px] font-semibold text-hypo-text">
           {label}
         </Text>
       </View>
       <ChevronIcon />
-    </Pressable>
-  );
-}
-
-function InlineTextButton({
-  emphasized = false,
-  label,
-  onPress,
-  underline = true,
-}: {
-  emphasized?: boolean;
-  label: string;
-  onPress: () => void;
-  underline?: boolean;
-}) {
-  return (
-    <Pressable hitSlop={8} onPress={onPress}>
-      <Text className={`text-[11px] font-black ${emphasized ? "text-hypo-text" : "text-hypo-muted"}`}>{label}</Text>
     </Pressable>
   );
 }

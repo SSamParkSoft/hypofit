@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import { formatCompensationSummary, normalizeCompensations, postingTypeLabels } from "@hypofit/contracts";
 
 import type { ChatRoom } from "../../../shared/api/types";
 import { Avatar } from "../../../shared/ui/avatar";
@@ -6,7 +7,6 @@ import { Button } from "../../../shared/ui/button";
 import { cn } from "../../../shared/ui/cn";
 import {
   formatInterviewMode,
-  formatReward,
   getCounterpart,
   getRoomDisplayStatus,
   getRoomStatusLabel,
@@ -42,13 +42,13 @@ export function InterviewContextBar({
             {post.title}
           </p>
           <p className="mt-1 truncate text-[11px] font-medium leading-4 text-hypo-text-muted">
-            {formatReward(post.reward_amount)} · {post.duration_minutes}분 ·{" "}
+            {postingTypeLabels[post.recruitment_type ?? "interview"]} · {formatCompensationSummary(normalizeCompensations(post.compensations, post.reward_amount))} · {post.duration_minutes}분 ·{" "}
             {formatInterviewMode(post.interview_mode)}
           </p>
         </div>
         <span
           className={cn(
-            "inline-flex shrink-0 items-center justify-center rounded-hypo-pill bg-hypo-bg text-[11px] font-semibold text-hypo-brand",
+            "inline-flex shrink-0 items-center justify-center rounded-hypo-pill border border-hypo-border bg-hypo-surface text-[11px] font-semibold text-hypo-brand",
             isOpen ? "min-h-7 px-2.5" : "size-7",
           )}
           aria-hidden="true"
@@ -66,7 +66,7 @@ export function InterviewContextBar({
             </p>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-hypo-text-soft">찾는 응답자</p>
+            <p className="text-[11px] font-semibold text-hypo-text-soft">찾는 참여자</p>
             <p className="mt-1 text-sm leading-5 text-hypo-text-muted">
               {post.target_description}
             </p>
@@ -96,9 +96,9 @@ export function InterviewContextPanel({
   if (!room) {
     return (
       <aside className="hidden min-h-0 overflow-y-auto border-l border-hypo-border/80 px-5 py-4 min-[1600px]:block">
-        <h2 className="text-sm font-semibold text-hypo-text">인터뷰 정보</h2>
+        <h2 className="text-sm font-semibold text-hypo-text">공고 정보</h2>
         <p className="mt-2 text-sm leading-6 text-hypo-text-muted">
-          채팅방을 선택하면 모집글, 사례비, 진행 방식, 신청 상태가 표시됩니다.
+          채팅방을 선택하면 공고, 보상, 진행 방식, 신청 상태가 표시됩니다.
         </p>
       </aside>
     );
@@ -119,15 +119,15 @@ export function InterviewContextPanel({
         <div className="min-w-0">
           <p className="text-[11px] font-medium text-hypo-text-soft">대화 상대</p>
           <h2 className="truncate text-sm font-semibold text-hypo-text">{counterpart.name}</h2>
-          <p className="text-xs font-medium text-hypo-text-muted">방장 · 창업자</p>
+          <p className="text-xs font-medium text-hypo-text-muted">대화 상대</p>
         </div>
       </div>
 
       <div className="mt-5 grid gap-5">
         <section className="border-t border-hypo-border/70 pt-4">
-          <h3 className="text-[11px] font-semibold text-hypo-text-soft">모집글</h3>
+          <h3 className="text-[11px] font-semibold text-hypo-text-soft">공고</h3>
           <p className="mt-2 text-sm font-semibold leading-5 text-hypo-text">
-            {post?.title ?? "인터뷰 채팅"}
+            {post?.title ?? "공고 채팅"}
           </p>
           {post ? (
             <p className="mt-2 line-clamp-3 text-sm leading-5 text-hypo-text-muted">
@@ -138,7 +138,10 @@ export function InterviewContextPanel({
 
         {post ? (
           <section className="grid gap-2 border-t border-hypo-border/70 pt-4">
-            <ContextDetailRow label="사례비" value={formatReward(post.reward_amount)} />
+            <ContextDetailRow
+              label="보상"
+              value={formatCompensationSummary(normalizeCompensations(post.compensations, post.reward_amount))}
+            />
             <ContextDetailRow label="시간" value={`${post.duration_minutes}분`} />
             <ContextDetailRow label="방식" value={formatInterviewMode(post.interview_mode)} />
             <ContextDetailRow

@@ -88,6 +88,49 @@ class InterviewPostWriteRepositoryPostgresIntegrationTest extends PostgresIntegr
         assertThat(reloaded.scheduleOptions()).containsExactly("평일 저녁", "주말 오후");
     }
 
+    @Test
+    void persistsAndFindsPostByOwnerScopedClientSubmissionId() {
+        UUID founderId = UUID.randomUUID();
+        UUID clientSubmissionId = UUID.randomUUID();
+        insertUser(founderId, "founder");
+        InterviewPostCreateCommand command = new InterviewPostCreateCommand(
+                "interview",
+                "제출 키 검증 공고",
+                "동일한 제출 키가 중복 공고를 만들지 않는지 검증합니다.",
+                "관련 경험이 있는 참여자",
+                15000,
+                30,
+                1,
+                "online",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                "open"
+        );
+
+        InterviewPostWriteModel created = new TransactionTemplate(transactionManager)
+                .execute(status -> repository.createPost(founderId, command, clientSubmissionId));
+
+        InterviewPostWriteModel found = new TransactionTemplate(transactionManager)
+                .execute(status -> repository.findPostByClientSubmissionId(founderId, clientSubmissionId).orElseThrow());
+        Integer matchingRows = jdbcTemplate.queryForObject(
+                "select count(*) from interview_posts where founder_id = ? and client_submission_id = ?",
+                Integer.class,
+                founderId,
+                clientSubmissionId
+        );
+
+        assertThat(created).isNotNull();
+        assertThat(found.id()).isEqualTo(created.id());
+        assertThat(matchingRows).isEqualTo(1);
+    }
+
     private void insertUser(UUID userId, String role) {
         jdbcTemplate.update(
                 "insert into app_users (id, email, name, role) values (?, ?, ?, ?)",

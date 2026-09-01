@@ -15,6 +15,9 @@ import {
   AccountDeletionInlineFeedback,
 } from "./AccountDeletionState";
 
+const stepCardClassName =
+  "rounded-hypo-lg border border-hypo-border bg-hypo-surface p-5 shadow-hypo-panel sm:p-7";
+
 interface AccountDeletionRequestStepProps {
   email: string;
   feedback: Feedback;
@@ -281,7 +284,7 @@ function AccountDeletionStepCard({
   title: string;
 }) {
   return (
-    <div className="rounded-hypo-lg border border-hypo-border bg-hypo-surface p-5 shadow-hypo-panel sm:p-7">
+    <div className={stepCardClassName}>
       <h2 className="text-xl font-black text-hypo-text">{title}</h2>
       <p className="mt-2 text-sm font-semibold leading-6 text-hypo-text-muted">{description}</p>
       {children}

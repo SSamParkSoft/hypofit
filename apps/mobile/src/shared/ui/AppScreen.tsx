@@ -33,7 +33,7 @@ interface AppScreenProps {
 
 export function AppScreen({
   backTo,
-  bottomPaddingClassName = "pb-6",
+  bottomPaddingClassName = "pb-24",
   children,
   contentClassName,
   description,
@@ -75,15 +75,15 @@ export function AppScreen({
             </Pressable>
           ) : null}
           <View className="min-w-0 flex-1 justify-center">
-            {eyebrow ? <Text className="text-[11px] font-black text-hypo-brand">{eyebrow}</Text> : null}
-            <Text numberOfLines={1} className="text-lg font-black leading-10 text-hypo-text">
+            {eyebrow ? <Text className="text-[11px] font-semibold text-hypo-brand">{eyebrow}</Text> : null}
+            <Text numberOfLines={1} className="text-lg font-bold leading-10 text-hypo-text">
               {title}
             </Text>
           </View>
           {right}
         </View>
       ) : null}
-      {description ? <Text className="px-1 text-sm font-bold leading-[21px] text-hypo-muted">{description}</Text> : null}
+      {description ? <Text className="px-1 text-sm font-medium leading-[21px] text-hypo-muted">{description}</Text> : null}
       {children}
     </View>
   );
@@ -119,7 +119,7 @@ export function AppScreen({
 export function SectionCard({ children, title }: { children: ReactNode; title?: string }) {
   return (
     <View className="gap-2">
-      {title ? <Text className="px-1 text-xs font-black text-[#8A9387]">{title}</Text> : null}
+      {title ? <Text className="px-1 text-xs font-semibold text-hypo-textSoft">{title}</Text> : null}
       <View className="overflow-hidden rounded-[16px] border border-hypo-border bg-hypo-surface">{children}</View>
     </View>
   );

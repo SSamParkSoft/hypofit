@@ -18,6 +18,9 @@ public record InterviewPostCreateRequest(Object rawBody) {
 
     @Schema(name = "InterviewPostCreate")
     public record OpenApiSchema(
+            @JsonProperty("client_submission_id")
+            @Schema(nullable = true, format = "uuid")
+            java.util.UUID clientSubmissionId,
             @JsonProperty("recruitment_type")
             @Schema(defaultValue = "interview", allowableValues = {
                     "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
@@ -44,6 +47,9 @@ public record InterviewPostCreateRequest(Object rawBody) {
             @JsonProperty("interview_mode")
             @Schema(nullable = true, allowableValues = {"offline", "online", "both"})
             String interviewMode,
+            @JsonProperty("entry_mode")
+            @Schema(defaultValue = "application_required", allowableValues = {"application_required", "direct"})
+            String entryMode,
             @JsonProperty("external_provider")
             @Schema(nullable = true, allowableValues = {"google_forms"})
             String externalProvider,

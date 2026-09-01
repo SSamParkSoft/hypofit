@@ -21,8 +21,8 @@ const inputStyle: TextStyle = {
 
 export function SearchField({
   containerClassName = "",
-  iconColor = "#66706B",
-  placeholderTextColor = "#98A196",
+  iconColor = "#657069",
+  placeholderTextColor = "#87918B",
   rightAccessory,
   style,
   ...props

@@ -37,8 +37,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#176B5D",
-        tabBarInactiveTintColor: "#66706B",
+        tabBarActiveTintColor: "#0F7A4D",
+        tabBarInactiveTintColor: "#657069",
         tabBarLabelPosition: "below-icon",
         tabBarShowLabel: true,
         tabBarStyle: isChatThread ? getHiddenBottomTabBarStyle() : getBottomTabBarStyle(insets.bottom),
@@ -68,7 +68,7 @@ export default function TabsLayout() {
             router.replace("/(tabs)/interviews");
           },
         }}
-        options={getTabOptions("interviews", "인터뷰")}
+        options={getTabOptions("interviews", "공고")}
       />
       <Tabs.Screen
         name="map"
@@ -103,18 +103,18 @@ function getTabOptions(name: TabIconName, title: string) {
       <View
         style={{
           alignItems: "center",
-          backgroundColor: focused ? "#E7F1EE" : "transparent",
-          borderRadius: 999,
-          height: 32,
+          backgroundColor: focused ? "#E8F4EC" : "transparent",
+          borderRadius: 11,
+          height: 26,
           justifyContent: "center",
           marginBottom: 0,
-          width: 46,
+          width: 34,
         }}
       >
         <Feather
           color={color}
           name={tabIconNames[name]}
-          size={focused ? 23 : 22}
+          size={focused ? 20 : 19}
         />
       </View>
     ),

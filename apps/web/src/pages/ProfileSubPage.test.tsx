@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockUseAuth = vi.fn();
 const mockNavigateBack = vi.fn();
 const mockNavigateTo = vi.fn();
+const mockReplacePath = vi.fn();
 const mockUploadProfileImage = vi.fn();
 const mockSignOut = vi.fn();
 const mockSyncCurrentUser = vi.fn();
@@ -28,6 +29,7 @@ vi.mock("../features/auth/social/useSocialIdentityLinking", () => ({
 vi.mock("../shared/navigation/appNavigation", () => ({
   navigateBack: (...args: unknown[]) => mockNavigateBack(...args),
   navigateTo: (...args: unknown[]) => mockNavigateTo(...args),
+  replacePath: (...args: unknown[]) => mockReplacePath(...args),
 }));
 
 vi.mock("../shared/supabase/profileImages", () => ({
@@ -41,6 +43,8 @@ const appUser = {
   email: "review@example.com",
   id: "user-1",
   name: "박세현",
+  organization_name: "콘텐츠럭",
+  organization_type: "team" as const,
   phone: "010-1111-2222",
   profile_image_path: null,
   profile_image_url: null,
@@ -51,6 +55,7 @@ describe("ProfileSubPage", () => {
   beforeEach(() => {
     mockNavigateBack.mockReset();
     mockNavigateTo.mockReset();
+    mockReplacePath.mockReset();
     mockSignOut.mockResolvedValue(undefined);
     mockSyncCurrentUser.mockResolvedValue(undefined);
     mockUpdateCurrentUser.mockResolvedValue(undefined);
@@ -111,8 +116,9 @@ describe("ProfileSubPage", () => {
 
     const profilePreview = screen.getByRole("region", { name: "공개 프로필 미리보기" });
     expect(within(profilePreview).getByText("박세현")).toBeInTheDocument();
+    expect(within(profilePreview).getByText("콘텐츠럭")).toBeInTheDocument();
     expect(within(profilePreview).getByText("기존 소개")).toBeInTheDocument();
-    expect(within(profilePreview).getByText("창업자 · 인터뷰어")).toBeInTheDocument();
+    expect(within(profilePreview).queryByText("창업자 · 인터뷰어")).not.toBeInTheDocument();
     expect(within(profilePreview).queryByText("review@example.com")).not.toBeInTheDocument();
     expect(within(profilePreview).queryByText("010-1111-2222")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "로그인 방법" })).toBeInTheDocument();
@@ -120,9 +126,20 @@ describe("ProfileSubPage", () => {
     expect(screen.getByText("네이버")).toBeInTheDocument();
     expect(screen.getByText("연결됨")).toBeInTheDocument();
     expect(screen.getByText("해제 진행 중")).toBeInTheDocument();
-    expect(
-      screen.getByText("연결 해제는 마지막 로그인 방법 보호와 공급자 해제 계약이 준비된 뒤 제공할게요."),
-    ).toBeInTheDocument();
+    const loginMethodSection = screen.getByRole("heading", { level: 2, name: "로그인 방법" })
+      .closest("section");
+    expect(loginMethodSection).not.toBeNull();
+    expect(loginMethodSection?.querySelector('[data-social-provider="google"] img')).toHaveAttribute(
+      "src",
+      "/social-auth/google-g-logo.png",
+    );
+    expect(loginMethodSection?.querySelector('[data-social-provider="naver"] img')).toHaveAttribute(
+      "src",
+      "/social-auth/naver.png",
+    );
+    expect(screen.queryByText(/연결 해제는 마지막 로그인 방법/)).not.toBeInTheDocument();
+    expect(screen.queryByText("현재 브라우저에서 Hypofit 계정 연결을 종료합니다.")).not.toBeInTheDocument();
+    expect(screen.queryByText("계정과 연결된 개인정보의 삭제 범위를 확인합니다.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /연결 해제/ })).not.toBeInTheDocument();
 
     const basicInfoSection = screen.getByRole("heading", { level: 2, name: "기본 정보" })
@@ -138,6 +155,7 @@ describe("ProfileSubPage", () => {
     const nameInput = screen.getByLabelText("이름");
     const bioInput = screen.getByLabelText("한줄소개");
     const phoneInput = screen.getByLabelText("전화번호");
+    const organizationNameInput = screen.getByLabelText("팀 또는 회사 이름");
 
     await user.clear(nameInput);
     await user.type(nameInput, "  새로운 이름  ");
@@ -145,6 +163,9 @@ describe("ProfileSubPage", () => {
     await user.type(bioInput, "  새로운 소개  ");
     await user.clear(phoneInput);
     await user.type(phoneInput, "821012345678");
+    await user.click(screen.getByRole("button", { name: "회사" }));
+    await user.clear(organizationNameInput);
+    await user.type(organizationNameInput, "  Hypofit Labs  ");
 
     expect(phoneInput).toHaveValue("010-1234-5678");
 
@@ -153,6 +174,8 @@ describe("ProfileSubPage", () => {
     expect(mockUpdateCurrentUser).toHaveBeenCalledWith({
       bio: "새로운 소개",
       name: "새로운 이름",
+      organization_name: "Hypofit Labs",
+      organization_type: "company",
       phone: "010-1234-5678",
       role: "both",
     });
@@ -171,15 +194,37 @@ describe("ProfileSubPage", () => {
     await user.click(screen.getByRole("button", { name: /로그아웃/ }));
 
     expect(mockSignOut).toHaveBeenCalledTimes(1);
+    expect(mockReplacePath).toHaveBeenCalledWith("/", {
+      intent: "replace",
+      scroll: "top",
+    });
   });
 
-  it("preserves the role settings surface and founder inquiry route", () => {
+  it("keeps organization controls available for respondent-labelled users", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ProfileSubPage
+        appUser={{ ...appUser, organization_name: "콘텐츠럭", organization_type: "team", role: "respondent" }}
+        type="account"
+      />,
+    );
+
+    expect(screen.getByText("소속")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "수정하기" }));
+
+    expect(screen.getByText("소속 유형")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("팀명 또는 회사명을 입력해주세요")).toBeInTheDocument();
+  });
+
+  it("aliases the legacy role route to the account settings screen", () => {
     render(<ProfileSubPage appUser={{ ...appUser, role: "respondent" }} type="role" />);
 
-    expect(screen.getByRole("heading", { level: 1, name: "역할 설정" })).toBeInTheDocument();
-    expect(screen.getByText("모집글 만들기")).toBeInTheDocument();
-    expect(screen.getByText("꺼짐")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /역할 변경 문의/ })).toHaveAttribute("href", "/support/inquiries");
+    expect(screen.getByRole("heading", { level: 1, name: "계정 정보" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "수정하기" })).toBeInTheDocument();
+    expect(screen.queryByText("모집글 만들기")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /역할 변경 문의/ })).not.toBeInTheDocument();
   });
 
   it("keeps notification and delete-account action routing intact", async () => {

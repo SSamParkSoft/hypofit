@@ -34,13 +34,13 @@ QA or a small amount of remaining regression coverage to close.
 - [x] Radius filtering and `sort=distance` are implemented on
   `GET /api/v1/interview-posts`.
 - [x] Mobile place search uses `GET /api/v1/places/search`, which proxies
-  Kakao Local REST keyword search through FastAPI so the Kakao REST key stays
+  Kakao Local REST keyword search through the Spring API so the Kakao REST key stays
   server-side.
 - [x] Public API smoke on `2026-06-05` confirmed
   `https://hypofit-api.bukae.co.kr/api/v1/places/search` returns Kakao Local
   results for the simulator test area around `37.296513, 126.837080`.
 - [x] The deployed integration note already documents successful `/places/search`
-  responses on `2026-05-27` for both the GPU-local API and the public API
+  responses on `2026-05-27` for both local and public API environments
   domain.
 - [x] Public nearby-post smoke on `2026-06-05` confirmed
   `GET /api/v1/interview-posts?status=open&lat=37.296513&lng=126.837080&radius_m=3000&sort=distance`
@@ -51,7 +51,7 @@ QA or a small amount of remaining regression coverage to close.
 
 ### Mobile App Behavior
 
-- [x] Expo post creation uses `usePlaceSearch(...)` against the FastAPI places
+- [x] Expo post creation uses `usePlaceSearch(...)` against the Spring places
   endpoint, stores the selected place coordinates, and lets founders choose the
   public precision level.
 - [x] Expo map uses `react-native-maps` for rendering and `expo-location` for
@@ -99,10 +99,10 @@ QA or a small amount of remaining regression coverage to close.
 
 - The older manual `이 지역에서 다시 검색` CTA is not the current behavior on
   either active client path.
-- The older open decision about moving place search to FastAPI is already
-  resolved for Expo mobile. Mobile now uses the FastAPI Kakao REST proxy.
+- The place-search server boundary is already
+  resolved for Expo mobile. Mobile uses the Spring Kakao REST proxy.
 - The architecture is currently split by platform:
-  - Expo mobile: FastAPI + Kakao Local REST for place search
+  - Expo mobile: Spring API + Kakao Local REST for place search
   - Web fallback: Kakao Maps JS + Kakao Places JS for search/rendering
 
 ## Remaining Active Work

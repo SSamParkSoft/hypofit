@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 public final class InterviewPostRequestParser {
 
@@ -22,6 +23,7 @@ public final class InterviewPostRequestParser {
             "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
     );
     private static final Set<String> EXTERNAL_PROVIDERS = Set.of("google_forms");
+    private static final Set<String> ENTRY_MODES = Set.of("application_required", "direct");
     private static final Set<String> INTERVIEW_MODES = Set.of("offline", "online", "both");
     private static final Set<String> LOCATION_PRECISIONS = Set.of("exact", "nearby", "district");
     private static final Set<String> LOCATION_SOURCES = Set.of("kakao_place", "manual", "current_location");
@@ -31,6 +33,22 @@ public final class InterviewPostRequestParser {
 
     public static InterviewPostCreateCommand parseCreate(InterviewPostCreateRequest body) {
         return parseCreate(RawRequestBodyJson.toJsonNode(body.rawBody()));
+    }
+
+    public static UUID parseClientSubmissionId(InterviewPostCreateRequest body) {
+        JsonNode object = requireObject(RawRequestBodyJson.toJsonNode(body.rawBody()));
+        JsonNode value = object.get("client_submission_id");
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        if (!value.isTextual()) {
+            throw validation("client_submission_id", "입력값을 확인해 주세요.");
+        }
+        try {
+            return UUID.fromString(value.textValue());
+        } catch (IllegalArgumentException exception) {
+            throw validation("client_submission_id", "입력값을 확인해 주세요.");
+        }
     }
 
     public static InterviewPostCreateCommand parseCreate(JsonNode body) {
@@ -52,6 +70,10 @@ public final class InterviewPostRequestParser {
             recruitCount = 0;
         }
         String interviewMode = optionalEnum(object, "interview_mode", INTERVIEW_MODES, errors);
+        String entryMode = optionalEnum(object, "entry_mode", ENTRY_MODES, errors);
+        if (!object.has("entry_mode")) {
+            entryMode = "application_required";
+        }
         String externalProvider = optionalEnum(object, "external_provider", EXTERNAL_PROVIDERS, errors);
         String externalUrl = optionalString(object, "external_url", null, 2000, errors);
         OffsetDateTime participationDeadlineAt = optionalOffsetDateTime(object, "participation_deadline_at", errors);
@@ -116,7 +138,8 @@ public final class InterviewPostRequestParser {
                 locationPrecision,
                 locationSource,
                 scheduleOptions,
-                status
+                status,
+                entryMode
         );
     }
 
@@ -201,6 +224,7 @@ public final class InterviewPostRequestParser {
         Integer durationMinutes = optionalNullableInteger(object, "duration_minutes", 10, 240, errors, providedFields);
         Integer recruitCount = optionalNullableInteger(object, "recruit_count", 0, 999, errors, providedFields);
         String interviewMode = optionalNullableEnum(object, "interview_mode", INTERVIEW_MODES, errors, providedFields);
+        String entryMode = optionalNullableEnum(object, "entry_mode", ENTRY_MODES, errors, providedFields);
         String externalProvider = optionalNullableEnum(object, "external_provider", EXTERNAL_PROVIDERS, errors, providedFields);
         String externalUrl = optionalNullableString(object, "external_url", null, 2000, errors, providedFields);
         OffsetDateTime participationDeadlineAt = optionalNullableOffsetDateTime(
@@ -262,7 +286,8 @@ public final class InterviewPostRequestParser {
                 locationPrecision,
                 locationSource,
                 scheduleOptions,
-                status
+                status,
+                entryMode
         );
     }
 
@@ -598,6 +623,7 @@ public final class InterviewPostRequestParser {
     private static String toJavaField(String field) {
         return switch (field) {
             case "recruitment_type" -> "recruitmentType";
+            case "entry_mode" -> "entryMode";
             case "service_summary" -> "serviceSummary";
             case "target_description" -> "targetDescription";
             case "reward_amount" -> "rewardAmount";

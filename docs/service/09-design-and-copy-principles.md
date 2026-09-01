@@ -2,12 +2,13 @@
 
 Status: service-source-of-truth
 
-Last updated: 2026-07-29
+Last updated: 2026-08-26
 
 ## Design Direction
 
-Hypofit should feel like a polished, mobile-first coordination app for customer
-interviews. It should be practical, dense enough for repeated use, and calm.
+Hypofit should feel like a polished, mobile-first recruitment and participation
+coordination app. An interview is one posting type, not the product-wide noun.
+It should be practical, dense enough for repeated use, and calm.
 
 Avoid making it look like:
 
@@ -90,15 +91,16 @@ first. Use the canonical runtime SVG
 `apps/web/public/brand/hypofit-mark.svg` as the source of truth for exported
 brand assets.
 
-The current brand colors are:
+The Calm Emerald Native mobile tokens are:
 
-- brand green `#176B5D`,
-- stronger green `#0F4F44`,
-- warm white `#F7F5EF`,
-- signal amber `#F5A623`.
+- app canvas `#F6F7F8`,
+- brand green `#0F7A4D`,
+- stronger green `#0B5C3A`,
+- brand soft `#E8F4EC`,
+- accent `#B7FF5A` for tiny active indicators only.
 
-The amber node is a brand accent, not a product status color. Do not reuse it
-as the default success, warning, payment, or rejection signal.
+Do not use brand color as generic decoration or status color. Preserve explicit
+success, warning, and destructive semantics.
 
 Keep `Hypofit` as live text in product headers when possible. Use the horizontal
 logo asset only where a fixed brand lockup is actually needed.
@@ -158,13 +160,13 @@ showing users calm, non-technical messages.
 
 ### Home
 
-Home should orient the user and show useful recent/progress context. It should
-not duplicate the full interview search screen.
+Home should orient the user around the next action, then show useful posting
+discovery. It should not duplicate the full posting search screen.
 
-### Interviews
+### Postings
 
-The interviews tab is the detailed search and browse surface. Rows should be
-compact, scannable, and expandable only when it helps immediate decision-making.
+The postings tab is the detailed search and browse surface. Rows should be
+compact and scannable. Use the detail screen for sustained reading and applying.
 
 ### Map
 
@@ -173,16 +175,11 @@ markers, and list/bottom sheet behavior must not fight each other.
 
 ### Chat
 
-Chat should feel close to familiar iOS/DM patterns but retain interview-specific
-workflow actions. Time, unread, status, and counterpart identity should be
+Chat should feel close to familiar iOS/DM patterns but expose workflow actions
+only when the posting type supports them. Time, unread, status, and counterpart identity should be
 visible without bloating each row.
 
 ### Profile
 
 Profile should be settings-like, row-based, and direct. Legal, support, report,
 notification, account, role, and deletion paths must be easy to find.
-
-## Figma Sync
-
-During active UI iteration, do not sync every small code change to Figma. Sync
-approved UI to Figma only when requested or when a screen is declared final.

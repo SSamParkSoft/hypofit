@@ -50,7 +50,7 @@ export function ChatListScreen() {
       <SafeAreaView className="flex-1 bg-hypo-bg" edges={["top", "left", "right"]}>
         <View className="flex-1 px-4 pt-3">
           <Header />
-          <StateMessage title="로그인이 필요해요." description="신청하거나 받은 인터뷰 대화는 로그인 후 볼 수 있어요." />
+          <StateMessage title="로그인이 필요해요." description="공고와 관련된 대화는 로그인 후 볼 수 있어요." />
         </View>
       </SafeAreaView>
     );
@@ -69,7 +69,7 @@ export function ChatListScreen() {
 
         {!isLoading && !isError && visibleRooms.length > 0 ? (
           <ListSection chrome="plain" className="-mx-3 mt-2 min-h-0 flex-1" surface="background">
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerClassName="pb-24" showsVerticalScrollIndicator={false}>
               {visibleRooms.map((room) => (
                 <ChatRoomRow
                   key={room.id}
@@ -154,14 +154,14 @@ export function ChatListScreen() {
 function ChatEmptyState() {
   return (
     <View className="flex-1 items-center justify-center px-6 pb-10">
-      <View className="h-14 w-14 items-center justify-center rounded-full bg-hypo-brandSoft">
-        <Feather color="#176B5D" name="message-circle" size={24} />
+      <View className="h-12 w-12 items-center justify-center rounded-full bg-hypo-brandSoft">
+        <Feather color="#0F7A4D" name="message-circle" size={21} />
       </View>
       <Text className="mt-4 text-center text-[18px] leading-[25px] text-hypo-text" style={{ fontFamily: "HypofitSansBold" }}>
         아직 대화가 없어요
       </Text>
       <Text className="mt-2 max-w-[260px] text-center text-[13px] leading-5 text-hypo-muted" style={{ fontFamily: "HypofitSansMedium" }}>
-        신청 이후 일정과 진행 방식은 여기에서 조율할 수 있어요.
+        선정되거나 안내가 필요한 공고의 대화가 여기에 표시돼요.
       </Text>
     </View>
   );
@@ -171,8 +171,7 @@ function Header() {
   return (
     <View className="min-h-12 flex-row items-center justify-between gap-3">
       <View className="min-w-0 flex-1 pl-1">
-        <Text className="text-[22px] font-black leading-[29px] text-hypo-text">채팅</Text>
-        <Text className="mt-1 text-xs font-bold leading-4 text-hypo-muted">신청 이후 일정과 방식을 조율해요</Text>
+        <Text className="text-[23px] font-bold leading-[30px] text-hypo-text">채팅</Text>
       </View>
       <NotificationButton returnTo="/(tabs)/chat" />
     </View>
@@ -211,8 +210,8 @@ function ChatRoomRow({
   room: ChatRoom;
 }) {
   const counterpart = getCounterpart(room, currentUserId);
-  const title = room.interview_post?.title ?? "인터뷰 대화";
-  const lastMessage = room.last_message?.body ?? "인터뷰 신청 안내가 도착했어요.";
+  const title = room.interview_post?.title ?? "공고 대화";
+  const lastMessage = room.last_message?.body ?? "공고와 관련된 안내가 도착했어요.";
   const timeLabel = formatRelativeTime(room.last_message_at ?? room.updated_at);
   const statusLabel = getRoomStatusLabel(room.status);
   const statusBadgeClassName = getRoomStatusBadgeClassName(room.status);
@@ -220,7 +219,7 @@ function ChatRoomRow({
 
   return (
     <ListRow className="px-0 py-0" onPress={onPress}>
-      <View className="relative min-h-[64px] flex-row items-start gap-3.5 px-0 py-2">
+      <View className="min-h-[76px] flex-row items-start gap-3.5 px-0 py-3">
         <Pressable
           accessibilityLabel={`${counterpart?.name ?? "상대방"} 프로필 보기`}
           accessibilityRole="button"
@@ -231,64 +230,55 @@ function ChatRoomRow({
           <Avatar sizeClassName="h-11 w-11" textClassName="text-[14px]" user={counterpart} />
         </Pressable>
         <View className="min-w-0 flex-1">
-          <View className="flex-row items-start gap-1.5 pr-20">
-            <View className="min-w-0 flex-1 flex-row items-baseline gap-1">
-              <Text
-                numberOfLines={1}
-                className="max-w-[42%] text-[16px] leading-5 text-hypo-text"
-                style={{ fontFamily: "HypofitSansBold" }}
-              >
-                {counterpart?.name ?? "상대방"}
-              </Text>
-              <Text className="shrink-0 text-[11px] leading-[15px] text-[#A0A79D]" style={{ fontFamily: "HypofitSansMedium" }}>
-                -
-              </Text>
-              <Text
-                numberOfLines={1}
-                className="min-w-0 flex-1 text-[11px] leading-[15px] text-[#8A9387]"
-                style={{ fontFamily: "HypofitSansMedium" }}
-              >
-                {title}
-              </Text>
-            </View>
-          </View>
-          <View className="mt-2.5 flex-row items-center gap-1.5">
+          <View className="flex-row items-center justify-between gap-2">
             <Text
               numberOfLines={1}
-              className="min-w-0 flex-1 text-[13px] leading-[18px] text-[#66706B]"
-              style={{ fontFamily: "HypofitSansMedium" }}
+              className="min-w-0 flex-1 text-[16px] leading-5 text-hypo-text"
+              style={{ fontFamily: "HypofitSansBold" }}
             >
-              {lastMessage}
+              {counterpart?.name ?? "상대방"}
             </Text>
-          </View>
-        </View>
-        <View className="w-14 self-stretch items-end justify-between">
-          <View className="items-end gap-1.5">
+            <View className={`shrink-0 rounded-full border px-1.5 py-0.5 ${statusBadgeClassName}`}>
+              <Text numberOfLines={1} className={`text-[10px] leading-[14px] ${statusTextClassName}`} style={{ fontFamily: "HypofitSansBold" }}>
+                {statusLabel}
+              </Text>
+            </View>
             <Pressable
               accessibilityLabel={`${counterpart?.name ?? "상대방"} 채팅 메뉴 열기`}
               accessibilityRole="button"
               hitSlop={12}
-              className="rounded-full p-1"
+              className="-mr-1 rounded-full p-1"
               onPress={onMenuPress}
             >
               <MoreIcon />
             </Pressable>
+          </View>
+          <Text
+            numberOfLines={1}
+            className="mt-1 text-[12px] leading-[16px] text-hypo-textSoft"
+            style={{ fontFamily: "HypofitSansMedium" }}
+          >
+            {title}
+          </Text>
+          <View className="mt-1.5 flex-row items-center gap-2">
+            <Text
+              numberOfLines={1}
+              className="min-w-0 flex-1 text-[13px] leading-[18px] text-hypo-muted"
+              style={{ fontFamily: "HypofitSansMedium" }}
+            >
+              {lastMessage}
+            </Text>
+            {timeLabel ? (
+              <Text numberOfLines={1} className="shrink-0 text-[11px] leading-4 text-hypo-textSoft" style={{ fontFamily: "HypofitSansMedium" }}>
+                {timeLabel}
+              </Text>
+            ) : null}
             {room.unread_count > 0 ? (
-              <View className="min-w-[22px] items-center rounded-full bg-hypo-brand px-1.5 py-0.5">
-                <Text className="text-[11px] font-black text-white">{room.unread_count > 99 ? "99+" : room.unread_count}</Text>
+              <View className="min-w-[20px] items-center rounded-full bg-hypo-brand px-1.5 py-0.5">
+                <Text className="text-[10px] text-white" style={{ fontFamily: "HypofitSansBold" }}>{room.unread_count > 99 ? "99+" : room.unread_count}</Text>
               </View>
             ) : null}
           </View>
-          {timeLabel ? (
-            <Text numberOfLines={1} className="mt-auto w-full text-right text-[10px] font-bold leading-4 text-hypo-muted">
-              {timeLabel}
-            </Text>
-          ) : null}
-        </View>
-        <View className={`absolute right-9 top-1 rounded-full border px-2 py-0.5 ${statusBadgeClassName}`}>
-          <Text numberOfLines={1} className={`text-[10px] font-black leading-[14px] ${statusTextClassName}`}>
-            {statusLabel}
-          </Text>
         </View>
       </View>
     </ListRow>

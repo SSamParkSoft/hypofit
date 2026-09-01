@@ -71,6 +71,8 @@ const founderUser: AppUser = {
   email: "founder@example.com",
   id: "founder-1",
   name: "창업자",
+  organization_name: null,
+  organization_type: null,
   phone: null,
   profile_image_path: null,
   profile_image_url: null,
@@ -82,6 +84,8 @@ const respondentUser: AppUser = {
   email: "respondent@example.com",
   id: "respondent-1",
   name: "인터뷰어",
+  organization_name: null,
+  organization_type: null,
   phone: null,
   profile_image_path: null,
   profile_image_url: null,
@@ -161,27 +165,27 @@ describe("MyInterviewsPage", () => {
     mocks.sessionsQuery.isLoading = false;
   });
 
-  it("shows only the application tab for respondents and routes the detail CTA to the interview detail page", async () => {
+  it("keeps both tabs available for respondent-labelled users and routes the detail CTA to the interview detail page", async () => {
     const user = userEvent.setup();
 
     render(<MyInterviewsPage appUser={respondentUser} />);
 
     expect(screen.getByRole("tab", { name: /신청한 인터뷰/i })).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: /내 모집글/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /내 모집글/i })).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "모집글 보기" })[0]);
 
     expect(mocks.navigateToInterviewDetail).toHaveBeenCalledWith("post-1");
   });
 
-  it("shows the founder posts tab for founder-capable users and routes post creation from the posts empty state", async () => {
+  it("lets respondent-labelled users open the posts tab and start a new post", async () => {
     const user = userEvent.setup();
     mocks.postsQuery.data = [];
     mocks.applicationsQuery.data = [];
 
-    render(<MyInterviewsPage appUser={founderUser} />);
+    render(<MyInterviewsPage appUser={respondentUser} />);
 
-    const postsTab = screen.getByRole("tab", { name: /내 모집글/i });
+    const postsTab = screen.getAllByRole("tab", { name: /내 모집글/i })[0];
     await user.click(postsTab);
 
     expect(screen.getAllByText("아직 만든 모집글이 없습니다.")).toHaveLength(2);

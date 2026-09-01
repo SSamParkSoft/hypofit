@@ -192,7 +192,7 @@ class InterviewPostControllerTest {
                         && command.title().equals("인터뷰 모집")
                         && command.rewardAmount() == 15000
                         && command.status().equals("open")
-        ))).thenReturn(InterviewPostFixtures.interviewPost(postId));
+        ), eq(null))).thenReturn(InterviewPostFixtures.interviewPost(postId));
 
         InterviewPostController controller = new InterviewPostController(
                 interviewPostQueryService,

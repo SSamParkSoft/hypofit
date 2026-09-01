@@ -23,6 +23,9 @@ public class InterviewPostRecordEntity {
     @Column(name = "recruitment_type", nullable = false, length = 30)
     private String recruitmentType;
 
+    @Column(name = "entry_mode", nullable = false, length = 30)
+    private String entryMode;
+
     protected InterviewPostRecordEntity() {
     }
 
@@ -40,5 +43,9 @@ public class InterviewPostRecordEntity {
 
     public String getRecruitmentType() {
         return recruitmentType;
+    }
+
+    public String getEntryMode() {
+        return entryMode;
     }
 }

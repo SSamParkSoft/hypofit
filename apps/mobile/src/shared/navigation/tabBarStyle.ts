@@ -1,18 +1,27 @@
+import { colors } from "@/shared/theme/tokens";
+
+export function getBottomTabBarHeight(bottomInset: number) {
+  return 56 + bottomInset;
+}
+
 export function getBottomTabBarStyle(bottomInset: number) {
   return {
-    backgroundColor: "rgba(255, 255, 255, 0.96)",
-    borderTopColor: "rgba(222, 219, 210, 0.9)",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
     borderTopWidth: 1,
-    elevation: 14,
-    height: 70 + bottomInset,
-    paddingBottom: Math.max(bottomInset, 7),
-    paddingLeft: 8,
-    paddingRight: 8,
-    paddingTop: 6,
-    shadowColor: "#1D2522",
-    shadowOffset: { height: -1, width: 0 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
+    bottom: 0,
+    elevation: 0,
+    height: getBottomTabBarHeight(bottomInset),
+    left: 0,
+    paddingBottom: bottomInset,
+    paddingHorizontal: 6,
+    paddingTop: 4,
+    position: "absolute",
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    right: 0,
   } as const;
 }
 
@@ -24,8 +33,7 @@ export function getHiddenBottomTabBarStyle() {
 
 export function getBottomTabItemStyle() {
   return {
-    borderRadius: 14,
-    height: 58,
+    height: 52,
     justifyContent: "center",
     paddingVertical: 0,
   } as const;

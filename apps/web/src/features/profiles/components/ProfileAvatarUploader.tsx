@@ -6,18 +6,22 @@ import { cn } from "../../../shared/ui/cn";
 
 interface ProfileAvatarUploaderProps {
   alt: string;
+  className?: string;
   disabled?: boolean;
   fallback: string;
   imageUrl?: string | null;
   onFileSelected: (file: File) => void;
+  uploadButtonClassName?: string;
 }
 
 export function ProfileAvatarUploader({
   alt,
+  className,
   disabled,
   fallback,
   imageUrl,
   onFileSelected,
+  uploadButtonClassName,
 }: ProfileAvatarUploaderProps) {
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -29,12 +33,20 @@ export function ProfileAvatarUploader({
   }
 
   return (
-    <div className="relative size-11 shrink-0">
-      <Avatar alt={alt} className="size-11" fallback={fallback} src={imageUrl} />
+    <div className={cn("relative size-11 shrink-0", className)}>
+      <Avatar
+        alt={alt}
+        className="size-full"
+        fallback={fallback}
+        src={imageUrl}
+      />
       <label
         className={cn(
           "absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-hypo-pill border-2 border-hypo-surface bg-hypo-brand text-white shadow-hypo-panel",
-          disabled ? "cursor-not-allowed opacity-55" : "cursor-pointer hover:bg-hypo-brand-strong",
+          uploadButtonClassName,
+          disabled
+            ? "cursor-not-allowed opacity-55"
+            : "cursor-pointer hover:bg-hypo-brand-strong",
         )}
       >
         <Camera size={13} />

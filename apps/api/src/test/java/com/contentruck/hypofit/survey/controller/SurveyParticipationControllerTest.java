@@ -15,12 +15,14 @@ import com.contentruck.hypofit.survey.service.SurveyParticipantSummary;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
 class SurveyParticipationControllerTest {
@@ -44,6 +46,18 @@ class SurveyParticipationControllerTest {
         assertThat(response.status()).isEqualTo("opened");
         assertThat(response.externalUrl()).isEqualTo("https://docs.google.com/forms/d/example/viewform");
         assertThat(response.participant().id()).isEqualTo(actorUserId);
+    }
+
+    @Test
+    void ownParticipationReturnsNoContentWhenNotStarted() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(surveyParticipationService.findOwn(eq(actorUserId), eq(postId))).thenReturn(Optional.empty());
+
+        SurveyParticipationController controller = new SurveyParticipationController(surveyParticipationService);
+
+        assertThat(controller.ownParticipation(postId, jwt(actorUserId)).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test

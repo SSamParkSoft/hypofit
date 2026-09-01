@@ -12,7 +12,8 @@ import {
   readInterviewsSearchStateFromUrl,
   type ModeFilter,
   type NearbyStatus,
-  type RewardFilter,
+  type CompensationFilter,
+  type PostingTypeFilter,
 } from "../features/interview-posts/model/interviewsSearch";
 import {
   useInterviewPostViews,
@@ -20,7 +21,6 @@ import {
 } from "../features/interview-posts/useInterviewPostViews";
 import { useInterviewPosts } from "../features/interview-posts/useInterviewPosts";
 import type { AppUser } from "../shared/api/types";
-import { canUseFounderTools } from "../shared/auth/roles";
 import { navigateTo, replacePath } from "../shared/navigation/appNavigation";
 import { Button } from "../shared/ui/button";
 import { PageHeader, PageLayout } from "../shared/ui/page";
@@ -61,8 +61,9 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
   );
   const [query, setQuery] = useState(initialSearchState.query);
   const [modeFilter, setModeFilter] = useState<ModeFilter>(initialSearchState.modeFilter);
-  const [rewardFilter, setRewardFilter] = useState<RewardFilter>(initialSearchState.rewardFilter);
-  const canCreateAndManagePosts = canUseFounderTools(appUser?.role);
+  const [compensationFilter, setCompensationFilter] = useState<CompensationFilter>(initialSearchState.compensationFilter);
+  const [postingTypeFilter, setPostingTypeFilter] = useState<PostingTypeFilter>(initialSearchState.postingTypeFilter);
+  const canCreateAndManagePosts = Boolean(appUser?.id);
   const createApplication = useCreateApplication(accessToken);
   const markPostViewed = useMarkInterviewPostViewed(accessToken);
   const applicationByPostId = useMemo(
@@ -75,8 +76,8 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
   );
 
   const filteredPosts = useMemo(
-    () => filterInterviewPosts(posts, { modeFilter, query, rewardFilter }),
-    [modeFilter, posts, query, rewardFilter],
+    () => filterInterviewPosts(posts, { modeFilter, query, compensationFilter, postingTypeFilter }),
+    [compensationFilter, modeFilter, posts, postingTypeFilter, query],
   );
 
   const requestNearbyLocation = () => {
@@ -111,7 +112,8 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
       const nextState = readInterviewsSearchStateFromUrl();
       setQuery(nextState.query);
       setModeFilter(nextState.modeFilter);
-      setRewardFilter(nextState.rewardFilter);
+      setCompensationFilter(nextState.compensationFilter);
+      setPostingTypeFilter(nextState.postingTypeFilter);
       setSelectedPostId(nextState.selectedPostId);
       setNearbyCenter(nextState.nearbyCenter);
       setNearbyRadiusM(nextState.nearbyRadiusM);
@@ -128,7 +130,8 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
       nearbyCenter,
       nearbyRadiusM,
       query,
-      rewardFilter,
+      compensationFilter,
+      postingTypeFilter,
       selectedPostId,
     }).toString();
     const nextUrl = nextSearch ? `/interviews?${nextSearch}` : "/interviews";
@@ -137,7 +140,7 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
     if (currentUrl !== nextUrl) {
       replacePath(nextUrl, { focus: "none", intent: "state", scroll: "preserve" });
     }
-  }, [modeFilter, nearbyCenter, nearbyRadiusM, query, rewardFilter, selectedPostId]);
+  }, [compensationFilter, modeFilter, nearbyCenter, nearbyRadiusM, postingTypeFilter, query, selectedPostId]);
 
   useEffect(() => {
     if (selectedPostId && !filteredPosts.some((post) => post.id === selectedPostId)) {
@@ -147,20 +150,20 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
 
   return (
     <PageLayout
-      className="min-h-[var(--app-mobile-content-height)] gap-4 min-[1200px]:h-dvh min-[1200px]:grid-rows-[auto_auto_minmax(0,1fr)] min-[1200px]:overflow-hidden"
+      className="gap-5"
       variant="list-detail"
     >
       <PageHeader
-        description="검색과 필터를 조정하면서 조건이 맞는 인터뷰를 바로 비교하고 신청할 수 있어요."
-        title="인터뷰"
+        description="검색과 필터를 조정하면서 조건이 맞는 공고를 비교하고 참여할 수 있어요."
+        title="공고"
         action={
           <div className="flex flex-wrap justify-end gap-2">
             <Button size="sm" variant="secondary" onClick={() => navigateTo("/my-interviews")}>
-              내 인터뷰
+              내 참여
             </Button>
             {canCreateAndManagePosts ? (
               <Button size="sm" variant="tonal" onClick={() => navigateTo("/interviews/new")}>
-                모집글 만들기
+              공고 만들기
               </Button>
             ) : null}
           </div>
@@ -174,10 +177,12 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
         nearbyStatus={nearbyStatus}
         query={query}
         resultCount={filteredPosts.length}
-        rewardFilter={rewardFilter}
+        compensationFilter={compensationFilter}
+        postingTypeFilter={postingTypeFilter}
         onClearFilters={() => {
           setModeFilter("all");
-          setRewardFilter("all");
+          setCompensationFilter("all");
+          setPostingTypeFilter("all");
           setNearbyCenter(null);
           setNearbyStatus("idle");
         }}
@@ -189,7 +194,8 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
         onNearbyEnable={requestNearbyLocation}
         onNearbyRadiusChange={setNearbyRadiusM}
         onQueryChange={setQuery}
-        onRewardChange={setRewardFilter}
+        onCompensationChange={setCompensationFilter}
+        onPostingTypeChange={setPostingTypeFilter}
       />
 
       <SplitView

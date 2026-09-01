@@ -4,9 +4,12 @@ import {
   Check,
   ChevronRight,
   Clock3,
+  FileText,
+  Lightbulb,
   MapPin,
   MessageCircle,
   Search,
+  Sparkles,
   SlidersHorizontal,
   Users,
   Video,
@@ -16,16 +19,16 @@ import { interviewExamples } from "./content";
 
 export function HeroProductScene() {
   return (
-    <div className="relative mx-auto mt-8 w-full max-w-[1080px] px-4 sm:mt-12 sm:px-8 lg:mt-14">
-      <div className="absolute inset-x-[8%] bottom-0 top-[18%] rounded-hypo-lg bg-[#DDEAE5]" />
-      <div className="relative grid min-h-[360px] items-end gap-4 sm:min-h-[500px] lg:grid-cols-[0.78fr_1.12fr_0.78fr] lg:gap-5">
-        <div className="relative z-10 hidden translate-y-8 lg:block">
+    <div className="relative mx-auto mt-8 w-full max-w-[590px] px-2 sm:mt-10 sm:px-6 lg:mt-0 lg:px-0">
+      <div className="absolute inset-x-[3%] bottom-0 top-[18%] rounded-hypo-lg bg-[#DDEAE5]" />
+      <div className="relative flex min-h-[340px] items-end justify-center sm:min-h-[430px]">
+        <div className="absolute -left-3 bottom-5 z-30 hidden w-[180px] lg:block xl:-left-7">
           <FounderProgressPreview />
         </div>
-        <div className="relative z-20 mx-auto w-full max-w-[520px]">
+        <div className="relative z-20 w-full max-w-[410px]">
           <InterviewDiscoveryPreview featured />
         </div>
-        <div className="relative z-10 hidden translate-y-12 lg:block">
+        <div className="absolute -right-2 bottom-8 z-30 hidden w-[180px] lg:block xl:-right-5">
           <ChatPreview compact />
         </div>
       </div>
@@ -63,7 +66,7 @@ export function InterviewDiscoveryPreview({
         <div className="flex gap-2">
           <div className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-hypo-md border border-hypo-border bg-[#F8FAF9] px-3 text-xs font-bold text-hypo-text-muted">
             <Search size={15} aria-hidden="true" />
-            <span className="truncate">서비스, 타깃, 지역 검색</span>
+            <span className="truncate">주제, 참여 조건, 지역 검색</span>
           </div>
           <div className="flex min-h-10 items-center gap-1.5 rounded-hypo-md border border-hypo-border px-3 text-xs font-black text-hypo-text">
             <SlidersHorizontal size={15} aria-hidden="true" />
@@ -291,20 +294,103 @@ export function InterviewConditionStrip() {
 
 export function NotificationPreview() {
   return (
-    <div className="divide-y divide-[#E4EAE7] border-y border-[#DCE5E0]">
+    <div className="overflow-hidden rounded-hypo-lg border border-[#CBD7D1] bg-white shadow-[0_16px_40px_rgb(0_0_0_/_0.16)]">
       {[
         { icon: Users, title: "새로운 신청이 도착했어요", time: "방금" },
         { icon: CalendarDays, title: "인터뷰 일정이 정해졌어요", time: "1시간 전" },
         { icon: MessageCircle, title: "새 메시지가 도착했어요", time: "어제" },
       ].map(({ icon: Icon, title, time }) => (
-        <div key={title} className="flex items-center gap-3 py-4">
-          <div className="grid size-9 shrink-0 place-items-center rounded-hypo-md bg-hypo-brand-soft text-hypo-brand">
+        <div key={title} className="flex items-center gap-3 border-b border-[#E4EAE7] px-4 py-3 last:border-b-0">
+          <div className="grid size-8 shrink-0 place-items-center rounded-hypo-md bg-hypo-brand-soft text-hypo-brand">
             <Icon size={17} aria-hidden="true" />
           </div>
-          <strong className="min-w-0 flex-1 text-sm font-black text-hypo-text">{title}</strong>
-          <span className="text-[10px] font-bold text-hypo-text-muted">{time}</span>
+          <strong className="min-w-0 flex-1 text-[13px] font-black text-[#1F2723]">{title}</strong>
+          <span className="shrink-0 text-[10px] font-bold text-[#68736D]">{time}</span>
         </div>
       ))}
     </div>
+  );
+}
+
+export function AiApplicantSummaryPreview() {
+  return (
+    <div
+      className="overflow-hidden rounded-hypo-lg border border-[#CBD7D1] bg-white shadow-[0_24px_64px_rgb(0_0_0_/_0.2)]"
+      aria-label="AI 지원자 요약 화면 예시"
+    >
+      <div className="flex items-center justify-between border-b border-[#E3E9E6] px-4 py-3.5 sm:px-5 sm:py-4">
+        <div className="flex items-center gap-2.5">
+          <span className="grid size-9 place-items-center rounded-hypo-md bg-hypo-brand-soft text-hypo-brand">
+            <Sparkles size={18} aria-hidden="true" />
+          </span>
+          <div>
+            <strong className="block text-sm font-black text-hypo-text">AI 지원자 요약</strong>
+            <span className="mt-0.5 block text-[10px] font-bold text-hypo-text-muted">
+              운동 기록 앱 사용 경험 인터뷰
+            </span>
+          </div>
+        </div>
+        <span className="rounded-hypo-pill bg-[#EDF4F1] px-2.5 py-1 text-[10px] font-black text-hypo-brand">
+          원문 기반
+        </span>
+      </div>
+
+      <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex items-center justify-between rounded-hypo-md bg-[#F5F8F6] px-3.5 py-3">
+          <div>
+            <span className="block text-[10px] font-bold text-hypo-text-muted">지원자</span>
+            <strong className="mt-0.5 block text-sm font-black text-hypo-text">김민지</strong>
+          </div>
+          <span className="text-[11px] font-bold text-hypo-text-muted">지원서 2개 답변</span>
+        </div>
+
+        <SummaryPreviewBlock
+          icon={FileText}
+          title="지원 내용 요약"
+          body="최근 6개월 동안 운동 기록 앱 3개를 사용했고, 알림 피로로 사용을 중단한 경험을 구체적으로 이야기할 수 있다고 작성했어요."
+        />
+        <SummaryPreviewBlock
+          icon={Lightbulb}
+          title="직접 확인할 내용"
+          items={["앱을 바꾼 결정적인 계기", "꾸준히 남긴 기록과 중단한 기록의 차이"]}
+        />
+      </div>
+
+      <p className="border-t border-[#E3E9E6] bg-[#FAFBFA] px-4 py-3 text-[10px] font-bold leading-4 text-hypo-text-muted sm:px-5">
+        지원자가 작성한 내용을 바탕으로 만든 예시예요. 선정 전 원문을 직접 확인해 주세요.
+      </p>
+    </div>
+  );
+}
+
+function SummaryPreviewBlock({
+  body,
+  icon: Icon,
+  items,
+  title,
+}: {
+  body?: string;
+  icon: typeof FileText;
+  items?: readonly string[];
+  title: string;
+}) {
+  return (
+    <section>
+      <div className="flex items-center gap-2 text-hypo-brand">
+        <Icon size={15} aria-hidden="true" />
+        <strong className="text-[11px] font-black">{title}</strong>
+      </div>
+      {body ? <p className="mt-2 text-xs font-bold leading-5 text-hypo-text">{body}</p> : null}
+      {items ? (
+        <ul className="mt-2 space-y-1.5">
+          {items.map((item) => (
+            <li key={item} className="flex items-start gap-2 text-xs font-bold leading-5 text-hypo-text">
+              <span className="mt-2 size-1 shrink-0 rounded-full bg-hypo-brand" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }

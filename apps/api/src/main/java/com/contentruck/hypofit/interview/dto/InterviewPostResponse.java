@@ -18,6 +18,9 @@ public record InterviewPostResponse(
                 "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
         })
         String recruitmentType,
+        @JsonProperty("entry_mode")
+        @Schema(allowableValues = {"application_required", "direct"})
+        String entryMode,
         String title,
         @JsonProperty("service_summary")
         @Schema(minLength = 10, maxLength = 2000)
@@ -41,6 +44,8 @@ public record InterviewPostResponse(
         @JsonProperty("external_url")
         @Schema(nullable = true, maxLength = 2000)
         String externalUrl,
+        @JsonProperty("external_action_available")
+        boolean externalActionAvailable,
         @JsonProperty("participation_deadline_at")
         @Schema(nullable = true)
         OffsetDateTime participationDeadlineAt,
@@ -103,6 +108,7 @@ public record InterviewPostResponse(
                 model.id(),
                 model.founderId(),
                 model.recruitmentType(),
+                model.entryMode(),
                 model.title(),
                 model.serviceSummary(),
                 model.targetDescription(),
@@ -111,7 +117,10 @@ public record InterviewPostResponse(
                 model.durationMinutes(),
                 model.recruitCount(),
                 model.externalProvider(),
-                model.externalUrl(),
+                null,
+                "survey".equals(model.recruitmentType())
+                        && model.externalUrl() != null
+                        && !model.externalUrl().isBlank(),
                 model.participationDeadlineAt(),
                 model.externalDataNotice(),
                 model.betaTestPlatforms(),

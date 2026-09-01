@@ -41,7 +41,7 @@ describe("supportApi helpers", () => {
     expect(headers.get("X-Request-ID")).toMatch(/^req_/);
   });
 
-  it("creates a support ticket with the FastAPI request body", async () => {
+  it("creates a support ticket with the API request body", async () => {
     fetchMock.mockResolvedValue({
       headers: new Headers({ "Content-Type": "application/json" }),
       ok: true,

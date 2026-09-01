@@ -5,12 +5,10 @@ import { PostCreationForm } from "../features/interview-posts/components/PostCre
 import { toCreateInterviewPostInput } from "../features/interview-posts/components/postCreationValidation";
 import { useCreateInterviewPost } from "../features/interview-posts/useCreateInterviewPost";
 import type { AppUser } from "../shared/api/types";
-import { canUseFounderTools } from "../shared/auth/roles";
 import { navigateBack, navigateTo } from "../shared/navigation/appNavigation";
 import { BackLink } from "../shared/ui/back-link";
 import { Button } from "../shared/ui/button";
 import { PageHeader, PageLayout } from "../shared/ui/page";
-import { EmptyState } from "../shared/ui/state";
 import { ContextPanel } from "../shared/ui/workspace";
 
 interface NewInterviewPageProps {
@@ -18,41 +16,9 @@ interface NewInterviewPageProps {
   appUser: AppUser | null;
 }
 
-export function NewInterviewPage({ accessToken, appUser }: NewInterviewPageProps) {
+export function NewInterviewPage({ accessToken }: NewInterviewPageProps) {
   const createInterviewPost = useCreateInterviewPost(accessToken);
-  const canCreatePost = canUseFounderTools(appUser?.role);
-
   const goBack = () => navigateBack("/my-interviews");
-
-  if (!canCreatePost) {
-    return (
-      <PageLayout className="gap-5" variant="form">
-        <div className="flex items-start gap-3">
-          <BackLink
-            ariaLabel="인터뷰 목록으로 돌아가기"
-            className="mt-1"
-            href="/interviews"
-          />
-          <div className="min-w-0 flex-1">
-            <PageHeader
-              description="창업자 역할을 켜면 인터뷰 모집글을 만들 수 있어요."
-              title="모집글 만들기"
-            />
-          </div>
-        </div>
-
-        <EmptyState
-          action={{
-            label: "인터뷰 보기",
-            onClick: () => navigateTo("/interviews"),
-          }}
-          title="모집글을 만들 수 없는 계정입니다."
-        >
-          창업자 역할을 켜면 인터뷰 조건을 정리하고 지원자를 받을 수 있어요.
-        </EmptyState>
-      </PageLayout>
-    );
-  }
 
   return (
     <PageLayout className="gap-5" variant="form">

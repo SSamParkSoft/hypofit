@@ -1,5 +1,4 @@
 import { cn } from "../cn";
-import { AppUtilityFooter } from "../app-utility-footer";
 import type {
   AppDestination,
   AppShellActiveDestination,
@@ -26,16 +25,13 @@ export function AppShell({
   notificationButton,
   onNavigate,
 }: AppShellProps) {
-  const managesOwnMobileViewport =
-    activeDestination === "home" || activeDestination === "map";
+  const managesOwnMobileViewport = activeDestination === "map";
   const managesOwnDesktopScroll =
     activeDestination === "chat" || activeDestination === "map";
-  const showsDesktopUtilityFooter =
-    activeDestination !== "chat" && activeDestination !== "map";
 
   return (
     <div
-      className="min-h-dvh bg-hypo-bg text-hypo-text min-[1200px]:grid min-[1200px]:h-dvh min-[1200px]:grid-cols-[var(--app-rail-width)_minmax(0,1fr)] min-[1200px]:grid-rows-[var(--app-desktop-header-height)_minmax(0,1fr)] min-[1200px]:overflow-hidden"
+      className="min-h-dvh bg-hypo-bg text-hypo-text min-[1200px]:grid min-[1200px]:grid-rows-[var(--app-desktop-header-height)_minmax(var(--app-shell-content-height),auto)]"
       data-app-destination={activeDestination ?? undefined}
     >
       <a
@@ -44,17 +40,7 @@ export function AppShell({
       >
         본문으로 건너뛰기
       </a>
-      <DesktopBrandHeader href={brandHref} />
-      <DesktopUtilityBar>
-        {notificationButton}
-        {accountMenu}
-      </DesktopUtilityBar>
-      <DesktopRail
-        activeDestination={activeDestination}
-        items={navItems}
-        onNavigate={onNavigate}
-      />
-      <MediumTopNav
+      <AppTopNav
         activeDestination={activeDestination}
         brandHref={brandHref}
         items={navItems}
@@ -67,17 +53,18 @@ export function AppShell({
         tabIndex={-1}
         className={cn(
           "min-w-0 bg-hypo-bg outline-none [view-transition-name:page-content] md:pb-0",
-          "min-[1200px]:col-start-2 min-[1200px]:row-start-2 min-[1200px]:h-full",
+          "min-[1200px]:row-start-2",
           managesOwnDesktopScroll
-            ? "min-[1200px]:overflow-hidden"
-            : "min-[1200px]:overflow-y-auto",
-          managesOwnMobileViewport ? "pb-0" : "pb-[var(--app-content-bottom-reserve)]",
+            ? "min-[1200px]:h-[var(--app-shell-content-height)] min-[1200px]:overflow-hidden"
+            : "min-[1200px]:min-h-0",
+          managesOwnMobileViewport
+            ? "pb-0"
+            : "pb-[var(--app-content-bottom-reserve)]",
         )}
         data-app-destination={activeDestination ?? undefined}
         data-app-shell-region="main"
       >
         {children}
-        {showsDesktopUtilityFooter ? <AppUtilityFooter /> : null}
       </main>
       <MobileBottomNav
         activeDestination={activeDestination}
@@ -88,84 +75,7 @@ export function AppShell({
   );
 }
 
-function DesktopBrandHeader({ href }: { href: string }) {
-  return (
-    <header
-      className="hidden border-b border-r border-hypo-border bg-hypo-surface px-5 min-[1200px]:col-start-1 min-[1200px]:row-start-1 min-[1200px]:flex min-[1200px]:h-[var(--app-desktop-header-height)] min-[1200px]:items-center"
-      data-app-shell-region="desktop-brand-header"
-    >
-      <a
-        className="flex items-center gap-3 rounded-hypo-md px-1 py-1 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
-        href={href}
-      >
-        <img
-          alt=""
-          className="size-9 shrink-0 rounded-hypo-md"
-          src="/brand/hypofit-mark.svg"
-        />
-        <strong className="ui-display-brand font-brand text-hypo-text">
-          Hypofit
-        </strong>
-      </a>
-    </header>
-  );
-}
-
-function DesktopUtilityBar({ children }: { children?: ReactNode }) {
-  return (
-    <div
-      aria-label="전역 작업"
-      className="relative z-50 hidden gap-1 overflow-visible border-b border-hypo-border bg-hypo-surface/95 px-[var(--app-page-x)] backdrop-blur min-[1200px]:col-start-2 min-[1200px]:row-start-1 min-[1200px]:flex min-[1200px]:h-[var(--app-desktop-header-height)] min-[1200px]:items-center min-[1200px]:justify-end"
-      data-app-shell-region="desktop-utility-bar"
-      role="region"
-    >
-      {children}
-    </div>
-  );
-}
-
-function DesktopRail({
-  activeDestination,
-  items,
-  onNavigate,
-}: {
-  activeDestination?: AppShellActiveDestination;
-  items: AppShellNavItem[];
-  onNavigate: (destination: AppDestination) => void;
-}) {
-  return (
-    <aside
-      className="hidden h-full flex-col overflow-hidden border-r border-hypo-border bg-hypo-surface px-4 py-5 min-[1200px]:col-start-1 min-[1200px]:row-start-2 min-[1200px]:flex"
-      data-app-shell-region="desktop-rail"
-    >
-      <nav className="grid content-start gap-1" aria-label="Hypofit primary navigation">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.id === activeDestination;
-
-          return (
-            <a
-              key={item.id}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "ui-control-text relative flex min-h-10 items-center gap-3 rounded-hypo-md px-3 text-left text-hypo-text-muted transition-colors hover:bg-hypo-surface-muted hover:text-hypo-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20",
-                isActive &&
-                  "bg-hypo-brand-soft/80 text-hypo-brand before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-hypo-brand",
-              )}
-              href={item.href}
-              onClick={(event) => handleNavClick(event, item.id, onNavigate)}
-            >
-              <Icon size={18} />
-              {item.label}
-            </a>
-          );
-        })}
-      </nav>
-    </aside>
-  );
-}
-
-function MediumTopNav({
+function AppTopNav({
   accountMenu,
   activeDestination,
   brandHref,
@@ -181,48 +91,55 @@ function MediumTopNav({
   onNavigate: (destination: AppDestination) => void;
 }) {
   return (
-    <header className="sticky top-0 z-40 hidden h-[var(--app-medium-nav-height)] items-center gap-4 border-b border-hypo-border bg-hypo-surface/95 px-[var(--app-page-x)] backdrop-blur md:flex min-[1200px]:hidden!">
-      <a
-        className="flex shrink-0 items-center gap-2 rounded-hypo-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
-        href={brandHref}
-      >
-        <img
-          alt=""
-          className="size-8 rounded-hypo-md"
-          src="/brand/hypofit-mark.svg"
-        />
-        <strong className="ui-display-brand font-brand text-hypo-text">
-          Hypofit
-        </strong>
-      </a>
-      <nav
-        className="ml-2 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
-        aria-label="Hypofit compact navigation"
-      >
-        {items.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.id === activeDestination;
+    <header
+      className="sticky top-0 z-50 hidden h-[var(--app-medium-nav-height)] border-b border-hypo-border/60 bg-hypo-bg/94 backdrop-blur-xl supports-[backdrop-filter]:bg-hypo-bg/86 md:flex min-[1200px]:row-start-1 min-[1200px]:h-[var(--app-desktop-header-height)]"
+      data-app-shell-region="top-navigation"
+    >
+      <div className="mx-auto flex w-full max-w-[1720px] items-center gap-8 px-[var(--app-page-x)]">
+        <a
+          className="flex shrink-0 items-center gap-2 rounded-hypo-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
+          href={brandHref}
+        >
+          <img
+            alt=""
+            className="size-8 rounded-hypo-md min-[1200px]:size-9"
+            src="/brand/hypofit-mark.svg"
+          />
+          <strong className="ui-display-brand font-brand text-hypo-text">
+            Hypofit
+          </strong>
+        </a>
+        <nav
+          className="flex min-w-0 flex-1 items-stretch gap-1 self-stretch"
+          aria-label="Hypofit primary navigation"
+        >
+          {items.map((item) => {
+            const isActive = item.id === activeDestination;
 
-          return (
-            <a
-              key={item.id}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "ui-control-text inline-flex min-h-10 shrink-0 items-center gap-2 rounded-hypo-md px-3 text-hypo-text-muted transition-colors hover:bg-hypo-surface-muted hover:text-hypo-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20",
-                isActive && "bg-hypo-brand-soft/80 text-hypo-brand",
-              )}
-              href={item.href}
-              onClick={(event) => handleNavClick(event, item.id, onNavigate)}
-            >
-              <Icon size={17} />
-              {item.label}
-            </a>
-          );
-        })}
-      </nav>
-      <div className="flex shrink-0 items-center gap-1">
-        {notificationButton}
-        {accountMenu}
+            return (
+              <a
+                key={item.id}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "ui-control-text relative inline-flex min-h-10 min-w-0 shrink-0 self-center items-center justify-center px-3 text-hypo-text-muted transition-colors hover:text-hypo-text focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20 after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:scale-x-0 after:bg-hypo-brand after:transition-transform",
+                  isActive && "font-semibold text-hypo-brand after:scale-x-100",
+                )}
+                href={item.href}
+                onClick={(event) => handleNavClick(event, item.id, onNavigate)}
+              >
+                {item.label}
+              </a>
+            );
+          })}
+        </nav>
+        <div
+          aria-label="전역 작업"
+          className="relative flex shrink-0 items-center gap-1 overflow-visible"
+          role="region"
+        >
+          {notificationButton}
+          {accountMenu}
+        </div>
       </div>
     </header>
   );
@@ -239,7 +156,7 @@ function MobileBottomNav({
 }) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-hypo-border/90 bg-hypo-surface/96 px-2 pb-[var(--app-safe-bottom)] shadow-[0_-1px_16px_rgb(29_37_34_/_0.06)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-hypo-border/90 bg-hypo-surface/96 px-2 pb-[var(--app-safe-bottom)] shadow-[0_-1px_16px_rgb(29_37_34_/_0.05)] backdrop-blur md:hidden"
       aria-label="Hypofit mobile navigation"
     >
       <div className="mx-auto grid h-[var(--app-mobile-nav-height)] max-w-md grid-cols-5 items-center gap-1">
@@ -263,12 +180,17 @@ function MobileBottomNav({
             >
               <span
                 className={cn(
-                  "grid h-[28px] w-[40px] place-items-center rounded-hypo-pill transition-colors",
+                  "grid h-[28px] w-[36px] place-items-center rounded-hypo-md transition-colors",
                   isActive && "bg-hypo-brand-soft",
                 )}
               >
                 <Icon
-                  className={cn("transition-transform", isActive && "scale-105")}
+                  aria-hidden="true"
+                  className={cn(
+                    "transition-transform",
+                    isActive && "scale-105",
+                  )}
+                  data-active={isActive ? "true" : undefined}
                   size={isActive ? 21 : 20}
                   strokeWidth={isActive ? 2.5 : 2.2}
                 />

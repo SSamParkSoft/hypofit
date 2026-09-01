@@ -22,7 +22,7 @@ export function MapLocationNotice({
     return (
       <p
         className={cn(
-          "rounded-hypo-pill bg-hypo-surface/95 px-3 py-2 text-[11px] font-semibold text-hypo-text-muted shadow-sm backdrop-blur",
+          "rounded-hypo-pill border border-hypo-border bg-hypo-surface px-3 py-2 text-[11px] font-semibold text-hypo-text-muted",
           className,
         )}
       >
@@ -35,7 +35,7 @@ export function MapLocationNotice({
     return (
       <p
         className={cn(
-          "rounded-hypo-lg bg-hypo-surface/95 px-3 py-2 text-[11px] font-medium leading-4 text-hypo-text-muted shadow-sm backdrop-blur",
+          "rounded-hypo-lg border border-hypo-border bg-hypo-surface px-3 py-2 text-[11px] font-medium leading-4 text-hypo-text-muted",
           className,
         )}
       >
@@ -48,7 +48,7 @@ export function MapLocationNotice({
     return (
       <p
         className={cn(
-          "rounded-hypo-lg bg-hypo-surface/95 px-3 py-2 text-[11px] font-medium leading-4 text-hypo-text-muted shadow-sm backdrop-blur",
+          "rounded-hypo-lg border border-hypo-border bg-hypo-surface px-3 py-2 text-[11px] font-medium leading-4 text-hypo-text-muted",
           className,
         )}
       >

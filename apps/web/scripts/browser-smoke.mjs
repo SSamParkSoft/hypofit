@@ -11,11 +11,27 @@ const previewHost = "127.0.0.1";
 const previewPort = Number(process.env.HYPOFIT_WEB_SMOKE_PORT ?? "4173");
 const previewOrigin = `http://${previewHost}:${previewPort}`;
 const chromeExecutable = await findChromeExecutable();
-const temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "hypofit-web-smoke-"));
-const viteExecutable = path.join(webRoot, "node_modules", "vite", "bin", "vite.js");
+const temporaryDirectory = await fs.mkdtemp(
+  path.join(os.tmpdir(), "hypofit-web-smoke-"),
+);
+const viteExecutable = path.join(
+  webRoot,
+  "node_modules",
+  "vite",
+  "bin",
+  "vite.js",
+);
 const previewProcess = spawn(
   process.execPath,
-  [viteExecutable, "preview", "--host", previewHost, "--port", String(previewPort), "--strictPort"],
+  [
+    viteExecutable,
+    "preview",
+    "--host",
+    previewHost,
+    "--port",
+    String(previewPort),
+    "--strictPort",
+  ],
   { cwd: webRoot, stdio: ["ignore", "pipe", "pipe"] },
 );
 
@@ -31,11 +47,21 @@ try {
   await waitForHttp(`${previewOrigin}/`);
 
   const routes = [
-    { path: "/", requiredText: ["Hypofit", "실제 타깃 고객"] },
+    {
+      path: "/",
+      requiredText: [
+        "Hypofit",
+        "필요한 사람을 만나",
+        "하나의 Hypofit, 필요할 때 모집하고 참여하세요",
+      ],
+    },
     { path: "/support", requiredText: ["무엇을 도와드릴까요?", "계정 삭제"] },
     {
       path: "/app",
-      requiredText: ["로그인", "사용 중인 소셜 계정으로 바로 시작할 수 있어요."],
+      requiredText: [
+        "로그인",
+        "사용 중인 소셜 계정으로 바로 시작할 수 있어요.",
+      ],
       settleMs: 5_000,
     },
   ];
@@ -49,11 +75,17 @@ try {
       );
     }
     if (route.path === "/app") {
-      assert(!html.includes('aria-busy="true"'), "/app remained in the auth bootstrap state");
+      assert(
+        !html.includes('aria-busy="true"'),
+        "/app remained in the auth bootstrap state",
+      );
     }
   }
 
-  const mobileScreenshotPath = path.join(temporaryDirectory, "support-mobile.png");
+  const mobileScreenshotPath = path.join(
+    temporaryDirectory,
+    "support-mobile.png",
+  );
   await captureScreenshot("/support", mobileScreenshotPath, 390, 844);
   const dimensions = await readPngDimensions(mobileScreenshotPath);
   assert(
@@ -61,7 +93,9 @@ try {
     `mobile smoke screenshot has unexpected dimensions: ${dimensions.width}x${dimensions.height}`,
   );
 
-  console.log("Browser smoke passed for landing, support, protected auth entry, and 390x844 viewport.");
+  console.log(
+    "Browser smoke passed for landing, support, protected auth entry, and 390x844 viewport.",
+  );
 } finally {
   previewProcess.kill("SIGTERM");
   await fs.rm(temporaryDirectory, { force: true, recursive: true });
@@ -86,7 +120,9 @@ async function findChromeExecutable() {
     }
   }
 
-  throw new Error("Chrome was not found. Set CHROME_PATH to run the browser smoke.");
+  throw new Error(
+    "Chrome was not found. Set CHROME_PATH to run the browser smoke.",
+  );
 }
 
 async function waitForHttp(url) {
@@ -99,7 +135,9 @@ async function waitForHttp(url) {
           resolve(response.statusCode ?? 0);
         });
         request.on("error", reject);
-        request.setTimeout(1_000, () => request.destroy(new Error("preview timeout")));
+        request.setTimeout(1_000, () =>
+          request.destroy(new Error("preview timeout")),
+        );
       });
       if (status >= 200 && status < 500) return;
     } catch {
@@ -168,7 +206,10 @@ async function withChromePage(
       stderr += chunk;
     });
     const debuggerPort = new URL(browserWebSocketUrl).port;
-    const target = await waitForPageTarget(debuggerPort, `${previewOrigin}${routePath}`);
+    const target = await waitForPageTarget(
+      debuggerPort,
+      `${previewOrigin}${routePath}`,
+    );
     client = await createCdpClient(target.webSocketDebuggerUrl);
     await client.send("Page.enable");
     await client.send("Runtime.enable");
@@ -184,7 +225,9 @@ async function withChromePage(
     return await callback(client);
   } catch (error) {
     const detail = stderr.trim() ? `\nChrome stderr:\n${stderr}` : "";
-    throw new Error(`${error instanceof Error ? error.message : String(error)}${detail}`);
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}${detail}`,
+    );
   } finally {
     client?.close();
     await stopChild(child);
@@ -195,7 +238,9 @@ async function waitForDebuggerUrl(child, onStderr) {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       cleanup();
-      reject(new Error("Chrome DevTools did not become ready within 10 seconds"));
+      reject(
+        new Error("Chrome DevTools did not become ready within 10 seconds"),
+      );
     }, 10_000);
 
     function cleanup() {
@@ -221,7 +266,9 @@ async function waitForDebuggerUrl(child, onStderr) {
 
     function handleClose(code) {
       cleanup();
-      reject(new Error(`Chrome exited before DevTools was ready with code ${code}`));
+      reject(
+        new Error(`Chrome exited before DevTools was ready with code ${code}`),
+      );
     }
 
     child.stderr.on("data", handleData);
@@ -237,7 +284,8 @@ async function waitForPageTarget(port, expectedUrl) {
       const response = await fetch(`http://127.0.0.1:${port}/json/list`);
       const targets = await response.json();
       const pageTarget = targets.find(
-        (target) => target.type === "page" && target.url.startsWith(expectedUrl),
+        (target) =>
+          target.type === "page" && target.url.startsWith(expectedUrl),
       );
       if (pageTarget?.webSocketDebuggerUrl) return pageTarget;
     } catch {
@@ -254,15 +302,26 @@ async function createCdpClient(webSocketUrl) {
   let commandId = 0;
 
   await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("CDP WebSocket connection timed out")), 10_000);
-    socket.addEventListener("open", () => {
-      clearTimeout(timeout);
-      resolve();
-    }, { once: true });
-    socket.addEventListener("error", () => {
-      clearTimeout(timeout);
-      reject(new Error("CDP WebSocket connection failed"));
-    }, { once: true });
+    const timeout = setTimeout(
+      () => reject(new Error("CDP WebSocket connection timed out")),
+      10_000,
+    );
+    socket.addEventListener(
+      "open",
+      () => {
+        clearTimeout(timeout);
+        resolve();
+      },
+      { once: true },
+    );
+    socket.addEventListener(
+      "error",
+      () => {
+        clearTimeout(timeout);
+        reject(new Error("CDP WebSocket connection failed"));
+      },
+      { once: true },
+    );
   });
 
   socket.addEventListener("message", (event) => {
@@ -310,7 +369,10 @@ async function stopChild(child) {
   if (child.exitCode !== null || child.signalCode !== null) return;
   const closed = new Promise((resolve) => child.once("close", resolve));
   child.kill("SIGTERM");
-  const exited = await Promise.race([closed.then(() => true), delay(1_000).then(() => false)]);
+  const exited = await Promise.race([
+    closed.then(() => true),
+    delay(1_000).then(() => false),
+  ]);
   if (!exited && child.exitCode === null && child.signalCode === null) {
     child.kill("SIGKILL");
     await closed;
@@ -319,7 +381,10 @@ async function stopChild(child) {
 
 async function readPngDimensions(filePath) {
   const file = await fs.readFile(filePath);
-  assert(file.subarray(1, 4).toString("ascii") === "PNG", "browser smoke did not create a PNG");
+  assert(
+    file.subarray(1, 4).toString("ascii") === "PNG",
+    "browser smoke did not create a PNG",
+  );
   return { width: file.readUInt32BE(16), height: file.readUInt32BE(20) };
 }
 

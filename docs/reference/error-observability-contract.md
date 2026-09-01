@@ -2,16 +2,16 @@
 
 Status: reference
 
-Last updated: 2026-07-20
+Last updated: 2026-08-25
 
 This document defines the current Hypofit error-handling and diagnostics
-contract across FastAPI, Expo React Native, and Sentry.
+contract across Spring Boot, Expo React Native, web, and Sentry.
 
 Use this document when changing:
 
-- FastAPI exception handlers or route error behavior.
+- Spring exception handlers or controller error behavior.
 - Mobile API client behavior.
-- Supabase Auth login/signup error handling.
+- Supabase social-auth and session-bootstrap error handling.
 - Sentry diagnostics, breadcrumbs, or release-build crash triage.
 - Request IDs, support/debug codes, or user-facing error copy.
 
@@ -26,7 +26,7 @@ Hypofit errors must satisfy three constraints at the same time:
 
 ## API Response Shape
 
-FastAPI should return a standard error envelope for all handled errors:
+The Spring API returns a standard error envelope for all handled errors:
 
 ```json
 {
@@ -41,57 +41,63 @@ FastAPI should return a standard error envelope for all handled errors:
 }
 ```
 
-For backward compatibility, legacy FastAPI `detail` may remain in the same
-payload while old clients and tests are migrated:
-
-```json
-{
-  "detail": "legacy detail",
-  "error": {
-    "code": "auth_required",
-    "message": "로그인이 필요해요.",
-    "status": 401,
-    "request_id": "req_...",
-    "debug_message": "legacy detail",
-    "field_errors": null
-  }
-}
-```
-
 Validation errors should use:
 
 - `error.code = "validation_failed"`
 - `error.message = "입력값을 확인해 주세요."`
 - `error.field_errors[]` with `field`, `message`, and `code`
-- legacy `detail` containing FastAPI-compatible encoded validation details
 
 ## Request IDs
 
 Every API request should carry a request ID:
 
 - Mobile/web clients send `X-Request-ID`.
-- FastAPI preserves a safe inbound `X-Request-ID` when present.
-- FastAPI generates `req_<uuid>` when no valid request ID is provided.
-- FastAPI returns the same value in the `X-Request-ID` response header.
+- Spring preserves a safe inbound `X-Request-ID` when present.
+- Spring generates `req_<uuid>` when no valid request ID is provided.
+- Spring returns the same value in the `X-Request-ID` response header.
 - Error payloads include the same value as `error.request_id`.
 
 Request IDs are safe to show in support context and Sentry tags. They are not a
 substitute for authentication or authorization.
 
+They are also not idempotency keys. A create request that needs safe retrying
+uses its resource-specific submission key; a request ID only connects the
+client error to proxy and server diagnostics.
+
+For posting creation, a repeated `client_submission_id` with the same
+normalized payload returns the original post. Reusing that ID with a changed
+payload returns `409 idempotency_key_reused`; clients must create a new draft
+submission ID instead of retrying a different request under the old one.
+
+Mobile clients may additionally send bounded release metadata in
+`X-Client-Version`, `X-Client-Build`, and `X-Client-Revision`. Spring records
+only safe, release-like values in structured-log MDC fields. The headers remain
+optional for released-client compatibility and must never contain tokens,
+account identifiers, or other user data.
+
 ## Backend Error Classes
 
-Business logic should prefer typed `AppError` subclasses over raw
-`HTTPException` when the code has clear domain meaning.
+### Authentication verifier availability
 
-Current examples:
+Invalid, expired, malformed, or signature-invalid bearer tokens return `401`
+with the existing token-specific codes. A temporary failure retrieving the
+Supabase JWKS is different: the API returns `503` with
+`auth_verifier_unavailable`, preserves `X-Request-ID`, and tells the client to
+retry later. Clients must not treat that code as a sign-out or token-refresh
+trigger. Bearer tokens, raw JWKS responses, and complete external URLs are not
+written to diagnostics.
 
-- `AuthRequiredError`
-- `PermissionDeniedError`
-- `ResourceNotFoundError`
-- `ConflictError`
-- `InvalidStateTransitionError`
-- `ExternalServiceUnavailableError`
-- `DatabaseUnavailableError`
+The Prometheus registry records JWT decode duration with a bounded `outcome`
+tag and a separate JWKS transport-retry counter. Request IDs and bearer tokens
+are intentionally excluded from metric tags to avoid high cardinality and
+credential exposure.
+
+Business logic should prefer typed `HypofitException` subclasses when the code
+has clear domain meaning.
+
+Current examples include `AuthRequiredException`,
+`HypofitValidationException`, and domain-specific permission, not-found, and
+conflict subclasses.
 
 Route handlers should stay thin:
 
@@ -133,29 +139,26 @@ not raw backend `debug_message`.
 ## Auth Errors
 
 Supabase Auth can return errors either as `{ error }` values or as thrown/retry
-errors depending on the failure path. Login and signup flows must wrap the full
-Supabase call in `try/catch` and normalize both shapes through
-`getAuthErrorMessage`.
+errors depending on the provider and callback path. Social authorization,
+session exchange, and profile onboarding must normalize both shapes through the
+shared auth-error helpers.
 
 Expected user-facing cases:
 
-- invalid credentials -> `이메일 또는 비밀번호를 다시 확인해 주세요.`
-- email not confirmed -> `이메일 인증을 먼저 완료해 주세요.`
-- already registered -> `이미 가입된 이메일이에요. 로그인해 주세요.`
-- invalid email -> `이메일 형식을 확인해 주세요.`
-- weak password -> `비밀번호는 영문과 특수문자를 포함해 8자 이상으로 입력해 주세요.`
+- user cancellation -> no destructive error; return to the login choices
+- provider rejection -> `로그인을 완료하지 못했어요. 같은 방법으로 다시 시도해 주세요.`
 - rate limit -> `요청이 많아요. 잠시 후 다시 시도해 주세요.`
 - network/retryable fetch -> `네트워크 연결을 확인한 뒤 다시 시도해 주세요.`
 - server instability -> `인증 서버 연결이 불안정해요. 잠시 후 다시 시도해 주세요.`
 
-Signup profile-sync failures after Supabase account creation should not pretend
-the account was not created. Use a user-facing message that tells the user to
-try login/profile setup again.
+Profile-onboarding failures after Supabase session creation must not pretend the
+social authorization failed. Preserve the session and route back to the missing
+onboarding step.
 
 ### Social auth errors
 
 Social login uses the same API error envelope and request ID contract as other
-FastAPI requests. Web and mobile must branch on stable codes, never on provider
+Spring API requests. Web and mobile must branch on stable codes, never on provider
 messages or raw Supabase error text.
 
 Current server-owned codes:
@@ -189,17 +192,37 @@ tokens, attempt secrets, emails, or provider-subject identifiers.
 
 Supported social-auth phases are:
 
-- `provider_capability`
 - `attempt_create`
 - `provider_authorization`
 - `provider_callback`
 - `supabase_token_exchange`
 - `supabase_session_persist`
-- `fastapi_identity_resolve`
+- `api_identity_resolve`
 
 An authorization cancellation is a normal user outcome. It should not be
 captured as an exception or displayed as a destructive failure. Expired or
 replayed attempts must clear local attempt storage before a new attempt starts.
+
+### AI summary worker errors
+
+AI summary generation is asynchronous and must never fail the interview or
+application write request. Artifact state may contain only these stable codes:
+
+- `ai_summary_provider_not_configured`
+- `ai_summary_provider_invalid_configuration`
+- `ai_summary_provider_auth_failed`
+- `ai_summary_provider_rate_limited`
+- `ai_summary_provider_timeout`
+- `ai_summary_provider_unavailable`
+- `ai_summary_output_schema_invalid`
+- `ai_summary_output_policy_invalid`
+- `ai_summary_source_unavailable`
+- `ai_summary_source_changed`
+- `ai_summary_internal_error`
+
+Logs may include artifact id, summary type, stable code, work version, provider,
+model, attempt count, duration, and token counts. They must not include source
+fields, generated summary text, prompts, provider response bodies, or API keys.
 
 ## Sentry Safety Rules
 
@@ -232,11 +255,13 @@ Do not send:
   social-attempt secrets
 - provider subjects, Supabase identity IDs, and provider access or refresh
   tokens
+- AI source fields, prompt text, generated summary content, and raw provider
+  output payloads
 
 Sentry should keep `sendDefaultPii: false`, clear `event.user`, redact exception
 text, and use tags for stable correlation fields.
 
-### Spring Candidate Logging And Sentry Policy
+### Spring Logging And Sentry Policy
 
 The Spring candidate emits Spring Boot ECS JSON logs in the `production`
 profile. MDC fields, including `request_id`, are included automatically. Local
@@ -258,7 +283,7 @@ rules:
 - Keep structured server logs authoritative for investigation when no backend
   Sentry DSN is configured.
 
-The Spring candidate currently implements the structured-log side of this
+The Spring API implements the structured-log side of this
 contract without requiring a Sentry secret. Adding a backend Sentry SDK must be
 an explicit operational change after its Spring Boot 4 compatibility and
 server-side DSN have been verified.
@@ -267,10 +292,6 @@ server-side DSN have been verified.
 
 Backend:
 
-- `apps/api/app/core/request_context.py`
-- `apps/api/app/core/error_handlers.py`
-- `apps/api/app/core/errors.py`
-- `apps/api/app/schemas/errors.py`
 - `apps/api/src/main/java/com/contentruck/hypofit/common/observability/RequestIdFilter.java`
 - `apps/api/src/main/java/com/contentruck/hypofit/common/error/ApiExceptionHandler.java`
 - `apps/api/src/main/resources/application-production.yml`
@@ -284,7 +305,7 @@ Mobile:
 
 Tests:
 
-- `apps/api/tests/test_error_responses.py`
+- `apps/api/src/test/java/com/contentruck/hypofit/common/error/ApiExceptionHandlerTest.java`
 
 ## Remaining Hardening
 
@@ -293,8 +314,8 @@ These items are follow-up work, not blockers for the current MVP error contract:
 - Apply the same standard error parsing to the web API client.
 - Add route-level Expo Router error boundaries for recoverable screen crashes.
 - Add TanStack Query global error policy when mobile query usage expands.
-- Convert more backend service-layer state errors from raw `HTTPException` to
-  typed `AppError` subclasses.
+- Convert more backend service-layer state errors to typed
+  `HypofitException` subclasses.
 - Add Sentry source-map and dSYM upload verification to the release-build
   checklist.
 - Add a support UI affordance for copying the latest request ID when a critical
@@ -302,7 +323,8 @@ These items are follow-up work, not blockers for the current MVP error contract:
 
 ## References
 
-- FastAPI error handlers: https://fastapi.tiangolo.com/tutorial/handling-errors/
+- Spring MVC exception handling:
+  https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-controller/ann-exceptionhandler.html
 - Supabase Auth error codes: https://supabase.com/docs/guides/auth/debugging/error-codes
 - Expo Sentry setup: https://docs.expo.dev/guides/using-sentry
 - Expo Router error handling: https://docs.expo.dev/router/error-handling/

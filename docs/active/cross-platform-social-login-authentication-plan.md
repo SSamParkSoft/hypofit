@@ -2,13 +2,7 @@
 
 Status: active - sole authentication authority for social-login-only public entry
 
-Last updated: 2026-08-08
-
-> Runtime note (2026-08-11): GPU/API blue-green deployment statements in
-> the observed-status sections below are historical evidence only. The school
-> GPU has been returned. Provider configuration and interactive smoke must be
-> re-verified against the Spring runtime on Lightsail before any provider is
-> considered production-ready.
+Last updated: 2026-08-12
 
 Owner surfaces: `apps/api`, `apps/web`, `apps/mobile`, `packages/contracts`,
 Supabase Auth, Apple Developer, Google Auth Platform, Kakao Developers,
@@ -16,6 +10,35 @@ Naver Developers
 
 Implementation checkpoints:
 
+- On 2026-08-26 the native login entry was reduced to a card-free canvas:
+  brand mark, one product sentence, provider buttons, and legal links. Apple
+  continues to use Expo's system-provided button, and iOS now opts into device
+  locale handling through `CFBundleAllowMixedLocalizations`. Provider flows,
+  callbacks, loading, error handling, and onboarding routes remain unchanged.
+
+- On 2026-08-17 every authenticated web-dashboard logout entry began replacing
+  the current protected route with the public landing `/` after Supabase sign-out
+  succeeds. The auth screen's explicit account-switch action remains separate
+  and can still sign out without forcing this dashboard-exit destination.
+- On 2026-08-17 the public web landing began deriving its desktop CTA from the
+  restored session without redirecting the landing route itself. Signed-out
+  visitors see `로그인`, while signed-in visitors see `대시보드로 이동`; both
+  enter through `/app`, where an existing session continues directly. The
+  explicit `/app?account=choose` route remains available when account choice is
+  intentionally requested. Public Google and Kakao sign-in requests use each
+  provider's documented `prompt=select_account`; account-link requests remain
+  unchanged.
+
+- On 2026-08-13 the local Vite API proxy stopped forwarding the browser
+  `Origin` header to the production Spring API. This preserves production CORS
+  restrictions while allowing the local same-origin `/api` development path.
+- On 2026-08-13 the web login entry began recording the last successfully
+  completed social provider in device-local browser storage and marking only
+  that provider as `최근 사용`. Started, cancelled, failed, and account-link
+  attempts do not overwrite the hint.
+- On 2026-08-13 the web Google entry button was aligned with Google's
+  official Neutral theme: a borderless `#F2F2F2` surface, the standard-color
+  transparent G logo, and the existing shared social-button size and radius.
 - On 2026-08-11 the public provider-capability endpoint and its client loading
   gates were removed. Web and mobile now render the approved platform provider
   registry immediately, including account-link choices. Attempt creation
@@ -29,14 +52,9 @@ Implementation checkpoints:
   typecheck, lint and architecture boundaries, production build, bundle budget,
   browser smoke, mobile TypeScript typecheck, and Expo Doctor `18/18`.
 
-- historical commit `7e96157` was deployed to the former GPU API blue slot and
-  Alembic revision `0022_social_auth_identity` was applied. The public
-  capability endpoint mentioned in that historical deployment has since been
-  removed from the canonical Spring API.
 - the API social-auth master switch and both server-side peppers are
-  configured. Google and Naver are `available`; Apple web and iOS are
-  `available` through platform overrides; Kakao is `disabled` until its consent
-  items are configured, while Android Apple remains `unsupported_platform`.
+  configured. Provider availability is enforced by attempt creation; Android
+  Apple remains `unsupported_platform`.
 - shared contracts, additive database schema, API attempt/complete,
   authenticated link-attempt, identity inventory/reconciliation, and readiness
   reporting are implemented.
@@ -53,15 +71,14 @@ Implementation checkpoints:
   flags remain safe to ship disabled.
 - the Google web OAuth client and Supabase Google provider are configured.
   Supabase authorize returns HTTP 302 to Google Accounts with the production
-  callback, and the production API capability reports Google as
-  `available`.
+  callback.
 - the Supabase Apple provider is enabled for native client ID
   `com.contentruck.hypofit`. The Apple client-secret JWT generated from Key ID
   `SCF7NT6L7G` was locally signature-verified and accepted by Apple's token
   endpoint; an intentional invalid authorization code returned `invalid_grant`,
   not `invalid_client`. Apple web credential/configuration work is complete and
-  its production capability is `available`; iOS remains `disabled` until
-  interactive device smoke passes.
+  its production configuration is ready; interactive device smoke remains a
+  release gate.
 - current targeted verification passes: API social-auth tests `20 passed`,
   web social-auth/callback tests `17 passed`, web typecheck, and mobile
   TypeScript typecheck. Kakao/Naver callback/session completion remains
@@ -73,7 +90,7 @@ Implementation checkpoints:
   tabs without fatal or auth-bootstrap errors. Provider-consent interactive
   smoke remains separate and open where listed below.
 - Kakao Developers team account and app credentials are configured. The
-  built-in `kakao` browser OAuth path, callback bridge, capability gate, account
+  built-in `kakao` browser OAuth path, callback bridge, account
   linking, and provider normalization are implemented. Supabase authorize
   reaches the Kakao Account login page for production, local, and native return
   paths; interactive smoke remains pending.
@@ -95,25 +112,14 @@ Implementation checkpoints:
   web and native return paths reach the Kakao Account login page without
   `KOE205`. Web now exposes the Kakao button, and mobile relies on the built-in
   Supabase Kakao scopes instead of duplicating them through `options.scopes`.
-- `SOCIAL_AUTH_KAKAO_STATE=available` is applied to the GPU runtime after
-  backing up `.env`. The existing API SHA `daa94a1` was switched from blue to
-  green through the blue/green deployment script. Public health/readiness are
-  HTTP 200, Kakao capabilities are `available` on web/iOS/Android, and
-  unauthenticated login-attempt creation returns HTTP 201 on all three
-  platforms. Interactive callback, account creation/linking, and repeat-login
-  smoke remain the release gate.
-- on 2026-07-29 the GPU `.env` was backed up before enabling Kakao, Naver, and
-  the iOS Apple platform override. The current API SHA was redeployed through
-  blue/green from blue to green. Public health/readiness return HTTP 200, and
-  provider attempt creation returns HTTP 201 for every supported web, iOS, and
-  Android provider using the platform's canonical return path. Interactive
-  provider consent, callback, session, API completion, logout, and repeat
-  login remain the release gate.
+- Public health/readiness return HTTP 200, and provider attempt creation accepts
+  every configured web, iOS, and Android provider using the platform's
+  canonical return path. Interactive provider consent, callback, session, API
+  completion, logout, and repeat login remain the release gate.
 
 Related documents:
 
 - `docs/completed/responsive-web-auth-entry-experience-plan.md`
-- `docs/reference/mobile-auth-failure-observability-hardening-plan.md`
 - `docs/reference/error-observability-contract.md`
 - `docs/completed/public-support-and-authenticated-inquiry-experience-plan.md`
 - `docs/completed/account-deletion-retention-reregistration-plan.md`
@@ -144,14 +150,8 @@ Authoritative scope:
   - provider callback:
     `https://rpmddtobulnagpdzdkbl.supabase.co/auth/v1/callback`
   - result: HTTP 302 to `accounts.google.com`
-- `SOCIAL_AUTH_GOOGLE_STATE=available` was applied to the GPU runtime after
-  backing up `.env`.
-- The existing API release SHA was restarted through the blue/green deployment
-  path. The active slot changed from green to blue without changing application
-  code.
-- Public readiness returns HTTP 200 and reports:
-  - Google: `available`
-  - Apple, Kakao, Naver: `disabled` at this initial Google checkpoint
+- Public readiness returns HTTP 200 and Google attempt creation reaches the
+  configured provider authorization flow.
 - Interactive web smoke reached the Google consent callback and
   `POST /api/v1/auth/social/complete` returned HTTP 200. The following
   `GET /api/v1/me` correctly returned `profile_missing` for the new social
@@ -183,9 +183,7 @@ Authoritative scope:
   expiry if it remains in use for OAuth/token exchange.
 - Apple's token endpoint accepted the client credentials and rejected only the
   intentionally invalid authorization code with `invalid_grant`.
-- Production capability remains:
-  - iOS/web: `disabled`
-  - Android: `unsupported_platform`
+- Android Apple remains `unsupported_platform` by product policy.
 - Remaining native gate is an interactive iOS test covering first consent,
   Hide My Email, Supabase session creation, API completion, role onboarding,
   logout, and repeat login.
@@ -224,13 +222,12 @@ Authoritative scope:
   the native `hypofit://auth/social-callback` return path. The generated request
   uses the Supabase provider callback and includes `state` and PKCE `S256`.
 - Automated coverage now explicitly verifies login entry, account linking,
-  capability independence, and API provider normalization for both
+  provider-registry independence, and API provider normalization for both
   providers.
 - Naver remains temporarily `available` for controlled interactive smoke.
   Kakao interactive smoke exposed `KOE205` because the requested email,
   nickname, and profile-image consent items were not configured, so its
-  production capability was returned to `disabled` until that provider-console
-  work resumes.
+  production rollout was paused until that provider-console work resumed.
 
 ## 0. 2026-07-22 운영 설정·검증 감사
 
@@ -238,7 +235,7 @@ Authoritative scope:
 
 | 대상 | 관측 결과 | 판정 |
 | --- | --- | --- |
-| 운영 API capability | web/iOS: Apple, Google, Naver `available`, Kakao `disabled`; Android: Google/Naver `available`, Kakao `disabled`, Apple `unsupported_platform` | Kakao consent 설정 전 비노출, 나머지 provider controlled smoke |
+| 운영 attempt 생성 | 플랫폼별 허용 provider의 설정과 return path를 서버에서 검증 | interactive provider smoke 대기 |
 | Supabase Apple authorize | HTTP 302 to Apple, native App ID client configured | 자격 증명 검증 완료, interactive iOS smoke 대기 |
 | Supabase Google authorize | HTTP 302 to Google | 자격 증명 검증 완료, interactive E2E 대기 |
 | Supabase Kakao authorize | production/local/native return path 모두 HTTP 302 to Kakao, Kakao Account 로그인 화면 HTTP 200 | 자격 증명·callback 라우팅 완료, interactive E2E 대기 |
@@ -1261,8 +1258,8 @@ apps/web/src/features/auth/social/
 
 | 공급자 | 컨테이너·문구 | 자산·배치 |
 | --- | --- | --- |
-| Apple | black, `Apple로 계속하기`, 12px radius | iOS는 system button, web은 Apple 공식 padded logo image |
-| Google | white, `#747775` 1px stroke, `Google로 계속하기` | Google 공식 color G tile, Android/web 12px·iOS 16px leading reserve |
+| Apple | black, `Apple로 로그인`, 12px radius | iOS는 system button, web은 Apple 공식 padded logo image |
+| Google | neutral `#F2F2F2`, no stroke, `Google로 로그인` | Google 공식 transparent color G logo, Android/web 12px·iOS 16px leading reserve |
 | Kakao | `#FEE500`, `카카오 로그인`, 12px radius | 공식 검정 말풍선 심볼, label은 OS system font |
 | Naver | `#03A94D`, `네이버로 로그인`, 12px radius | 공식 white N asset, 표시 로고 16px 이상 확보 |
 
@@ -1513,14 +1510,13 @@ API는 기존 error envelope의 `code`, `message`, `request_id`, `details`,
 
 ### 14.2 phase
 
-- `provider_capability`
 - `attempt_create`
 - `provider_authorization`
 - `provider_callback`
 - `supabase_token_exchange`
 - `supabase_session_persist`
-- `fastapi_identity_resolve`
-- `fastapi_profile_sync`
+- `api_identity_resolve`
+- `api_profile_sync`
 - `legal_gate`
 - `role_onboarding`
 - `identity_link`
@@ -1938,8 +1934,8 @@ Supabase:
    `com.contentruck.hypofit.web,com.contentruck.hypofit` 순서로 저장하고
    client secret을 교체한다.
 6. Supabase authorize redirect의 `client_id`가
-   `com.contentruck.hypofit.web`인지 확인한 뒤 web Apple capability를
-   `available`로 전환한다.
+   `com.contentruck.hypofit.web`인지 확인한 뒤 web Apple 운영 설정을
+   활성화한다.
 
 운영 관측:
 
@@ -1955,8 +1951,6 @@ Supabase:
   `rpmddtobulnagpdzdkbl.supabase.co`, return URL
   `https://rpmddtobulnagpdzdkbl.supabase.co/auth/v1/callback`, primary App ID
   grouping을 다시 저장해 해결했다.
-- API SHA `daa94a11b5dda638e8e528ab2a3bc4ba419eba8a`를 blue/green으로
-  배포했고 migration `0023_apple_sign_in_notifications`가 적용됐다.
 - 운영 HTTPS notification endpoint는 invalid JWS에
   `social_provider_notification_invalid` 400을 반환해 route와 error
   contract가 정상임을 확인했다.
@@ -1965,6 +1959,84 @@ Supabase:
 - 2026-07-29 Apple Developer 설정 저장 후 같은 authorize 요청이
   `client_id=com.contentruck.hypofit.web`으로 Apple 로그인 페이지 HTTP 200을
   반환했고 `invalid_client`가 사라졌다.
-- 운영에서 `SOCIAL_AUTH_APPLE_WEB_STATE=available`과 controlled smoke용
-  `SOCIAL_AUTH_APPLE_IOS_STATE=available`을 적용했다. web/iOS capability는
-  Apple을 노출하며 Android Apple은 `unsupported_platform`을 유지한다.
+- 운영에서 web/iOS Apple 설정을 적용했으며 Android Apple은
+  `unsupported_platform`을 유지한다.
+
+## 24. Mobile Provider Button Brand-Compliance Plan
+
+Status: implemented - release-build locale verification remains
+
+2026-08-26 final polish: preserved the 54pt shared control and official
+provider assets. Kakao's provider canvas is `42pt` for a slightly stronger
+speech-bubble weight. Naver uses its official Korean N logo source with the
+guide-approved left-aligned logo and centered `네이버 로그인` label. Apple uses
+Apple's official Korean left-aligned complete button resource; its native
+credential flow remains unchanged. Google retains the standard multicolor G.
+Google's localized action copy is `Google 로그인`.
+Apple's localized action copy is `Apple로 로그인`.
+While a provider request is in progress, its existing label remains centered
+and the provider mark is temporarily replaced by a small leading spinner.
+Other social actions remain disabled until that request completes.
+
+Goal: Keep the four social actions equally reachable in the native login
+screen without flattening their provider identities or recreating protected
+brand artwork.
+
+### Current finding
+
+- The mobile Kakao and Naver image files include their own colored background
+  and internal padding. Rendering each file as a `20pt` icon makes the actual
+  bubble or `N` glyph appear much smaller than intended.
+- The Google asset was replaced with the approved transparent multicolor `G`.
+- Apple uses Apple's official Korean left-aligned complete button resource.
+  This is necessary because Expo's native component has no alignment control.
+  It still invokes the existing native Apple credential flow.
+- On 2026-08-26 Kakao retained its official provider-colored canvas and now
+  renders at `40pt`, bringing its visible speech bubble in line with the Google
+  G without changing the 54pt control height. Naver now uses the official
+  Korean narrow Login BI resource on a matching `#03A94D` surface, rather than
+  the earlier circular app-icon asset.
+
+### Implementation
+
+1. Use the current Kakao Login and Naver Login resources from each provider's
+   official developer resource page when an asset replacement is required.
+2. Prefer the provider's complete standard button image when its prescribed
+   label and dimensions fit the 54pt login group. Do not redraw its logo.
+3. The current mobile layout composes official provider canvases on matching
+   provider-colored surfaces. Size the *visible glyph*, not the full source
+   canvas, to approximately 20-24pt in a 54pt button.
+4. Keep all actions at `54pt` height, `12pt` radius, and `10pt` vertical gap.
+   The label remains visually centered; the provider symbol occupies a fixed
+   leading zone and must not shift the text center.
+5. Kakao keeps `#FEE500`, black bubble, black 85% label, and its permitted
+   official label. If `카카오로 계속하기` is not available in the official
+   standard resource, use `카카오 로그인` rather than inventing a near-match.
+6. Naver uses the official Login BI on its allowed green or white button
+   variant. Do not place a green circular app icon on another green surface.
+7. Google keeps a white `#FFFFFF` surface, `#747775` 1px border, standard
+   multicolor `G`, and localized `Google로 계속하기`; it must remain no less
+   prominent than the other providers.
+8. Apple keeps the system-provided black Continue button at the same 54pt
+   height and 12pt radius. `CFBundleAllowMixedLocalizations=true` remains in
+   the iOS config so a release build uses the device locale. Verify on a Korean
+   device; an English simulator correctly renders Apple's English system copy.
+
+### Acceptance
+
+- No provider logo has a baked-in background that becomes a smaller colored
+  square or circle inside its button.
+- Four buttons have equal outer dimensions and balanced visual weight.
+- Provider art is official, uncropped where its guide prohibits cropping, and
+  has no hand-drawn substitute.
+- VoiceOver labels remain `카카오로 계속하기`, `Apple로 계속하기`,
+  `Google로 계속하기`, and `네이버로 계속하기`; Apple’s rendered title may
+  follow the device locale.
+- Verify iOS Korean and English device locales plus Android before release.
+
+Sources:
+
+- Kakao Login design guide: https://developers.kakao.com/docs/ko/kakaologin/design-guide
+- Naver Login guide: https://developers.naver.com/products/login/userguide/userguide.md
+- Google Identity branding guide: https://developers.google.com/identity/branding-guidelines
+- Apple Sign in with Apple HIG: https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple

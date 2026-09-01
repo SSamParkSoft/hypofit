@@ -4,7 +4,8 @@ import type {
   InterviewPost,
   InterviewPostStatus,
 } from "@hypofit/contracts";
-import { ApiError, apiGet, apiRequest } from "./client";
+import { ApiError, apiRequest } from "./client";
+import { withInterviewPostFeatures } from "./interviewPostFeatures";
 
 export interface ListInterviewPostsParams {
   status?: InterviewPostStatus;
@@ -55,19 +56,25 @@ export const interviewPostRoutes = {
 
 export const interviewPostsApi = {
   list(params?: ListInterviewPostsParams) {
-    return apiGet<InterviewPost[]>(buildInterviewPostsPath(params));
+    return apiRequest<InterviewPost[]>(
+      buildInterviewPostsPath(params),
+      withInterviewPostFeatures(),
+    );
   },
   listForUser(params?: ListInterviewPostsParams, accessToken?: string | null) {
-    return apiGet<InterviewPost[]>(buildInterviewPostsPath(params), accessToken);
+    return apiRequest<InterviewPost[]>(
+      buildInterviewPostsPath(params),
+      withInterviewPostFeatures({ accessToken }),
+    );
   },
   async get(interviewPostId: string, accessToken?: string | null) {
     const path = interviewPostRoutes.detail(interviewPostId);
 
     try {
-      return await apiGet<InterviewPost>(path, accessToken);
+      return await apiRequest<InterviewPost>(path, withInterviewPostFeatures({ accessToken }));
     } catch (error) {
       if (accessToken && error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-        return apiGet<InterviewPost>(path);
+        return apiRequest<InterviewPost>(path, withInterviewPostFeatures());
       }
 
       throw error;
@@ -75,6 +82,7 @@ export const interviewPostsApi = {
   },
   create(input: CreateInterviewPostInput, accessToken?: string | null) {
     return apiRequest<InterviewPost>(interviewPostRoutes.collection, {
+      ...withInterviewPostFeatures(),
       method: "POST",
       accessToken,
       body: JSON.stringify(input),
@@ -82,6 +90,7 @@ export const interviewPostsApi = {
   },
   close(interviewPostId: string, accessToken?: string | null) {
     return apiRequest<InterviewPost>(interviewPostRoutes.status(interviewPostId), {
+      ...withInterviewPostFeatures(),
       method: "PATCH",
       accessToken,
       body: JSON.stringify({ status: "closed" }),
@@ -89,12 +98,14 @@ export const interviewPostsApi = {
   },
   archive(interviewPostId: string, accessToken?: string | null) {
     return apiRequest<InterviewPost>(interviewPostRoutes.archive(interviewPostId), {
+      ...withInterviewPostFeatures(),
       method: "POST",
       accessToken,
     });
   },
   reopen(interviewPostId: string, accessToken?: string | null) {
     return apiRequest<InterviewPost>(interviewPostRoutes.reopen(interviewPostId), {
+      ...withInterviewPostFeatures(),
       method: "POST",
       accessToken,
     });

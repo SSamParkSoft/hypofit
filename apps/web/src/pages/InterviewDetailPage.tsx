@@ -107,7 +107,7 @@ export function InterviewDetailPage({ accessToken, postId }: InterviewDetailPage
             <InterviewDetailArticle post={post} />
             <OpportunityExpandedDetail
               canApply={Boolean(accessToken)}
-              className="border-y border-hypo-border bg-transparent sm:border-x-0"
+              className="rounded-hypo-lg border border-hypo-border bg-hypo-surface px-4 py-4 shadow-hypo-panel sm:px-5"
               errorMessage={
                 createApplication.error instanceof Error ? createApplication.error.message : null
               }
@@ -126,7 +126,7 @@ export function InterviewDetailPage({ accessToken, postId }: InterviewDetailPage
             <SplitView
               detail={
                 <ContextPanel className="border-none bg-transparent shadow-none">
-                  <div className="grid gap-4 border-t border-hypo-border pt-4">
+                  <div className="grid gap-4 rounded-hypo-lg border border-hypo-border bg-hypo-surface px-5 py-5 shadow-hypo-panel">
                     <div>
                       <p className="text-xs font-semibold leading-[18px] text-hypo-text-soft">
                         {existingApplication ? "현재 신청 상태" : "이 인터뷰에 참여하기"}
@@ -139,7 +139,7 @@ export function InterviewDetailPage({ accessToken, postId }: InterviewDetailPage
                     </div>
                     <OpportunityExpandedDetail
                       canApply={Boolean(accessToken)}
-                      className="border-none bg-transparent p-0"
+                      className="border-t border-hypo-border pt-4"
                       errorMessage={
                         createApplication.error instanceof Error
                           ? createApplication.error.message
@@ -181,7 +181,7 @@ function InterviewDetailArticle({ post }: { post: InterviewPost }) {
   const founderReviewSummary = post.founder_review_summary;
 
   return (
-    <article className="overflow-hidden border-y border-hypo-border bg-hypo-surface sm:border-x">
+    <article className="overflow-hidden rounded-hypo-lg border border-hypo-border bg-hypo-surface shadow-hypo-panel">
       <div className="grid gap-4 border-b border-hypo-border px-4 py-5 sm:px-6 sm:py-6">
         <div className="flex flex-wrap items-center gap-2">
           <Badge intent="info">{interviewModeLabels[post.interview_mode]}</Badge>
@@ -189,7 +189,7 @@ function InterviewDetailArticle({ post }: { post: InterviewPost }) {
         </div>
 
         <div className="grid gap-2">
-          <h1 className="text-2xl font-bold leading-8 text-hypo-text">{post.title}</h1>
+          <h1 className="text-[22px] font-bold leading-8 text-hypo-text">{post.title}</h1>
         </div>
       </div>
 

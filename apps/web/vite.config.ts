@@ -14,16 +14,25 @@ export default defineConfig(({ mode }) => {
         "@hypofit/contracts": new URL("../../packages/contracts/src/index.ts", import.meta.url).pathname,
       },
     },
-    server: apiProxyTarget
-      ? {
+    server: {
+      allowedHosts: [".ngrok-free.app"],
+      ...(apiProxyTarget
+        ? {
           proxy: {
             "/api": {
               changeOrigin: true,
+              configure(proxy) {
+                proxy.on("proxyReq", (proxyRequest) => {
+                  // The dev proxy is the API caller; forwarding the browser origin triggers production CORS.
+                  proxyRequest.removeHeader("origin");
+                });
+              },
               target: apiProxyTarget,
             },
           },
         }
-      : undefined,
+        : {}),
+    },
     test: {
       coverage: {
         exclude: [

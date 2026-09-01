@@ -23,8 +23,8 @@ export function TextField({ accessibilityLabel, label, style, ...props }: TextFi
       <TextInput
         accessibilityLabel={accessibilityLabel ?? label}
         autoCapitalize="none"
-        placeholderTextColor="#A3ABA0"
-        className="h-[52px] rounded-[14px] border border-hypo-border bg-hypo-surface px-4 py-0 text-hypo-text"
+        placeholderTextColor="#87918B"
+        className="h-[52px] rounded-[12px] border border-hypo-border bg-hypo-surface px-4 py-0 text-hypo-text"
         style={[inputStyle, style]}
         textAlignVertical="center"
         {...props}

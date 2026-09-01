@@ -111,7 +111,8 @@ Open:
 Current state:
 
 - Public API: `https://hypofit-api.bukae.co.kr`.
-- API is deployed through Gabia DNS, EC2 Nginx, and GPU reverse SSH tunnel.
+- API is deployed through Gabia DNS and Lightsail host Nginx to the Spring
+  container.
 - Supabase stores durable auth/database/storage state.
 - Public web app: `https://hypofit.bukae.co.kr`.
 - Public account deletion page:
@@ -127,7 +128,8 @@ Current App Store implication:
 Open:
 
 - [ ] Confirm API readiness endpoint is healthy before submission.
-- [ ] Confirm GPU API, reverse tunnel, and DB tunnel stay up during review.
+- [ ] Confirm the Lightsail API container and database readiness stay healthy
+      during review.
 - [ ] Confirm public privacy policy URL.
 - [ ] Confirm public terms URL.
 - [ ] Confirm public support URL.
@@ -564,7 +566,7 @@ Blocking before an Apple App Store submission:
       documented.
 - [ ] App Review demo accounts and seeded data are not finalized.
 - [ ] Deployed store-review smoke is not fully closed; current API ops notes
-      still call out GPU `.env` missing `SUPABASE_ANON_KEY` for the review
+      still call out a missing `SUPABASE_ANON_KEY` for the review
       smoke script.
 - [ ] Public deletion verification email delivery and deletion operator runbook
       remain open.
@@ -618,7 +620,7 @@ Keep these documents aligned with this plan:
 - `docs/reference/support-report-flow-plan.md`
 - `docs/completed/mobile-api-ui-integration-completion-plan.md`
 - `docs/reference/ui-final-qa-checklist.md`
-- `docs/reference/react-web-to-expo-mobile-migration-plan.md`
+- `docs/service/06-app-surfaces.md`
 
 ## Open Decisions
 

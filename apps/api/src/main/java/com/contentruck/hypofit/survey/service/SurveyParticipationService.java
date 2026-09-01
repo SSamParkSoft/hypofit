@@ -23,6 +23,7 @@ public class SurveyParticipationService {
 
     private static final String SURVEY_RECRUITMENT_TYPE = "survey";
     private static final String POST_OPEN_STATUS = "open";
+    private static final String ENTRY_MODE_DIRECT = "direct";
     private static final String STATUS_OPENED = "opened";
     private static final String STATUS_SUBMITTED = "submitted";
     private static final String STATUS_CONFIRMED = "confirmed";
@@ -46,6 +47,8 @@ public class SurveyParticipationService {
         requireActiveAccount(actorUserId);
         SurveyPostSummary post = requireSurveyPost(postId);
         ensureNotSelfParticipation(actorUserId, post);
+        ensureExternalAccessAllowed(post, actorUserId);
+        ensureExternalUrlConfigured(post);
 
         Optional<SurveyParticipationReadModel> existing = repository.findParticipationForUpdate(postId, actorUserId);
         SurveyParticipationReadModel participation;
@@ -69,6 +72,19 @@ public class SurveyParticipationService {
                 resolveParticipant(actorUserId),
                 post.externalUrl()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<SurveyParticipationView> findOwn(UUID actorUserId, UUID postId) {
+        requireActiveAccount(actorUserId);
+        SurveyPostSummary post = requireSurveyPost(postId);
+        ensureNotSelfParticipation(actorUserId, post);
+
+        return repository.findParticipation(postId, actorUserId)
+                .map(participation -> new SurveyParticipationView(
+                        participation,
+                        resolveParticipant(actorUserId)
+                ));
     }
 
     @Transactional
@@ -231,6 +247,31 @@ public class SurveyParticipationService {
         OffsetDateTime deadline = post.participationDeadlineAt();
         if (deadline != null && deadline.isBefore(now())) {
             throw surveyNotAvailable("Survey participation deadline has passed for post " + post.id());
+        }
+    }
+
+    private void ensureExternalUrlConfigured(SurveyPostSummary post) {
+        if (post.externalUrl() == null || post.externalUrl().isBlank()) {
+            throw new HypofitException(
+                    "survey_link_unavailable",
+                    "설문 링크가 아직 준비되지 않았어요.",
+                    HttpStatus.CONFLICT.value(),
+                    "Survey post has no external URL: " + post.id()
+            );
+        }
+    }
+
+    private void ensureExternalAccessAllowed(SurveyPostSummary post, UUID actorUserId) {
+        if (ENTRY_MODE_DIRECT.equals(post.entryMode())) {
+            return;
+        }
+        if (!repository.hasSelectedApplication(post.id(), actorUserId)) {
+            throw new HypofitException(
+                    "survey_access_not_granted",
+                    "모집자가 신청 내용을 확인한 뒤 설문에 참여할 수 있어요.",
+                    HttpStatus.FORBIDDEN.value(),
+                    "Application-required survey access denied for post " + post.id()
+            );
         }
     }
 

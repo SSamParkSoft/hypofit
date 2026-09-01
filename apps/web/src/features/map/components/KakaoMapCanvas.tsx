@@ -231,10 +231,10 @@ function createMapMarkerElement({
     "relative grid min-h-8 min-w-[68px] place-items-center rounded-hypo-pill border px-3 text-[11px] font-black tabular-nums transition-[background-color,border-color,color,transform,box-shadow]",
     "after:absolute after:left-1/2 after:top-[calc(100%-1px)] after:size-2.5 after:-translate-x-1/2 after:rotate-45 after:border-b after:border-r after:content-['']",
     isSelected
-      ? "min-h-9 scale-110 border-hypo-brand-strong bg-hypo-brand px-3.5 text-white shadow-[0_14px_30px_rgb(23_107_93_/_0.32)] after:border-hypo-brand-strong after:bg-hypo-brand"
+      ? "min-h-9 scale-105 border-hypo-brand-strong bg-hypo-brand px-3.5 text-white after:border-hypo-brand-strong after:bg-hypo-brand"
       : isViewed
-        ? "border-[#d8e3df]/80 bg-white/75 text-hypo-text-soft shadow-[0_7px_16px_rgb(29_37_34_/_0.09)] after:border-[#d8e3df]/80 after:bg-white/75 group-hover:scale-105 group-hover:border-hypo-brand/35 group-hover:text-hypo-brand"
-        : "border-[#d8e3df] bg-white text-hypo-brand shadow-[0_9px_20px_rgb(29_37_34_/_0.13)] after:border-[#d8e3df] after:bg-white group-hover:scale-105 group-hover:border-hypo-brand/45 group-hover:text-hypo-brand-strong",
+        ? "border-[#d8e3df]/80 bg-white text-hypo-text-soft after:border-[#d8e3df]/80 after:bg-white group-hover:scale-105 group-hover:border-hypo-brand/35 group-hover:text-hypo-brand"
+        : "border-[#d8e3df] bg-white text-hypo-brand after:border-[#d8e3df] after:bg-white group-hover:scale-105 group-hover:border-hypo-brand/45 group-hover:text-hypo-brand-strong",
   ].join(" ");
   bubble.textContent = reward;
 
@@ -250,12 +250,12 @@ function createMapMarkerElement({
 
   const label = document.createElement("span");
   label.className = [
-    "pointer-events-none mt-0.5 hidden whitespace-nowrap rounded-hypo-pill px-2 py-0.5 text-[10px] font-black shadow-sm sm:block",
+    "pointer-events-none mt-0.5 hidden whitespace-nowrap rounded-hypo-pill border px-2 py-0.5 text-[10px] font-black sm:block",
     isSelected
-      ? "bg-hypo-brand text-white"
+      ? "border-hypo-brand-strong bg-hypo-brand text-white"
       : isViewed
-        ? "bg-white/85 text-hypo-text-soft backdrop-blur"
-        : "bg-hypo-brand-soft/95 text-hypo-brand backdrop-blur",
+        ? "border-[#d8e3df]/80 bg-white text-hypo-text-soft"
+        : "border-hypo-border bg-hypo-brand-soft text-hypo-brand",
   ].join(" ");
   label.textContent = area;
 
@@ -270,11 +270,11 @@ function createCurrentLocationMarkerElement() {
 
   const pulse = document.createElement("span");
   pulse.className =
-    "absolute size-9 rounded-full bg-[#2f7df6]/20 shadow-[0_0_0_1px_rgb(47_125_246_/_0.12)]";
+    "absolute size-9 rounded-full border border-[#2f7df6]/15 bg-[#2f7df6]/18";
 
   const ring = document.createElement("span");
   ring.className =
-    "absolute size-5 rounded-full border-2 border-white bg-[#2f7df6] shadow-[0_8px_18px_rgb(47_125_246_/_0.35)]";
+    "absolute size-5 rounded-full border-2 border-white bg-[#2f7df6]";
 
   const core = document.createElement("span");
   core.className = "absolute size-2 rounded-full bg-white";

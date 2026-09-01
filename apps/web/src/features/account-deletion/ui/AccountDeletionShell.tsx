@@ -7,6 +7,9 @@ import {
   type FlowStep,
 } from "../model/accountDeletionFlow";
 
+const deletionSurfaceClassName =
+  "rounded-hypo-lg border border-hypo-border bg-hypo-surface shadow-hypo-panel";
+
 export function AccountDeletionIntroduction() {
   return (
     <header className="max-w-[760px]">
@@ -54,7 +57,10 @@ export function AccountDeletionStepList({ step }: { step: FlowStep }) {
   const currentStepNumber = getCurrentStepNumber(step);
 
   return (
-    <ol className="mt-8 grid border-y border-hypo-border sm:grid-cols-3" aria-label="계정 삭제 절차">
+    <ol
+      className={`mt-8 grid overflow-hidden ${deletionSurfaceClassName} sm:grid-cols-3`}
+      aria-label="계정 삭제 절차"
+    >
       {deletionSteps.map((item, index) => {
         const stepNumber = index + 1;
         const isComplete = step === "complete" ? stepNumber <= currentStepNumber : stepNumber < currentStepNumber;
@@ -64,8 +70,8 @@ export function AccountDeletionStepList({ step }: { step: FlowStep }) {
         return (
           <li
             key={item.number}
-            className={`flex min-h-16 items-center gap-3 py-3 sm:px-4 ${
-              index > 0 ? "border-t border-hypo-border sm:border-l sm:border-t-0" : ""
+            className={`flex min-h-16 items-center gap-3 px-4 py-3 ${
+              index > 0 ? "border-t border-hypo-border/70 sm:border-l sm:border-t-0" : ""
             }`}
           >
             <span
@@ -87,8 +93,11 @@ export function AccountDeletionStepList({ step }: { step: FlowStep }) {
 
 export function AccountDeletionInformation() {
   return (
-    <aside className="border-y border-hypo-border lg:sticky lg:top-24" aria-labelledby="deletion-information-title">
-      <div className="py-5">
+    <aside
+      className={`${deletionSurfaceClassName} px-5 py-5 lg:sticky lg:top-24 sm:px-6`}
+      aria-labelledby="deletion-information-title"
+    >
+      <div>
         <h2 id="deletion-information-title" className="text-lg font-black text-hypo-text">
           삭제 전 확인해 주세요
         </h2>
@@ -127,7 +136,7 @@ function InformationBlock({
   title: string;
 }) {
   return (
-    <section className="border-t border-hypo-border py-5">
+    <section className="border-t border-hypo-border/70 py-5">
       <div className="flex items-center gap-2 text-hypo-brand">
         {icon}
         <h3 className="text-sm font-black text-hypo-text">{title}</h3>

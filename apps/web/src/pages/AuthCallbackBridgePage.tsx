@@ -12,6 +12,7 @@ import {
   markStoredSocialAuthCompletionStarted,
   readStoredSocialAuthAttempt,
 } from "../features/auth/social/lib/socialAuthStorage";
+import { writeLastUsedSocialProvider } from "../features/auth/social/lib/lastUsedSocialProvider";
 import {
   resolveSocialAuthNavigationTarget,
 } from "../features/auth/social/model/socialAuthMachine";
@@ -111,6 +112,9 @@ export function AuthCallbackBridgePage() {
           result.returnTo ?? storedSocialAttempt.approvedReturnTo,
         );
         markStoredSocialAuthCompleted(navigationTarget);
+        if (storedSocialAttempt.intent !== "link") {
+          writeLastUsedSocialProvider(storedSocialAttempt.provider);
+        }
         clearStoredSocialAuthAttempt();
         replacePath(navigationTarget, { intent: "auth" });
       })

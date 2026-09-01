@@ -269,10 +269,10 @@ export function MapPage() {
     pendingMapSearch !== null || (!isLoading && (isFetching || isPlaceholderData));
 
   return (
-    <div className="mx-auto h-[var(--app-mobile-content-height)] w-full max-w-none overflow-hidden bg-hypo-bg md:max-[1200px]:h-[calc(100dvh-4rem)] min-[1200px]:h-full min-[1200px]:px-6 min-[1200px]:py-6">
+    <div className="mx-auto h-[var(--app-shell-content-height)] w-full max-w-none overflow-hidden bg-hypo-bg min-[1200px]:h-full min-[1200px]:px-6 min-[1200px]:py-5">
       <div
         className={cn(
-          "grid h-full w-full min-[1200px]:grid-cols-[minmax(0,1fr)_minmax(380px,420px)] min-[1200px]:rounded-hypo-lg min-[1200px]:border min-[1200px]:border-hypo-border/80",
+          "grid h-full w-full min-[1200px]:grid-cols-[minmax(0,1fr)_minmax(380px,420px)] min-[1200px]:rounded-hypo-lg min-[1200px]:border min-[1200px]:border-hypo-border",
           getWorkspaceRegionClassName({ height: "framedDesktop", scroll: "clip" }),
         )}
       >
@@ -302,7 +302,7 @@ export function MapPage() {
               } as CSSProperties
             }
             className={cn(
-              "absolute right-[max(12px,env(safe-area-inset-right))] z-30 min-[1200px]:bottom-auto min-[1200px]:right-4 min-[1200px]:top-4 min-[1200px]:block",
+              "absolute right-[max(12px,env(safe-area-inset-right))] z-30 min-[1200px]:bottom-4 min-[1200px]:right-4 min-[1200px]:top-auto min-[1200px]:block",
               selectedView || sheetLevel === "expanded"
                 ? "hidden"
                 : "bottom-[var(--map-location-button-bottom)] block",
@@ -334,7 +334,7 @@ export function MapPage() {
                   "--map-list-button-bottom": `${sheetOffsetPx + 8}px`,
                 } as CSSProperties
               }
-              className="absolute bottom-[var(--map-list-button-bottom)] left-3 z-30 inline-flex h-10 items-center gap-1.5 rounded-hypo-pill border border-hypo-border bg-hypo-surface/95 px-3 text-xs font-black text-hypo-text shadow-hypo-panel backdrop-blur transition-[bottom,background-color,color,border-color] hover:bg-hypo-brand-soft hover:text-hypo-brand min-[1200px]:hidden"
+              className="absolute bottom-[var(--map-list-button-bottom)] left-3 z-30 inline-flex h-10 items-center gap-1.5 rounded-hypo-pill border border-hypo-border bg-hypo-surface px-3 text-xs font-black text-hypo-text transition-[bottom,background-color,color,border-color] hover:border-hypo-brand/30 hover:bg-hypo-brand-soft hover:text-hypo-brand min-[1200px]:hidden"
               type="button"
               onClick={() => {
                 setSelectedPostId(null);

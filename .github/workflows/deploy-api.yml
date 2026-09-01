@@ -128,10 +128,10 @@ jobs:
 
       - name: Sync deployment assets
         run: |
-          tar -C infra/lightsail -cf - compose.yml deploy.sh \
+          tar -C infra/lightsail -cf - compose.yml deploy.sh observe-runtime.sh \
             | ssh -i "$SSH_KEY_PATH" -o IdentitiesOnly=yes \
                 "$LIGHTSAIL_USER@$LIGHTSAIL_HOST" \
-                'set -e; mkdir -p /opt/hypofit/runtime; tar -xf - -C /opt/hypofit/runtime; chmod 0755 /opt/hypofit/runtime/deploy.sh; chmod 0644 /opt/hypofit/runtime/compose.yml'
+                'set -e; mkdir -p /opt/hypofit/runtime; tar -xf - -C /opt/hypofit/runtime; chmod 0755 /opt/hypofit/runtime/deploy.sh /opt/hypofit/runtime/observe-runtime.sh; chmod 0644 /opt/hypofit/runtime/compose.yml'
 
       - name: Authenticate Lightsail to GHCR
         run: |

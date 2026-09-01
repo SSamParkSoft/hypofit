@@ -14,9 +14,14 @@ Do not add these unless explicitly requested or a new active plan reopens them:
 - complex survey builder,
 - broad social/community feed,
 - multi-tenant organization management,
-- GPU-heavy processing,
+- compute-heavy media processing,
 - a second API runtime or database on the Lightsail host,
 - thin WebView wrapper as the native store app.
+
+The optional team/company name stored on a founder profile is not multi-tenant
+organization management. It is display-only attribution on interview posts;
+membership, invitations, organization ownership, and organization permissions
+remain out of scope.
 
 ## Durable Decisions
 
@@ -44,11 +49,6 @@ Lightsail. Supabase remains the durable database and authentication system.
 ### Supabase As Durable State
 
 Supabase Postgres/Auth is the durable system of record.
-
-### Retired GPU Topology
-
-The school GPU, EC2 reverse proxy, and reverse SSH tunnel are historical and
-must not be restored as the current deployment path.
 
 ### Social-Login-Only Public Entry
 

@@ -40,5 +40,7 @@ public interface SurveyParticipationJpaRepository extends JpaRepository<SurveyPa
             @Param("participantId") UUID participantId
     );
 
+    Optional<SurveyParticipationEntity> findByPostIdAndParticipantId(UUID postId, UUID participantId);
+
     List<SurveyParticipationEntity> findAllByPostIdOrderByCreatedAtDesc(UUID postId);
 }

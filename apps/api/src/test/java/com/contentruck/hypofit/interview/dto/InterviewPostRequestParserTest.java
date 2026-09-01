@@ -31,6 +31,36 @@ class InterviewPostRequestParserTest {
     }
 
     @Test
+    void parsesOptionalClientSubmissionId() throws Exception {
+        var request = objectMapper.readValue("""
+                {
+                  "client_submission_id": "11111111-1111-1111-1111-111111111111",
+                  "title": "인터뷰 모집",
+                  "service_summary": "초기 서비스 문제를 검증하려는 인터뷰입니다.",
+                  "target_description": "최근 3개월 내 관련 경험자",
+                  "reward_amount": 15000,
+                  "duration_minutes": 30,
+                  "interview_mode": "online",
+                  "schedule_options": ["평일 저녁"],
+                  "status": "open"
+                }
+                """, InterviewPostCreateRequest.class);
+
+        assertThat(InterviewPostRequestParser.parseClientSubmissionId(request))
+                .hasToString("11111111-1111-1111-1111-111111111111");
+    }
+
+    @Test
+    void rejectsMalformedClientSubmissionId() throws Exception {
+        var request = objectMapper.readValue("""
+                { "client_submission_id": "not-a-uuid" }
+                """, InterviewPostCreateRequest.class);
+
+        assertThatThrownBy(() -> InterviewPostRequestParser.parseClientSubmissionId(request))
+                .isInstanceOf(HypofitValidationException.class);
+    }
+
+    @Test
     void createRejectsUnknownRecruitmentType() throws Exception {
         assertThatThrownBy(() -> InterviewPostRequestParser.parseCreate(objectMapper.readValue("""
                 {

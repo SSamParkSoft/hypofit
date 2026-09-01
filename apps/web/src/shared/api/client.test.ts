@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, apiBaseUrl, apiRequest } from "./client";
+import { INTERVIEW_POST_FEATURES_HEADER } from "./interviewPostFeatures";
 
 function createResponse(input: {
   body?: string;
@@ -54,7 +55,7 @@ describe("apiRequest", () => {
     expect(secondHeaders.get("X-Request-ID")).toMatch(/^req_/);
   });
 
-  it("throws a structured ApiError for the FastAPI error envelope", async () => {
+  it("throws a structured ApiError for the API error envelope", async () => {
     fetchMock.mockResolvedValue(
       createResponse({
         body: JSON.stringify({
@@ -135,5 +136,20 @@ describe("apiRequest", () => {
       kind: "abort",
       status: null,
     });
+  });
+
+  it("does not attach the interview-post capability header to unrelated requests", async () => {
+    fetchMock.mockResolvedValue(
+      createResponse({
+        body: "[]",
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      }),
+    );
+
+    await apiRequest("/api/v1/support/tickets");
+
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(headers.get(INTERVIEW_POST_FEATURES_HEADER)).toBeNull();
   });
 });

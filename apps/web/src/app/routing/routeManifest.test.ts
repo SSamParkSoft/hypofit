@@ -51,6 +51,7 @@ describe("app route manifest", () => {
   });
 
   it.each([
+    ["/landing", "outreach-landing", "standalone", "landing"],
     ["/support/inquiries/new", "support-inbox-new", "shell", "shell"],
     ["/legal/privacy", "legal-privacy", "standalone", "standalone"],
     ["/auth/social/callback", "social-auth-callback", "standalone", "standalone"],
@@ -68,6 +69,23 @@ describe("app route manifest", () => {
       expect(entry?.loading?.kind ?? null).toBe(loadingKind);
     },
   );
+
+  it("keeps outreach landing independent from an existing web session", () => {
+    const route = resolveAppRoute("/landing", { isAuthenticated: true });
+    const entry = getAppRouteManifestEntry(route, "/landing");
+
+    expect(entry?.getProps({
+      accessToken: "token",
+      appUser: null,
+      currentPath: "/landing",
+      isAuthenticated: true,
+      route,
+      usesDesktopProfileLayout: true,
+    })).toEqual({
+      isAuthenticated: false,
+      showWebEntry: false,
+    });
+  });
 
   it("falls back to the home destination entry when path matching misses", () => {
     const entry = getAppRouteManifestEntry(null, "/does-not-exist");

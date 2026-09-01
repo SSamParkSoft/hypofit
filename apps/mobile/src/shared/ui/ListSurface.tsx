@@ -65,7 +65,7 @@ export function ListRow({
 }
 
 export function SelectionPanel({ children, className = "" }: SelectionPanelProps) {
-  return <View className={`rounded-[14px] border border-hypo-border bg-hypo-bg p-3 ${className}`}>{children}</View>;
+  return <View className={`rounded-[12px] border border-hypo-border bg-hypo-surfaceMuted p-3 ${className}`}>{children}</View>;
 }
 
 function getListRowClassName({

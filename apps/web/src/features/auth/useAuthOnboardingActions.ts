@@ -75,7 +75,7 @@ export function useAuthOnboardingActions({
         setHasPendingRoleSync(false);
         return syncedUser;
       } catch (error) {
-        setErrorMessage("역할을 저장하지 못했습니다.");
+        setErrorMessage("가입을 완료하지 못했어요.");
         throw error;
       } finally {
         setIsSyncing(false);

@@ -66,7 +66,7 @@ Relevant existing files:
 - `apps/api/scripts/store_review_smoke.py`
 - `docs/reference/ios-store-readiness/apple-app-store-metadata-review-assets-plan.md`
 - `docs/reference/google-play-first-launch-readiness-plan.md`
-- `docs/reference/api-operations-readiness-implementation-history.md`
+- `docs/completed/api-operations-readiness-implementation-history.md`
 
 Current existing seed assets:
 

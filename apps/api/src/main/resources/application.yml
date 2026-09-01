@@ -57,6 +57,8 @@ hypofit:
   supabase-jwks-url: ${SUPABASE_JWKS_URL:}
   supabase-jwt-issuer: ${SUPABASE_JWT_ISSUER:}
   supabase-jwks-cache-seconds: ${SUPABASE_JWKS_CACHE_SECONDS:300}
+  supabase-jwks-connect-timeout-millis: ${SUPABASE_JWKS_CONNECT_TIMEOUT_MILLIS:1500}
+  supabase-jwks-read-timeout-millis: ${SUPABASE_JWKS_READ_TIMEOUT_MILLIS:3000}
   jwt-audience: ${JWT_AUDIENCE:authenticated}
   kakao-rest-api-key: ${KAKAO_REST_API_KEY:}
   support-email: ${SUPPORT_EMAIL:ssamso8282@gmail.com}

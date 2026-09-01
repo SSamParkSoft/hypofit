@@ -1,6 +1,5 @@
 import { Alert, Image, Modal, Pressable, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { getRoleLabel } from "@hypofit/contracts";
 import type { ChatRoom, UserSummary } from "@hypofit/contracts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -31,7 +30,6 @@ export function CounterpartProfileModal({
   if (!room) return null;
 
   const name = counterpart?.name ?? "상대방";
-  const role = counterpart ? getRoleLabel(counterpart.role) : "인터뷰 상대";
   const bio = counterpart?.bio || getFallbackBio(counterpart, room);
   const interviewTitle = room.interview_post?.title ?? "인터뷰 대화";
   const activeBlock = counterpart?.id
@@ -102,9 +100,6 @@ export function CounterpartProfileModal({
             <Text numberOfLines={1} className="mt-3 max-w-full text-xl font-black text-hypo-text">
               {name}
             </Text>
-            <View className="mt-2 rounded-full bg-hypo-brandSoft px-3 py-1">
-              <Text className="text-xs font-black text-hypo-brand">{role}</Text>
-            </View>
             <Text className="mt-3 text-center text-sm font-bold leading-[21px] text-hypo-muted">
               {bio}
             </Text>
@@ -203,9 +198,9 @@ function getAvatarInitials(name?: string | null) {
 }
 
 function getFallbackBio(counterpart: UserSummary | null | undefined, room: ChatRoom) {
-  if (!counterpart) return "인터뷰 조율을 위해 연결된 상대입니다.";
-  if (counterpart.id === room.founder_id) return "모집글을 만든 창업자입니다.";
-  return "인터뷰에 신청한 참여자입니다.";
+  if (!counterpart) return "이 공고를 통해 연결된 상대예요.";
+  if (counterpart.id === room.founder_id) return "이 공고를 올린 사용자예요.";
+  return "이 공고에 신청한 사용자예요.";
 }
 
 function getBlockActionErrorMessage(action: "block" | "unblock", error: unknown) {

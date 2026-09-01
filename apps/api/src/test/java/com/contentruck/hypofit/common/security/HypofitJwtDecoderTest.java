@@ -18,6 +18,7 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.Test;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -37,7 +38,8 @@ class HypofitJwtDecoderTest {
 
     @Test
     void decodesHs256TokenWhenSecretConfigurationIsPresent() throws Exception {
-        HypofitJwtDecoder decoder = new HypofitJwtDecoder(propertiesWithSecret(SIGNING_SECRET));
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+        HypofitJwtDecoder decoder = new HypofitJwtDecoder(propertiesWithSecret(SIGNING_SECRET), meterRegistry);
 
         Jwt decoded = decoder.decode(token(
                 SIGNING_SECRET,
@@ -49,6 +51,7 @@ class HypofitJwtDecoderTest {
         assertEquals(USER_ID, decoded.getSubject());
         assertEquals(List.of(AUDIENCE), decoded.getAudience());
         assertEquals("authenticated", decoded.getClaimAsString("role"));
+        assertEquals(1.0d, meterRegistry.timer("hypofit.auth.jwt.decode", "outcome", "success").count());
     }
 
     @Test

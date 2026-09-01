@@ -115,10 +115,10 @@ function SegmentButton({
       aria-controls={panelId}
       aria-selected={isActive}
       className={cn(
-        "ui-control-text inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-hypo-pill px-4 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20",
+        "ui-control-text inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-hypo-lg border px-3.5 transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20",
         isActive
-          ? "bg-hypo-brand text-white shadow-hypo-panel"
-          : "border border-hypo-border bg-hypo-surface text-hypo-text-muted hover:border-hypo-brand/40 hover:text-hypo-text",
+          ? "border-hypo-brand bg-hypo-surface text-hypo-brand"
+          : "border-hypo-border bg-hypo-surface text-hypo-text-muted hover:border-hypo-brand/40 hover:text-hypo-text",
       )}
       id={id}
       role="tab"
@@ -130,8 +130,10 @@ function SegmentButton({
       {label}
       <span
         className={cn(
-          "grid min-w-5 place-items-center rounded-hypo-pill px-1.5 text-[11px]",
-          isActive ? "bg-white/20 text-white" : "bg-hypo-surface-muted text-hypo-text-soft",
+          "grid min-w-5 place-items-center rounded-hypo-md px-1.5 text-[11px]",
+          isActive
+            ? "bg-hypo-brand-soft text-hypo-brand"
+            : "bg-hypo-surface-muted text-hypo-text-soft",
         )}
       >
         {count}

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
+import jakarta.persistence.EntityManager;
 
 @Repository
 public class SurveyParticipationRepositoryAdapter implements SurveyParticipationRepository {
@@ -28,15 +29,18 @@ public class SurveyParticipationRepositoryAdapter implements SurveyParticipation
     private final SurveyUserAccountJpaRepository userAccountJpaRepository;
     private final SurveyInterviewPostJpaRepository interviewPostJpaRepository;
     private final SurveyParticipationJpaRepository participationJpaRepository;
+    private final EntityManager entityManager;
 
     public SurveyParticipationRepositoryAdapter(
             SurveyUserAccountJpaRepository userAccountJpaRepository,
             SurveyInterviewPostJpaRepository interviewPostJpaRepository,
-            SurveyParticipationJpaRepository participationJpaRepository
+            SurveyParticipationJpaRepository participationJpaRepository,
+            EntityManager entityManager
     ) {
         this.userAccountJpaRepository = userAccountJpaRepository;
         this.interviewPostJpaRepository = interviewPostJpaRepository;
         this.participationJpaRepository = participationJpaRepository;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -59,6 +63,27 @@ public class SurveyParticipationRepositoryAdapter implements SurveyParticipation
     public Optional<SurveyParticipationReadModel> findParticipationForUpdate(UUID postId, UUID participantId) {
         return participationJpaRepository.findForUpdate(postId, participantId)
                 .map(this::toReadModel);
+    }
+
+    @Override
+    public Optional<SurveyParticipationReadModel> findParticipation(UUID postId, UUID participantId) {
+        return participationJpaRepository.findByPostIdAndParticipantId(postId, participantId)
+                .map(this::toReadModel);
+    }
+
+    @Override
+    public boolean hasSelectedApplication(UUID postId, UUID participantId) {
+        Number count = (Number) entityManager.createNativeQuery("""
+                        select count(*)
+                        from applications
+                        where interview_post_id = :postId
+                          and respondent_id = :participantId
+                          and status = 'selected'
+                        """)
+                .setParameter("postId", postId)
+                .setParameter("participantId", participantId)
+                .getSingleResult();
+        return count.longValue() > 0;
     }
 
     @Override
@@ -123,6 +148,7 @@ public class SurveyParticipationRepositoryAdapter implements SurveyParticipation
                 entity.getId(),
                 entity.getFounderId(),
                 entity.getRecruitmentType(),
+                entity.getEntryMode(),
                 entity.getStatus(),
                 entity.getParticipationDeadlineAt(),
                 entity.getExternalUrl()

@@ -4,7 +4,6 @@ import { ApplicationForm, useApplicationFormController } from "../../application
 import type { CreateApplicationInput } from "../../../shared/api/applications";
 import type { Application, InterviewPost } from "../../../shared/api/types";
 import { navigateTo, navigateToInterviewDetail } from "../../../shared/navigation/appNavigation";
-import { Badge } from "../../../shared/ui/badge";
 import { Button } from "../../../shared/ui/button";
 import { cn } from "../../../shared/ui/cn";
 import { ApplicationStatusBadge } from "../../../shared/ui/status-badge";
@@ -43,7 +42,7 @@ export function OpportunityExpandedDetail({
   const canSubmit = canApply && post.status === "open" && !hasApplied;
 
   return (
-    <section className={cn("grid gap-4 rounded-hypo-lg border border-hypo-border bg-hypo-surface p-4", className)}>
+    <section className={cn("grid gap-4", className)}>
       <div className="grid gap-3">
         <p className="text-sm leading-6 text-hypo-text-muted">{post.service_summary}</p>
 
@@ -62,28 +61,28 @@ export function OpportunityExpandedDetail({
           가능 시간
         </h4>
         {post.schedule_options.length ? (
-          <div className="flex flex-wrap gap-2">
+          <ul className="divide-y divide-hypo-border rounded-hypo-lg border border-hypo-border bg-hypo-bg">
             {post.schedule_options.map((option) => (
-              <Badge key={option} intent="neutral">
+              <li key={option} className="px-3 py-2 text-sm leading-6 text-hypo-text">
                 {option}
-              </Badge>
+              </li>
             ))}
-          </div>
+          </ul>
         ) : (
           <p className="text-sm leading-6 text-hypo-text-muted">신청 후 모집자와 일정을 조율해요.</p>
         )}
       </div>
 
       {hasApplied && appliedStatusMode === "minimal" ? (
-        <div className="rounded-hypo-md bg-hypo-brand-soft px-4 py-3 text-sm font-semibold text-hypo-brand">
+        <div className="rounded-hypo-lg border border-hypo-border bg-hypo-bg px-4 py-3 text-sm font-semibold text-hypo-text">
           신청을 보냈어요
         </div>
       ) : hasApplied ? (
         <div className="grid gap-3 border-t border-hypo-border pt-4">
-          <div className="rounded-hypo-md bg-hypo-brand-soft px-4 py-3">
+          <div className="rounded-hypo-lg border border-hypo-border bg-hypo-bg px-4 py-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <strong className="block text-sm font-semibold text-hypo-brand">신청을 보냈어요</strong>
+                <strong className="block text-sm font-semibold text-hypo-text">신청을 보냈어요</strong>
                 <p className="mt-1 text-sm leading-5 text-hypo-text-muted">
                   이후 조율은 내 인터뷰나 채팅에서 이어갈 수 있어요.
                 </p>

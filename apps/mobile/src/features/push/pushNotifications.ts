@@ -56,7 +56,7 @@ export async function configureNotificationRuntime() {
       name: "Hypofit 알림",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 220, 120, 220],
-      lightColor: "#176B5D",
+      lightColor: "#0F7A4D",
       sound: "default",
     });
   }
