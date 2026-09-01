@@ -47,7 +47,7 @@ dependencies {
     implementation("com.nimbusds:nimbus-jose-jwt")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
-    implementation("org.springframework.modulith:spring-modulith-starter-core:2.1.0")
+    implementation("org.springframework.modulith:spring-modulith-starter-core:2.1.1")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     runtimeOnly("org.postgresql:postgresql")
 
@@ -55,7 +55,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.springframework.modulith:spring-modulith-starter-test:2.1.0")
+    testImplementation("org.springframework.modulith:spring-modulith-starter-test:2.1.1")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
 }
