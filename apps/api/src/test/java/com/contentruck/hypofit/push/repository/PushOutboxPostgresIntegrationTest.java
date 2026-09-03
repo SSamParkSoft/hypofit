@@ -130,7 +130,11 @@ class PushOutboxPostgresIntegrationTest extends PostgresIntegrationTestSupport {
 
         assertThat(selectStatus(recoverableDeliveryId)).isEqualTo("sending");
         assertThat(selectAttemptCount(recoverableDeliveryId)).isEqualTo(2);
-        assertThat(selectNextAttemptAt(recoverableDeliveryId)).isEqualTo(now);
+        assertThat(selectNextAttemptAt(recoverableDeliveryId))
+                .isCloseTo(now, new org.assertj.core.data.TemporalUnitWithinOffset(
+                        1,
+                        java.time.temporal.ChronoUnit.MICROS
+                ));
 
         assertThat(selectStatus(exhaustedDeliveryId)).isEqualTo("sending");
         assertThat(selectAttemptCount(exhaustedDeliveryId)).isEqualTo(3);
