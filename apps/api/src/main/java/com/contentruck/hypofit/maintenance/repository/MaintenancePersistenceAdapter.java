@@ -34,6 +34,14 @@ public class MaintenancePersistenceAdapter implements MaintenanceRepository {
             """, params(id, actorId, c));
         return find(id).orElseThrow();
     }
+    @Override public MaintenanceRecord createInProgress(UUID actorId, WriteCommand c, OffsetDateTime now) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+            insert into service_maintenances (id,title,message,status,mode,starts_at,ends_at,show_banner,banner_starts_at,created_by,updated_by,started_at)
+            values (:id,:title,:message,'IN_PROGRESS','FULL',:startsAt,:endsAt,false,null,:actorId,:actorId,:now)
+            """, params(id, actorId, c).addValue("now", now));
+        return find(id).orElseThrow();
+    }
     @Override public void linkNotice(UUID id, UUID noticeId) {
         jdbc.update("update service_maintenances set notice_id = :noticeId, updated_at = now(), version = version + 1 where id = :id", Map.of("id", id, "noticeId", noticeId));
     }

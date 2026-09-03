@@ -15,6 +15,11 @@ import type {
   AdminTicketReplyInput,
   AdminTicketStatusUpdateInput,
   PushDispatchResult,
+  AdminNotice,
+  AdminNoticeInput,
+  AdminMaintenance,
+  AdminEmergencyMaintenanceInput,
+  AdminMaintenanceInput,
 } from "./types";
 
 function buildTicketQuery(params?: AdminTicketListParams) {
@@ -138,5 +143,41 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify(input),
     });
+  },
+
+  listNotices(accessToken?: string | null) {
+    return apiRequest<AdminNotice[]>("/api/v1/admin/notices", { accessToken });
+  },
+
+  createNotice(input: AdminNoticeInput, accessToken?: string | null) {
+    return apiRequest<AdminNotice>("/api/v1/admin/notices", { accessToken, method: "POST", body: JSON.stringify(input) });
+  },
+
+  publishNotice(id: string, accessToken?: string | null) {
+    return apiRequest<AdminNotice>(`/api/v1/admin/notices/${encodeURIComponent(id)}/publish`, { accessToken, method: "POST" });
+  },
+
+  archiveNotice(id: string, accessToken?: string | null) {
+    return apiRequest<AdminNotice>(`/api/v1/admin/notices/${encodeURIComponent(id)}/archive`, { accessToken, method: "POST" });
+  },
+
+  listMaintenances(accessToken?: string | null) {
+    return apiRequest<AdminMaintenance[]>("/api/v1/admin/maintenances", { accessToken });
+  },
+
+  createMaintenance(input: AdminMaintenanceInput, accessToken?: string | null) {
+    return apiRequest<AdminMaintenance>("/api/v1/admin/maintenances", { accessToken, method: "POST", body: JSON.stringify(input) });
+  },
+
+  emergencyStartMaintenance(input: AdminEmergencyMaintenanceInput, accessToken?: string | null) {
+    return apiRequest<AdminMaintenance>("/api/v1/admin/maintenances/emergency-start", {
+      accessToken,
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  transitionMaintenance(id: string, action: "start" | "verify" | "complete" | "cancel", accessToken?: string | null) {
+    return apiRequest<AdminMaintenance>(`/api/v1/admin/maintenances/${encodeURIComponent(id)}/${action}`, { accessToken, method: "POST" });
   },
 } as const;

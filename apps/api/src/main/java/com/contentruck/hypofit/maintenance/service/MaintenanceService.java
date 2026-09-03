@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -93,6 +94,36 @@ public class MaintenanceService {
     }
 
     @Transactional
+    public MaintenanceRepository.MaintenanceRecord emergencyStart(
+            UUID actor,
+            MaintenanceRepository.WriteCommand command,
+            boolean createNotice
+    ) {
+        validate(command);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        try {
+            MaintenanceRepository.MaintenanceRecord maintenance = repository.createInProgress(actor, command, now);
+            if (createNotice) {
+                NoticeRepository.NoticeRecord notice = noticeService.create(
+                        actor,
+                        new NoticeRepository.NoticeWriteCommand(
+                                "MAINTENANCE",
+                                command.title(),
+                                renderedNoticeBody(command, true)
+                        )
+                );
+                noticeService.publish(actor, notice.id());
+                repository.linkNotice(maintenance.id(), notice.id());
+                maintenance = get(maintenance.id());
+            }
+            audit(actor, "MAINTENANCE_EMERGENCY_STARTED", maintenance);
+            return maintenance;
+        } catch (DataIntegrityViolationException exception) {
+            throw conflict();
+        }
+    }
+
+    @Transactional
     public MaintenanceRepository.MaintenanceRecord verify(UUID actor, UUID id) {
         return transition(actor, id, "IN_PROGRESS", "VERIFYING", "MAINTENANCE_VERIFYING");
     }
@@ -118,13 +149,18 @@ public class MaintenanceService {
             String to,
             String event
     ) {
-        MaintenanceRepository.MaintenanceRecord maintenance = repository.transition(
-                id,
-                actor,
-                from,
-                to,
-                OffsetDateTime.now(ZoneOffset.UTC)
-        );
+        MaintenanceRepository.MaintenanceRecord maintenance;
+        try {
+            maintenance = repository.transition(
+                    id,
+                    actor,
+                    from,
+                    to,
+                    OffsetDateTime.now(ZoneOffset.UTC)
+            );
+        } catch (DataIntegrityViolationException exception) {
+            throw conflict();
+        }
         if (maintenance == null) {
             throw conflict();
         }
@@ -176,8 +212,12 @@ public class MaintenanceService {
     }
 
     private String renderedNoticeBody(MaintenanceRepository.WriteCommand command) {
+        return renderedNoticeBody(command, false);
+    }
+
+    private String renderedNoticeBody(MaintenanceRepository.WriteCommand command, boolean inProgress) {
         return command.message()
-                + "\n\n점검 예정: "
+                + (inProgress ? "\n\n점검 시작: " : "\n\n점검 예정: ")
                 + command.startsAt()
                 + (command.endsAt() == null ? "" : " ~ " + command.endsAt());
     }

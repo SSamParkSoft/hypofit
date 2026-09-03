@@ -10,9 +10,11 @@ import { getApiErrorMessage } from "../../shared/api/errorPresentation";
 
 type AdminBadgeIntent = "brand" | "warning" | "success" | "neutral" | "danger" | "info";
 
-export type AdminSection = "tickets" | "reports" | "deletion" | "health" | "push";
+export type AdminSection = "tickets" | "reports" | "deletion" | "health" | "push" | "notices" | "operations";
 
 export const adminSections: ReadonlyArray<{ id: AdminSection; label: string }> = [
+  { id: "operations", label: "서비스 운영" },
+  { id: "notices", label: "공지사항" },
   { id: "tickets", label: "문의" },
   { id: "reports", label: "신고" },
   { id: "deletion", label: "계정 삭제" },

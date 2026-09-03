@@ -7,6 +7,8 @@ import {
   AdminSectionNavigation,
   AdminSummaryStrip,
   HealthPanel,
+  MaintenancePanel,
+  NoticePanel,
   PushPanel,
   SupportTicketDetailPanel,
   SupportTicketListPanel,
@@ -19,6 +21,8 @@ import type {
   AdminMe,
   AdminSupportTicket,
   AdminSummary,
+  AdminMaintenance,
+  AdminNotice,
   AdminTargetPreview,
   SupportTicketKind,
   SupportTicketStatus,
@@ -33,6 +37,8 @@ export function AdminPage({ accessToken }: AdminPageProps) {
   const [admin, setAdmin] = useState<AdminMe | null>(null);
   const [summary, setSummary] = useState<AdminSummary | null>(null);
   const [tickets, setTickets] = useState<AdminSupportTicket[]>([]);
+  const [notices, setNotices] = useState<AdminNotice[]>([]);
+  const [maintenances, setMaintenances] = useState<AdminMaintenance[]>([]);
   const [deletionRequests, setDeletionRequests] = useState<AdminAccountDeletionRequest[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [selectedDeletionRequestId, setSelectedDeletionRequestId] = useState<string | null>(null);
@@ -77,6 +83,16 @@ export function AdminPage({ accessToken }: AdminPageProps) {
       ]);
       setAdmin(adminMe);
       setSummary(nextSummary);
+
+      if (section === "notices") {
+        setNotices(await adminApi.listNotices(accessToken));
+        return;
+      }
+
+      if (section === "operations") {
+        setMaintenances(await adminApi.listMaintenances(accessToken));
+        return;
+      }
 
       if (section === "deletion") {
         const nextRequests = await adminApi.listAccountDeletionRequests(
@@ -222,7 +238,11 @@ export function AdminPage({ accessToken }: AdminPageProps) {
             <ErrorState title="처리하지 못했습니다.">{errorMessage}</ErrorState>
           ) : null}
 
-          {section === "health" ? (
+          {section === "notices" ? (
+            <NoticePanel accessToken={accessToken} notices={notices} onChanged={handleAction} onError={setErrorMessage} />
+          ) : section === "operations" ? (
+            <MaintenancePanel accessToken={accessToken} maintenances={maintenances} onChanged={handleAction} onError={setErrorMessage} />
+          ) : section === "health" ? (
             <HealthPanel health={summary?.health ?? null} healthJson={healthJson} onRefresh={handleHealthRefresh} />
           ) : section === "push" ? (
             <PushPanel accessToken={accessToken} onAction={handleAction} onError={setErrorMessage} />

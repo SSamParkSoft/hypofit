@@ -30,7 +30,7 @@ vi.mock("../features/admin/components", () => ({
     onSectionChange,
     section,
   }: {
-    onSectionChange: (section: "tickets" | "reports" | "deletion" | "health" | "push") => void;
+    onSectionChange: (section: "tickets" | "reports" | "deletion" | "health" | "push" | "notices" | "operations") => void;
     section: string;
   }) => (
     <nav aria-label="관리자 섹션">
@@ -46,6 +46,9 @@ vi.mock("../features/admin/components", () => ({
       </button>
       <button type="button" onClick={() => onSectionChange("deletion")}>
         계정 삭제
+      </button>
+      <button type="button" onClick={() => onSectionChange("operations")}>
+        서비스 운영
       </button>
     </nav>
   ),
@@ -69,6 +72,10 @@ vi.mock("../features/admin/components", () => ({
       </button>
     </section>
   ),
+  MaintenancePanel: ({ maintenances = [] }: { maintenances?: unknown[] }) => (
+    <div>{`maintenances:${maintenances.length}`}</div>
+  ),
+  NoticePanel: ({ notices = [] }: { notices?: unknown[] }) => <div>{`notices:${notices.length}`}</div>,
   PushPanel: ({
     accessToken,
     onAction,
@@ -117,6 +124,8 @@ vi.mock("../shared/api/admin", () => ({
     getSummary: (...args: unknown[]) => mocks.getSummary(...args),
     getTargetPreview: (...args: unknown[]) => mocks.getTargetPreview(...args),
     listAccountDeletionRequests: (...args: unknown[]) => mocks.listAccountDeletionRequests(...args),
+    listMaintenances: vi.fn().mockResolvedValue([]),
+    listNotices: vi.fn().mockResolvedValue([]),
     listTickets: (...args: unknown[]) => mocks.listTickets(...args),
   },
 }));
@@ -218,5 +227,16 @@ describe("AdminPage", () => {
     await waitFor(() =>
       expect(mocks.listTickets).toHaveBeenCalledTimes(listTicketCallsBeforeAction + 1),
     );
+  });
+
+  it("loads the service operations section", async () => {
+    const user = userEvent.setup();
+
+    render(<AdminPage accessToken="token" />);
+    expect(await screen.findByText("list:tickets:0")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "서비스 운영" }));
+
+    expect(await screen.findByText("maintenances:0")).toBeInTheDocument();
   });
 });

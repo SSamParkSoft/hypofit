@@ -53,6 +53,20 @@ public class MaintenanceController {
         );
     }
 
+    @PostMapping("/api/v1/admin/maintenances/emergency-start")
+    public MaintenanceModels.MaintenanceResponse emergencyStart(
+            @Valid @RequestBody MaintenanceModels.EmergencyStartRequest request,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        return MaintenanceModels.MaintenanceResponse.from(
+                service.emergencyStart(
+                        admin.requireAdmin(jwt).id(),
+                        request.toCommand(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC)),
+                        request.createNotice()
+                )
+        );
+    }
+
     @GetMapping("/api/v1/admin/maintenances/{id}")
     public MaintenanceModels.MaintenanceResponse get(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         admin.requireAdmin(jwt);

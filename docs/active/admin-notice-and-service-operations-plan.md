@@ -81,6 +81,31 @@ This plan deliberately excludes:
 
 Only `FULL` maintenance is exposed to operators and clients in this plan.
 
+### 3.1 Immediate emergency maintenance
+
+Scheduled maintenance and an unplanned emergency are separate operator tasks.
+The Admin must not require an operator to first create a future record and then
+press a second start action during an incident.
+
+The P0 Admin therefore provides an explicit, confirmed action:
+
+```text
+POST /api/v1/admin/maintenances/emergency-start
+```
+
+It atomically creates one `FULL` maintenance in `IN_PROGRESS`, stamps its
+actual start time, optionally creates and publishes a linked `MAINTENANCE`
+notice, and writes `MAINTENANCE_EMERGENCY_STARTED` to the existing audit log.
+It accepts only public-safe title, message, optional expected end, and notice
+creation choice. It cannot control Nginx, deployments, or infrastructure
+maintenance flags.
+
+The Admin uses clear duration presets (`30분`, `1시간`, `2시간`, `미정`) and a
+date-plus-time fallback rather than a single raw `datetime-local` field.
+Emergency start requires one final confirmation because it immediately causes
+application-level `503 maintenance_in_progress` responses. The single-active
+maintenance database invariant remains the final concurrency guard.
+
 ## 4. Canonical Ownership And Data Flow
 
 ```text
@@ -278,6 +303,7 @@ POST  /api/v1/admin/maintenances/{id}/start
 POST  /api/v1/admin/maintenances/{id}/verify
 POST  /api/v1/admin/maintenances/{id}/complete
 POST  /api/v1/admin/maintenances/{id}/cancel
+POST  /api/v1/admin/maintenances/emergency-start
 ```
 
 All require Admin authorization. The patch endpoint changes only title,
@@ -468,6 +494,12 @@ cancel    -> confirms the scheduled public communication is being cancelled
 Button geometry is stable during mutations and retryable failures preserve
 form values. Destructive red treatment is reserved for archive/cancel; starting
 maintenance can use primary emphasis plus clear warning copy.
+
+The operations page keeps an active maintenance callout above all forms. When
+there is no active row, it presents a distinct emergency section before the
+ordinary scheduling form. A current emergency does not hide the history or
+recovery controls, but it disables starts of scheduled rows until the active
+maintenance is completed.
 
 ## 11. Mobile Integration
 

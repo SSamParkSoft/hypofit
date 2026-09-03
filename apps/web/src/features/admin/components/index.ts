@@ -4,6 +4,8 @@ export { AdminAccessState } from "./AdminAccessState";
 export { AdminSectionNavigation } from "./AdminSectionNavigation";
 export { AdminSummaryStrip } from "./AdminSummaryStrip";
 export { HealthPanel } from "./HealthPanel";
+export { MaintenancePanel } from "./MaintenancePanel";
+export { NoticePanel } from "./NoticePanel";
 export { PushPanel } from "./PushPanel";
 export { SupportTicketDetailPanel } from "./SupportTicketDetailPanel";
 export { SupportTicketListPanel } from "./SupportTicketListPanel";

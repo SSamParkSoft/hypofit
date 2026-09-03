@@ -11,6 +11,7 @@ public interface MaintenanceRepository {
     Optional<MaintenanceRecord> findActive();
     Optional<MaintenanceRecord> findVisibleScheduled(OffsetDateTime now);
     MaintenanceRecord create(UUID actorId, WriteCommand command);
+    MaintenanceRecord createInProgress(UUID actorId, WriteCommand command, OffsetDateTime now);
     void linkNotice(UUID id, UUID noticeId);
     MaintenanceRecord update(UUID id, UUID actorId, WriteCommand command);
     MaintenanceRecord transition(UUID id, UUID actorId, String fromStatus, String toStatus, OffsetDateTime now);
