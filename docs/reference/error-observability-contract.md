@@ -99,6 +99,22 @@ Current examples include `AuthRequiredException`,
 `HypofitValidationException`, and domain-specific permission, not-found, and
 conflict subclasses.
 
+### Planned service maintenance
+
+An operator-declared full maintenance period is distinct from authentication
+verifier availability and generic upstream failure. Nginx returns the standard
+envelope with HTTP `503`, `error.code = maintenance_in_progress`, Korean retry
+copy, `Cache-Control: no-store`, and a bounded `Retry-After` header. The public
+`GET /api/v1/service-status` response contains only safe title, message, mode,
+and optional ETA details while Spring or Postgres may be unavailable.
+
+Mobile activates its full maintenance surface only for the exact
+`503 maintenance_in_progress` combination. It preserves the Supabase session,
+local posting draft, and client submission ID, and does not retry a mutation in
+the background. `auth_verifier_unavailable`, generic `503`, `502`, `504`, and
+network failure retain their own retry/error paths and must never log the user
+out or falsely claim planned maintenance.
+
 Route handlers should stay thin:
 
 ```text

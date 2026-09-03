@@ -8,6 +8,8 @@ public interface AdminAccessRepository {
 
     Optional<AdminActorRecord> findActorAccount(UUID userId);
 
+    boolean isAdmin(UUID userId);
+
     record AdminActorRecord(
             UUID id,
             String email,

@@ -33,6 +33,16 @@ public class AdminAccessPersistenceAdapter implements AdminAccessRepository {
                 .findFirst();
     }
 
+    @Override
+    public boolean isAdmin(UUID userId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        select count(*)
+                        from admin_users
+                        where user_id = :userId
+                        """, Map.of("userId", userId), Integer.class);
+        return count != null && count > 0;
+    }
+
     private static AdminActorRecord mapAdminActor(ResultSet resultSet, int rowNum) throws SQLException {
         return new AdminActorRecord(
                 resultSet.getObject("id", UUID.class),

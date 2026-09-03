@@ -33,6 +33,8 @@ public interface ApplicationWorkflowRepository {
 
     boolean hasScheduledVisibleSession(UUID applicationId);
 
+    long countSelectedVisibleApplications(UUID interviewPostId);
+
     Optional<ApplicationReadModel> updateStatusIfCurrent(
             UUID applicationId,
             String nextStatus,

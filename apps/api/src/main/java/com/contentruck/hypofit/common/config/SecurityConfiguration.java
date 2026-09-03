@@ -38,6 +38,8 @@ public class SecurityConfiguration {
                         "/swagger-ui.html"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/interview-posts/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/notices/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/service-status").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/places/search").permitAll()
                 .requestMatchers("/api/v1/account-deletion-requests/public/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

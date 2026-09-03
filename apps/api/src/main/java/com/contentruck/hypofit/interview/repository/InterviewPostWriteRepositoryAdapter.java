@@ -6,6 +6,7 @@ import com.contentruck.hypofit.interview.service.InterviewPostCreateCommand;
 import com.contentruck.hypofit.interview.service.InterviewPostWriteRepository;
 import com.contentruck.hypofit.interview.service.InterviewPostActorAccount;
 import com.contentruck.hypofit.interview.service.InterviewPostWriteModel;
+import com.contentruck.hypofit.interview.service.PostingCreationConfiguration;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.List;
@@ -92,6 +93,7 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
         entity.setTitle(command.title());
         entity.setServiceSummary(command.serviceSummary());
         entity.setTargetDescription(command.targetDescription());
+        entity.setParticipantRequirements(command.participantRequirements());
         entity.setRewardAmount(command.rewardAmount());
         entity.setCompensations(command.compensations());
         entity.setDurationMinutes(command.durationMinutes());
@@ -113,6 +115,7 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
         entity.setLocationPrecision(command.locationPrecision());
         entity.setLocationSource(command.locationSource());
         entity.setScheduleOptions(command.scheduleOptions());
+        applyCreationConfiguration(entity, command.creationConfiguration());
         entity.setStatus(command.status());
         entityManager.persist(entity);
         entityManager.flush();
@@ -163,8 +166,13 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
                 case "entryMode" -> entity.setEntryMode((String) entry.getValue());
                 case "serviceSummary" -> entity.setServiceSummary((String) entry.getValue());
                 case "targetDescription" -> entity.setTargetDescription((String) entry.getValue());
+                case "participantRequirements" -> entity.setParticipantRequirements((List<String>) entry.getValue());
                 case "rewardAmount" -> entity.setRewardAmount((Integer) entry.getValue());
                 case "durationMinutes" -> entity.setDurationMinutes((Integer) entry.getValue());
+                case "creationConfiguration" -> applyCreationConfiguration(
+                        entity,
+                        (PostingCreationConfiguration) entry.getValue()
+                );
                 case "recruitCount" -> entity.setRecruitCount((Integer) entry.getValue());
                 case "externalProvider" -> entity.setExternalProvider((String) entry.getValue());
                 case "externalUrl" -> entity.setExternalUrl((String) entry.getValue());
@@ -246,7 +254,45 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
                 entity.getScheduleOptions(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getEntryMode()
+                entity.getEntryMode(),
+                entity.getParticipantRequirements(),
+                creationConfiguration(entity)
+        );
+    }
+
+    private void applyCreationConfiguration(
+            InterviewPostEntity entity,
+            PostingCreationConfiguration configuration
+    ) {
+        PostingCreationConfiguration value = configuration == null
+                ? PostingCreationConfiguration.empty()
+                : configuration;
+        entity.setDurationValue(value.durationValue());
+        entity.setDurationUnit(value.durationUnit());
+        String scheduleMode = value.scheduleMode();
+        if (scheduleMode == null || scheduleMode.isBlank()) {
+            scheduleMode = entity.getScheduleOptions().isEmpty() ? "negotiated" : "recurring";
+        }
+        entity.setScheduleMode(scheduleMode);
+        entity.setScheduleFixedSlots(value.scheduleFixedSlots());
+        entity.setScheduleRecurringWindows(value.scheduleRecurringWindows());
+        entity.setScheduleNote(value.scheduleNote());
+        entity.setRecruitmentLimitMode(value.recruitmentLimitMode());
+        entity.setBetaTestEnvironment(value.betaTestEnvironment());
+        entity.setBetaTestWorkflowNote(value.betaTestWorkflowNote());
+    }
+
+    private PostingCreationConfiguration creationConfiguration(InterviewPostEntity entity) {
+        return new PostingCreationConfiguration(
+                entity.getDurationValue(),
+                entity.getDurationUnit(),
+                entity.getScheduleMode(),
+                entity.getScheduleFixedSlots(),
+                entity.getScheduleRecurringWindows(),
+                entity.getScheduleNote(),
+                entity.getRecruitmentLimitMode(),
+                entity.getBetaTestEnvironment(),
+                entity.getBetaTestWorkflowNote()
         );
     }
 

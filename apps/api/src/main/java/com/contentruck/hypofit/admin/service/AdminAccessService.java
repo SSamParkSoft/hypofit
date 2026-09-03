@@ -1,15 +1,11 @@
 package com.contentruck.hypofit.admin.service;
 
 
-import com.contentruck.hypofit.common.config.HypofitProperties;
 import com.contentruck.hypofit.common.error.AuthRequiredException;
 import com.contentruck.hypofit.user.service.UserAccountDeactivatedException;
 import com.contentruck.hypofit.user.service.UserAccountDeletedException;
 import com.contentruck.hypofit.user.service.UserProfileMissingException;
-import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
@@ -17,14 +13,8 @@ import org.springframework.stereotype.Service;
 public class AdminAccessService {
 
     private final AdminAccessRepository repository;
-    private final Set<String> adminEmails;
-
-    public AdminAccessService(AdminAccessRepository repository, HypofitProperties properties) {
+    public AdminAccessService(AdminAccessRepository repository) {
         this.repository = repository;
-        this.adminEmails = properties.getAdminEmails().stream()
-                .filter(email -> email != null && !email.isBlank())
-                .map(email -> email.trim().toLowerCase(Locale.ROOT))
-                .collect(Collectors.toUnmodifiableSet());
     }
 
     public CurrentAdmin requireAdmin(Jwt jwt) {
@@ -49,8 +39,7 @@ public class AdminAccessService {
             throw new UserAccountDeactivatedException();
         }
 
-        String email = actor.email() == null ? "" : actor.email().trim().toLowerCase(Locale.ROOT);
-        if (!adminEmails.contains(email)) {
+        if (!repository.isAdmin(actor.id())) {
             throw new AdminPermissionDeniedException();
         }
 

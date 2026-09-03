@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${HYPOFIT_API_SMOKE_ACCESS_TOKEN:?Set a dedicated smoke-user access token in this process only.}"
+: "${HYPOFIT_API_SMOKE_ACCESS_TOKEN:?Set a short-lived access token from an interactive social login in this process only.}"
 
 api_base_url="${HYPOFIT_API_BASE_URL:-https://hypofit-api.bukae.co.kr}"
 headers_file="$(mktemp)"

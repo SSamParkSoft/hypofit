@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import com.contentruck.hypofit.common.config.HypofitProperties;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -22,10 +20,8 @@ class AdminAccessServiceTest {
     private AdminAccessRepository repository;
 
     @Test
-    void requireAdminReturnsCurrentAdminForConfiguredEmail() {
+    void requireAdminReturnsCurrentAdminForStoredAdmin() {
         UUID userId = UUID.randomUUID();
-        HypofitProperties properties = new HypofitProperties();
-        properties.setAdminEmails(List.of("ADMIN@example.com"));
         when(repository.findActorAccount(userId)).thenReturn(Optional.of(
                 new AdminAccessRepository.AdminActorRecord(
                         userId,
@@ -35,8 +31,9 @@ class AdminAccessServiceTest {
                         null
                 )
         ));
+        when(repository.isAdmin(userId)).thenReturn(true);
 
-        AdminAccessService service = new AdminAccessService(repository, properties);
+        AdminAccessService service = new AdminAccessService(repository);
         AdminAccessService.CurrentAdmin admin = service.requireAdmin(jwt(userId));
 
         assertThat(admin.id()).isEqualTo(userId);
@@ -45,10 +42,8 @@ class AdminAccessServiceTest {
     }
 
     @Test
-    void requireAdminRejectsNonAdminEmail() {
+    void requireAdminRejectsUserOutsideAdminAllowlist() {
         UUID userId = UUID.randomUUID();
-        HypofitProperties properties = new HypofitProperties();
-        properties.setAdminEmails(List.of("operator@example.com"));
         when(repository.findActorAccount(userId)).thenReturn(Optional.of(
                 new AdminAccessRepository.AdminActorRecord(
                         userId,
@@ -58,8 +53,9 @@ class AdminAccessServiceTest {
                         null
                 )
         ));
+        when(repository.isAdmin(userId)).thenReturn(false);
 
-        AdminAccessService service = new AdminAccessService(repository, properties);
+        AdminAccessService service = new AdminAccessService(repository);
 
         assertThatThrownBy(() -> service.requireAdmin(jwt(userId)))
                 .isInstanceOf(AdminPermissionDeniedException.class);

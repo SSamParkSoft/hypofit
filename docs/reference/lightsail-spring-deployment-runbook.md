@@ -37,24 +37,25 @@ dispatch, performs these stages:
 6. Restore the previously pinned digest if startup or readiness fails.
 
 Readiness is an infrastructure gate, not proof that a fresh Spring process can
-verify Supabase access tokens. After readiness, run an authenticated `GET
-/api/v1/me` smoke with a dedicated, revocable user session. This warms the
-JWKS cache and verifies the complete security path. Do not use the Supabase
-service-role key as this bearer token or store a long-lived user session in a
-repository variable; automate the smoke only after its secret rotation policy
-is approved. Current clients obtain social sessions interactively, so a
-short-lived access token must not be stored as a GitHub secret: it would expire
-and turn a later deployment into a false gate failure. Until a dedicated,
-non-interactive, least-privilege issuance method is approved, keep this smoke
-manual immediately after each deployment.
+verify Supabase access tokens. Hypofit has a social-only public authentication
+policy: email/password, email OTP, password reset, and hidden password fallback
+must not be used to automate deployment. After readiness, an operator performs
+one authenticated `GET /api/v1/me` smoke with a short-lived access token from
+an interactive social login. The script prints the HTTP result and safe request
+ID, never the token or `/me` body. This warms the JWKS cache and verifies the
+complete security path.
 
-For a manual smoke, provide the dedicated token only to the current shell and
-run the checked-in script. It prints the HTTP result, never the token or `/me`
-body:
+Do not use a Supabase service-role key, a persisted access/refresh token, a
+personal password, or a CI secret as a substitute. Fully automated smoke would
+require an explicitly approved non-interactive provider-token issuance design;
+it is not part of the current MVP deployment contract.
+
+For a manual smoke, provide the temporary social access token only to the
+current shell:
 
 ```bash
-HYPOFIT_API_SMOKE_ACCESS_TOKEN='<short-lived smoke-user token>' \
-  bash infra/lightsail/authenticated-smoke.sh
+HYPOFIT_API_SMOKE_ACCESS_TOKEN='<short-lived token from interactive social login>' \
+bash infra/lightsail/authenticated-smoke.sh
 ```
 
 All third-party workflow actions are pinned to full commit SHAs. Deployment is
@@ -62,7 +63,7 @@ serialized per ref and never compiles source on Lightsail.
 
 ## 3. GitHub Repository Configuration
 
-Create one repository secret:
+Create the deployment SSH secret:
 
 ```text
 LIGHTSAIL_SSH_PRIVATE_KEY=<dedicated deploy-only private key>
@@ -219,6 +220,61 @@ good GHCR digest and run:
 
 Rollback is application-image rollback only. Database migrations must remain
 backward-compatible because the script does not reverse schema changes.
+
+## Planned Maintenance
+
+Normal image deployment does not require maintenance mode. Use it only when a
+change can make product writes or the API unavailable, such as a blocking data
+migration or a deliberate infrastructure transition.
+
+The checked-in `maintenance.sh` is synchronized to
+`/opt/hypofit/runtime/maintenance.sh`. It atomically writes the public status
+document at `/opt/hypofit/status/service-status.json` and toggles
+`/opt/hypofit/status/maintenance.flag`; it does not deploy images, run Flyway,
+or reload Nginx.
+
+Before first use, install the reviewed Nginx include, initialize the status
+file, and validate the host configuration:
+
+```bash
+/opt/hypofit/runtime/maintenance.sh complete
+sudo nginx -t
+sudo systemctl reload nginx
+curl -fsS https://hypofit-api.bukae.co.kr/api/v1/service-status
+```
+
+Start a planned full maintenance period with explicit offset timestamps:
+
+```bash
+/opt/hypofit/runtime/maintenance.sh start \
+  --starts-at '2026-09-03T02:00:00+09:00' \
+  --ends-at '2026-09-03T04:00:00+09:00' \
+  --notice-id 'maintenance-20260903'
+
+curl -i https://hypofit-api.bukae.co.kr/api/v1/service-status
+curl -i https://hypofit-api.bukae.co.kr/api/v1/interview-posts
+```
+
+The product route must return `503 maintenance_in_progress` with `no-store`
+and `Retry-After`; the status route must remain readable. Keep the flag active
+through deployment, Flyway, readiness, and the interactive authenticated smoke.
+Use `maintenance.sh verifying` while final product checks run, then restore
+traffic only after successful verification:
+
+```bash
+/opt/hypofit/runtime/maintenance.sh verifying \
+  --ends-at '2026-09-03T04:30:00+09:00'
+
+# Run readiness and the approved interactive authenticated smoke here.
+
+/opt/hypofit/runtime/maintenance.sh complete
+curl -fsS https://hypofit-api.bukae.co.kr/api/v1/service-status
+```
+
+If verification fails, keep maintenance active while following the existing
+image rollback procedure. Do not complete maintenance into a raw `502` or an
+unverified API state. Full policy, client behavior, and future partial modes
+are in `docs/active/service-maintenance-and-degraded-operation-plan.md`.
 
 ## 9. Nginx And TLS
 

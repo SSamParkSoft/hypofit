@@ -34,7 +34,9 @@ public record InterviewPostWriteModel(
         List<String> scheduleOptions,
         String status,
         OffsetDateTime createdAt,
-        String entryMode
+        String entryMode,
+        List<String> participantRequirements,
+        PostingCreationConfiguration creationConfiguration
 ) {
     public InterviewPostWriteModel(
             UUID id,
@@ -73,7 +75,8 @@ public record InterviewPostWriteModel(
                 externalDataNotice, betaTestPlatforms, betaTestStartsAt, betaTestEndsAt,
                 interviewMode, location, locationText, locationAddress, locationPlaceName,
                 locationLatitude, locationLongitude, locationPrecision, locationSource,
-                scheduleOptions, status, createdAt, "application_required"
+                scheduleOptions, status, createdAt, "application_required", List.of(),
+                PostingCreationConfiguration.empty()
         );
     }
     public InterviewPostWriteModel(
@@ -129,7 +132,9 @@ public record InterviewPostWriteModel(
                 scheduleOptions,
                 status,
                 createdAt,
-                "application_required"
+                "application_required",
+                List.of(),
+                PostingCreationConfiguration.empty()
         );
     }
 }

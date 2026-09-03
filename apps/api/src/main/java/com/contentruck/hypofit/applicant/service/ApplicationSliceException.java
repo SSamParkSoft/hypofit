@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 public sealed abstract class ApplicationSliceException extends HypofitException
         permits ApplicationConflictException, ApplicationNotFoundException,
         ApplicationPermissionDeniedException, ApplicationRecruitmentTypeActionNotAllowedException,
-        ApplicationValidationException {
+        ApplicationSelectionCapacityReachedException, ApplicationValidationException {
 
     protected ApplicationSliceException(
             String code,

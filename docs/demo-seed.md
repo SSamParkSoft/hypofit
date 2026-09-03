@@ -124,7 +124,9 @@ UUID ranges. It creates:
   `confirmed` participation states;
 - three open beta-test posts covering applied, selected/chat, and
   organizer-side applicant-review states;
-- two applications received by the account and four submitted by the account;
+- six applications received by the account, including five applicants on one
+  interview with `applied`, `selected`, and `rejected` states, and four
+  applications submitted by the account;
 - four chat rooms with read/unread messages;
 - one future scheduled session;
 - four notifications.

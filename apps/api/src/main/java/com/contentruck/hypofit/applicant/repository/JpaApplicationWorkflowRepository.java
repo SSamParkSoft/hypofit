@@ -272,6 +272,24 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
     }
 
     @Override
+    public long countSelectedVisibleApplications(UUID interviewPostId) {
+        Long count = entityManager.createQuery(
+                        """
+                        select count(a)
+                        from ApplicationRecordEntity a
+                        where a.interviewPostId = :interviewPostId
+                          and a.moderationStatus = :visible
+                          and a.status = 'selected'
+                        """,
+                        Long.class
+                )
+                .setParameter("interviewPostId", interviewPostId)
+                .setParameter("visible", VISIBLE)
+                .getSingleResult();
+        return count == null ? 0 : count;
+    }
+
+    @Override
     public Optional<ApplicationReadModel> updateStatusIfCurrent(
             UUID applicationId,
             String nextStatus,
@@ -322,11 +340,16 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
         }
         ApplicationRecordEntity application = (ApplicationRecordEntity) rows.getFirst()[0];
         InterviewPostRecordEntity post = (InterviewPostRecordEntity) rows.getFirst()[1];
+        if (lock) {
+            entityManager.lock(post, LockModeType.PESSIMISTIC_WRITE);
+        }
         return Optional.of(new ApplicationWorkflowContext(
                 application.getId(),
                 application.getInterviewPostId(),
                 post.getTitle(),
                 post.getRecruitmentType(),
+                post.getRecruitCount(),
+                post.getRecruitmentLimitMode(),
                 post.getFounderId(),
                 application.getRespondentId(),
                 copyAnswers(application.getAnswers()),

@@ -39,6 +39,10 @@ public class InterviewPostEntity {
     @Column(name = "target_description", nullable = false)
     private String targetDescription;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "participant_requirements", nullable = false, columnDefinition = "jsonb")
+    private List<String> participantRequirements = List.of();
+
     @Column(name = "reward_amount", nullable = false)
     private int rewardAmount;
 
@@ -49,8 +53,17 @@ public class InterviewPostEntity {
     @Column(name = "duration_minutes", nullable = false)
     private int durationMinutes;
 
+    @Column(name = "duration_value")
+    private Integer durationValue;
+
+    @Column(name = "duration_unit", length = 16)
+    private String durationUnit;
+
     @Column(name = "recruit_count", nullable = false)
     private int recruitCount;
+
+    @Column(name = "recruitment_limit_mode", length = 16)
+    private String recruitmentLimitMode;
 
     @Column(name = "recruitment_type", nullable = false, length = 30)
     private String recruitmentType;
@@ -111,6 +124,26 @@ public class InterviewPostEntity {
     @Column(name = "schedule_options", nullable = false, columnDefinition = "jsonb")
     private List<String> scheduleOptions = List.of();
 
+    @Column(name = "schedule_mode", length = 16)
+    private String scheduleMode;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "schedule_fixed_slots", nullable = false, columnDefinition = "jsonb")
+    private List<String> scheduleFixedSlots = List.of();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "schedule_recurring_windows", nullable = false, columnDefinition = "jsonb")
+    private List<String> scheduleRecurringWindows = List.of();
+
+    @Column(name = "schedule_note")
+    private String scheduleNote;
+
+    @Column(name = "beta_test_environment")
+    private String betaTestEnvironment;
+
+    @Column(name = "beta_test_workflow_note")
+    private String betaTestWorkflowNote;
+
     @Column(name = "status", nullable = false, length = 30)
     private String status;
 
@@ -144,6 +177,10 @@ public class InterviewPostEntity {
         return targetDescription;
     }
 
+    public List<String> getParticipantRequirements() {
+        return participantRequirements == null ? List.of() : List.copyOf(participantRequirements);
+    }
+
     public int getRewardAmount() {
         return rewardAmount;
     }
@@ -156,8 +193,20 @@ public class InterviewPostEntity {
         return durationMinutes;
     }
 
+    public Integer getDurationValue() {
+        return durationValue;
+    }
+
+    public String getDurationUnit() {
+        return durationUnit;
+    }
+
     public int getRecruitCount() {
         return recruitCount;
+    }
+
+    public String getRecruitmentLimitMode() {
+        return recruitmentLimitMode;
     }
 
     public String getRecruitmentType() {
@@ -243,6 +292,30 @@ public class InterviewPostEntity {
         return scheduleOptions;
     }
 
+    public String getScheduleMode() {
+        return scheduleMode;
+    }
+
+    public List<String> getScheduleFixedSlots() {
+        return scheduleFixedSlots == null ? List.of() : List.copyOf(scheduleFixedSlots);
+    }
+
+    public List<String> getScheduleRecurringWindows() {
+        return scheduleRecurringWindows == null ? List.of() : List.copyOf(scheduleRecurringWindows);
+    }
+
+    public String getScheduleNote() {
+        return scheduleNote;
+    }
+
+    public String getBetaTestEnvironment() {
+        return betaTestEnvironment;
+    }
+
+    public String getBetaTestWorkflowNote() {
+        return betaTestWorkflowNote;
+    }
+
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
@@ -275,6 +348,10 @@ public class InterviewPostEntity {
         this.targetDescription = targetDescription;
     }
 
+    public void setParticipantRequirements(List<String> participantRequirements) {
+        this.participantRequirements = participantRequirements == null ? List.of() : List.copyOf(participantRequirements);
+    }
+
     public void setRewardAmount(int rewardAmount) {
         this.rewardAmount = rewardAmount;
     }
@@ -287,8 +364,20 @@ public class InterviewPostEntity {
         this.durationMinutes = durationMinutes;
     }
 
+    public void setDurationValue(Integer durationValue) {
+        this.durationValue = durationValue;
+    }
+
+    public void setDurationUnit(String durationUnit) {
+        this.durationUnit = durationUnit;
+    }
+
     public void setRecruitCount(int recruitCount) {
         this.recruitCount = recruitCount;
+    }
+
+    public void setRecruitmentLimitMode(String recruitmentLimitMode) {
+        this.recruitmentLimitMode = recruitmentLimitMode;
     }
 
     public void setRecruitmentType(String recruitmentType) {
@@ -365,6 +454,32 @@ public class InterviewPostEntity {
 
     public void setScheduleOptions(List<String> scheduleOptions) {
         this.scheduleOptions = scheduleOptions == null ? List.of() : List.copyOf(scheduleOptions);
+    }
+
+    public void setScheduleMode(String scheduleMode) {
+        this.scheduleMode = scheduleMode;
+    }
+
+    public void setScheduleFixedSlots(List<String> scheduleFixedSlots) {
+        this.scheduleFixedSlots = scheduleFixedSlots == null ? List.of() : List.copyOf(scheduleFixedSlots);
+    }
+
+    public void setScheduleRecurringWindows(List<String> scheduleRecurringWindows) {
+        this.scheduleRecurringWindows = scheduleRecurringWindows == null
+                ? List.of()
+                : List.copyOf(scheduleRecurringWindows);
+    }
+
+    public void setScheduleNote(String scheduleNote) {
+        this.scheduleNote = scheduleNote;
+    }
+
+    public void setBetaTestEnvironment(String betaTestEnvironment) {
+        this.betaTestEnvironment = betaTestEnvironment;
+    }
+
+    public void setBetaTestWorkflowNote(String betaTestWorkflowNote) {
+        this.betaTestWorkflowNote = betaTestWorkflowNote;
     }
 
     public void setStatus(String status) {

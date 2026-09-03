@@ -2,7 +2,7 @@
 
 Status: active
 
-Last updated: 2026-08-31
+Last updated: 2026-09-02
 
 ## Purpose
 
@@ -62,6 +62,13 @@ recruitment type. This is behavior-preserving maintenance, not a release-track
 reordering: it must not delay P1/P2 release smoke, and its extractions should
 be scheduled alongside the first matching feature change.
 
+Follow `modular-monolith-workflow-integrity-plan.md` before changing applicant
+selection capacity, workflow concurrency, notification/push transaction
+boundaries, or feature-module dependency rules. This is a P0 integrity track:
+limited posts must not over-select under concurrent founder actions, and an
+originating workflow transaction must not commit without its durable
+notification and eligible push-delivery work.
+
 ## Cross-Cutting: Production Reliability And Posting Creation
 
 Follow `production-reliability-and-posting-create-stabilization-plan.md` before
@@ -79,6 +86,34 @@ This is not a reason to replace the current Spring modular monolith, Supabase
 Auth, or Lightsail runtime. It should run in parallel with P1/P2 where it does
 not touch their release surface, and it is a prerequisite for P3 creation
 enablement.
+
+Follow `service-maintenance-and-degraded-operation-plan.md` before introducing
+planned downtime, write restrictions, or a maintenance screen. Its P0 edge
+gate and Expo recovery path are an operational safety track; they do not change
+ordinary immutable-image deployment, readiness, or social-only smoke policy.
+
+Follow `admin-notice-and-service-operations-plan.md` when introducing canonical
+notices, the existing web Admin's notice/maintenance controls, database-backed
+Admin access, app-level full-maintenance lifecycle, or public scheduled-status
+data. It extends the service-maintenance edge plan without allowing browser
+control of Nginx, deployment, or hard maintenance flags.
+
+Follow `adaptive-posting-creation-contract-and-flow-plan.md` for the dependent
+creation-flow work: prevent UI-field data loss, derive type selection from
+server-owned write capability, map 422 field errors to mobile controls, migrate
+drafts, and round-trip canonical type-specific data before enabling a new
+recruitment type.
+
+Follow `posting-detail-decision-experience-plan.md` for the dependent mobile
+detail work: decision-first public detail, selected/approved participation
+priority, truthful organizer trust, summary/data boundaries, and sticky-action
+quality without exposing unsupported media, map, profile, share, or external
+participation capabilities.
+
+Follow `mobile-map-search-correctness-and-scalability-plan.md` for the bounded
+Expo map search verification track. It does not reorder P1/P2 or authorize a
+radius-to-bbox rewrite before measured spatial-index, query-plan, or density
+evidence requires one.
 
 ## P1: Social Authentication Release Smoke
 

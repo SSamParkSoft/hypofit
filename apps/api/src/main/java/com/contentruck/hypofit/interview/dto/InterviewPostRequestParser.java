@@ -6,6 +6,7 @@ import com.contentruck.hypofit.common.web.RawRequestBodyJson;
 import com.contentruck.hypofit.interview.service.InterviewPostCreateCommand;
 import com.contentruck.hypofit.interview.service.InterviewPostUpdateCommand;
 import com.contentruck.hypofit.interview.service.PostingCompensation;
+import com.contentruck.hypofit.interview.service.PostingCreationConfiguration;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
@@ -27,6 +28,9 @@ public final class InterviewPostRequestParser {
     private static final Set<String> INTERVIEW_MODES = Set.of("offline", "online", "both");
     private static final Set<String> LOCATION_PRECISIONS = Set.of("exact", "nearby", "district");
     private static final Set<String> LOCATION_SOURCES = Set.of("kakao_place", "manual", "current_location");
+    private static final Set<String> DURATION_UNITS = Set.of("minutes", "hours", "days", "weeks");
+    private static final Set<String> SCHEDULE_MODES = Set.of("fixed", "recurring", "negotiated", "none");
+    private static final Set<String> RECRUITMENT_LIMIT_MODES = Set.of("limited", "unlimited");
 
     private InterviewPostRequestParser() {
     }
@@ -62,9 +66,10 @@ public final class InterviewPostRequestParser {
         String title = requiredString(object, "title", 2, 120, errors);
         String serviceSummary = requiredString(object, "service_summary", 10, 2000, errors);
         String targetDescription = requiredString(object, "target_description", 10, 2000, errors);
+        List<String> participantRequirements = parseCreateOptionalStringList(object, "participant_requirements", errors);
         Integer rewardAmount = requiredInteger(object, "reward_amount", 0, null, errors);
         List<PostingCompensation> compensations = parseCompensations(object, errors);
-        Integer durationMinutes = requiredInteger(object, "duration_minutes", 10, 240, errors);
+        Integer durationMinutes = requiredInteger(object, "duration_minutes", 10, 525_600, errors);
         Integer recruitCount = optionalInteger(object, "recruit_count", 0, 999, errors);
         if (!object.has("recruit_count")) {
             recruitCount = 0;
@@ -90,6 +95,24 @@ public final class InterviewPostRequestParser {
         String locationPrecision = optionalEnum(object, "location_precision", LOCATION_PRECISIONS, errors);
         String locationSource = optionalEnum(object, "location_source", LOCATION_SOURCES, errors);
         List<String> scheduleOptions = parseCreateScheduleOptions(object, errors);
+        Integer durationValue = optionalInteger(object, "duration_value", 1, 999, errors);
+        String durationUnit = optionalEnum(object, "duration_unit", DURATION_UNITS, errors);
+        String scheduleMode = optionalEnum(object, "schedule_mode", SCHEDULE_MODES, errors);
+        List<String> scheduleFixedSlots = parseCreateOptionalStringList(object, "schedule_fixed_slots", errors);
+        List<String> scheduleRecurringWindows = parseCreateOptionalStringList(
+                object,
+                "schedule_recurring_windows",
+                errors
+        );
+        String scheduleNote = optionalString(object, "schedule_note", null, 2000, errors);
+        String recruitmentLimitMode = optionalEnum(
+                object,
+                "recruitment_limit_mode",
+                RECRUITMENT_LIMIT_MODES,
+                errors
+        );
+        String betaTestEnvironment = optionalString(object, "beta_test_environment", null, 1000, errors);
+        String betaTestWorkflowNote = optionalString(object, "beta_test_workflow_note", null, 2000, errors);
         String status = optionalEnum(object, "status", CREATE_STATUSES, errors);
         if (!object.has("status")) {
             status = "draft";
@@ -98,6 +121,13 @@ public final class InterviewPostRequestParser {
         if ("interview".equals(recruitmentType) && interviewMode == null) {
             errors.add(new FieldError("interview_mode", "입력값을 확인해 주세요."));
         }
+        validateCanonicalCreationFields(
+                durationValue,
+                durationUnit,
+                recruitmentLimitMode,
+                recruitCount,
+                errors
+        );
 
         throwIfErrors(errors);
         if ("interview".equals(recruitmentType)
@@ -139,7 +169,21 @@ public final class InterviewPostRequestParser {
                 locationSource,
                 scheduleOptions,
                 status,
-                entryMode
+                entryMode,
+                participantRequirements,
+                new PostingCreationConfiguration(
+                        durationValue == null ? durationMinutes : durationValue,
+                        durationUnit == null ? "minutes" : durationUnit,
+                        scheduleMode == null ? legacyScheduleMode(scheduleOptions) : scheduleMode,
+                        scheduleFixedSlots,
+                        scheduleRecurringWindows,
+                        scheduleNote,
+                        recruitmentLimitMode == null
+                                ? (recruitCount == 0 ? "unlimited" : "limited")
+                                : recruitmentLimitMode,
+                        betaTestEnvironment,
+                        betaTestWorkflowNote
+                )
         );
     }
 
@@ -220,8 +264,14 @@ public final class InterviewPostRequestParser {
         String title = optionalNullableString(object, "title", 2, 120, errors, providedFields);
         String serviceSummary = optionalNullableString(object, "service_summary", 10, 2000, errors, providedFields);
         String targetDescription = optionalNullableString(object, "target_description", 10, 2000, errors, providedFields);
+        List<String> participantRequirements = parseUpdateOptionalStringList(
+                object,
+                "participant_requirements",
+                errors,
+                providedFields
+        );
         Integer rewardAmount = optionalNullableInteger(object, "reward_amount", 0, null, errors, providedFields);
-        Integer durationMinutes = optionalNullableInteger(object, "duration_minutes", 10, 240, errors, providedFields);
+        Integer durationMinutes = optionalNullableInteger(object, "duration_minutes", 10, 525_600, errors, providedFields);
         Integer recruitCount = optionalNullableInteger(object, "recruit_count", 0, 999, errors, providedFields);
         String interviewMode = optionalNullableEnum(object, "interview_mode", INTERVIEW_MODES, errors, providedFields);
         String entryMode = optionalNullableEnum(object, "entry_mode", ENTRY_MODES, errors, providedFields);
@@ -253,6 +303,45 @@ public final class InterviewPostRequestParser {
         String locationPrecision = optionalNullableEnum(object, "location_precision", LOCATION_PRECISIONS, errors, providedFields);
         String locationSource = optionalNullableEnum(object, "location_source", LOCATION_SOURCES, errors, providedFields);
         List<String> scheduleOptions = parseUpdateScheduleOptions(object, errors, providedFields);
+        Integer durationValue = optionalNullableInteger(object, "duration_value", 1, 999, errors, providedFields);
+        String durationUnit = optionalNullableEnum(object, "duration_unit", DURATION_UNITS, errors, providedFields);
+        String scheduleMode = optionalNullableEnum(object, "schedule_mode", SCHEDULE_MODES, errors, providedFields);
+        List<String> scheduleFixedSlots = parseUpdateOptionalStringList(
+                object,
+                "schedule_fixed_slots",
+                errors,
+                providedFields
+        );
+        List<String> scheduleRecurringWindows = parseUpdateOptionalStringList(
+                object,
+                "schedule_recurring_windows",
+                errors,
+                providedFields
+        );
+        String scheduleNote = optionalNullableString(object, "schedule_note", null, 2000, errors, providedFields);
+        String recruitmentLimitMode = optionalNullableEnum(
+                object,
+                "recruitment_limit_mode",
+                RECRUITMENT_LIMIT_MODES,
+                errors,
+                providedFields
+        );
+        String betaTestEnvironment = optionalNullableString(
+                object,
+                "beta_test_environment",
+                null,
+                1000,
+                errors,
+                providedFields
+        );
+        String betaTestWorkflowNote = optionalNullableString(
+                object,
+                "beta_test_workflow_note",
+                null,
+                2000,
+                errors,
+                providedFields
+        );
         String status = optionalNullableEnum(object, "status", UPDATE_STATUSES, errors, providedFields);
 
         if (providedFields.isEmpty()) {
@@ -287,8 +376,42 @@ public final class InterviewPostRequestParser {
                 locationSource,
                 scheduleOptions,
                 status,
-                entryMode
+                entryMode,
+                participantRequirements,
+                new PostingCreationConfiguration(
+                        durationValue,
+                        durationUnit,
+                        scheduleMode,
+                        scheduleFixedSlots,
+                        scheduleRecurringWindows,
+                        scheduleNote,
+                        recruitmentLimitMode,
+                        betaTestEnvironment,
+                        betaTestWorkflowNote
+                )
         );
+    }
+
+    private static void validateCanonicalCreationFields(
+            Integer durationValue,
+            String durationUnit,
+            String recruitmentLimitMode,
+            Integer recruitCount,
+            List<FieldError> errors
+    ) {
+        if ((durationValue == null) != (durationUnit == null)) {
+            errors.add(new FieldError("duration_value", "예상 시간과 단위를 함께 입력해 주세요."));
+        }
+        if ("limited".equals(recruitmentLimitMode) && (recruitCount == null || recruitCount < 1)) {
+            errors.add(new FieldError("recruit_count", "모집 인원은 1명 이상이어야 해요."));
+        }
+        if ("unlimited".equals(recruitmentLimitMode) && recruitCount != null && recruitCount != 0) {
+            errors.add(new FieldError("recruit_count", "인원 제한 없음은 모집 인원을 비워야 해요."));
+        }
+    }
+
+    private static String legacyScheduleMode(List<String> scheduleOptions) {
+        return scheduleOptions == null || scheduleOptions.isEmpty() ? "none" : "recurring";
     }
 
     public static void parseCloseStatus(InterviewPostStatusUpdateRequest body) {
@@ -363,7 +486,29 @@ public final class InterviewPostRequestParser {
         if (max != null && value.length() > max) {
             errors.add(new FieldError(field, "입력값을 확인해 주세요."));
         }
+        if (requiresMeaningfulPostingText(field) && !containsMeaningfulPostingText(value)) {
+            errors.add(new FieldError(field, meaningfulPostingTextMessage(field)));
+        }
         return value;
+    }
+
+    private static boolean requiresMeaningfulPostingText(String field) {
+        return "title".equals(field)
+                || "service_summary".equals(field)
+                || "target_description".equals(field);
+    }
+
+    private static boolean containsMeaningfulPostingText(String value) {
+        return value != null && value.matches(".*[A-Za-z0-9가-힣].*");
+    }
+
+    private static String meaningfulPostingTextMessage(String field) {
+        return switch (field) {
+            case "title" -> "제목을 의미 있게 입력해 주세요.";
+            case "service_summary" -> "공고 설명을 의미 있게 입력해 주세요.";
+            case "target_description" -> "찾는 참여자를 의미 있게 입력해 주세요.";
+            default -> "입력값을 확인해 주세요.";
+        };
     }
 
     private static Integer requiredInteger(JsonNode body, String field, Integer min, Integer max, List<FieldError> errors) {
@@ -625,9 +770,13 @@ public final class InterviewPostRequestParser {
             case "entry_mode" -> "entryMode";
             case "service_summary" -> "serviceSummary";
             case "target_description" -> "targetDescription";
+            case "participant_requirements" -> "participantRequirements";
             case "reward_amount" -> "rewardAmount";
             case "duration_minutes" -> "durationMinutes";
+            case "duration_value" -> "durationValue";
+            case "duration_unit" -> "durationUnit";
             case "recruit_count" -> "recruitCount";
+            case "recruitment_limit_mode" -> "recruitmentLimitMode";
             case "interview_mode" -> "interviewMode";
             case "external_provider" -> "externalProvider";
             case "external_url" -> "externalUrl";
@@ -636,6 +785,8 @@ public final class InterviewPostRequestParser {
             case "beta_test_platforms" -> "betaTestPlatforms";
             case "beta_test_starts_at" -> "betaTestStartsAt";
             case "beta_test_ends_at" -> "betaTestEndsAt";
+            case "beta_test_environment" -> "betaTestEnvironment";
+            case "beta_test_workflow_note" -> "betaTestWorkflowNote";
             case "location_text" -> "locationText";
             case "location_address" -> "locationAddress";
             case "location_place_name" -> "locationPlaceName";
@@ -644,6 +795,10 @@ public final class InterviewPostRequestParser {
             case "location_precision" -> "locationPrecision";
             case "location_source" -> "locationSource";
             case "schedule_options" -> "scheduleOptions";
+            case "schedule_mode" -> "scheduleMode";
+            case "schedule_fixed_slots" -> "scheduleFixedSlots";
+            case "schedule_recurring_windows" -> "scheduleRecurringWindows";
+            case "schedule_note" -> "scheduleNote";
             default -> field;
         };
     }

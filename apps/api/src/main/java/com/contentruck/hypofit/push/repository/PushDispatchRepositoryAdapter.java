@@ -50,6 +50,23 @@ public class PushDispatchRepositoryAdapter implements PushDispatchRepository {
     }
 
     @Override
+    public PushOutboxSnapshot snapshotPendingDeliveries(OffsetDateTime now) {
+        return jdbcTemplate.queryForObject("""
+                        select
+                          count(*) as pending_count,
+                          coalesce(extract(epoch from (:now - min(pd.created_at))), 0) as oldest_pending_age_seconds
+                        from push_deliveries pd
+                        join push_devices d on d.id = pd.push_device_id
+                        where pd.status = 'pending'
+                          and pd.next_attempt_at <= :now
+                          and d.enabled = true
+                        """, Map.of("now", now), (resultSet, rowNum) -> new PushOutboxSnapshot(
+                        resultSet.getLong("pending_count"),
+                        resultSet.getLong("oldest_pending_age_seconds")
+                ));
+    }
+
+    @Override
     public List<ClaimedPushDeliveryRecord> claimPendingDeliveries(OffsetDateTime now, int limit) {
         List<UUID> claimedIds = jdbcTemplate.query("""
                         with candidate as (

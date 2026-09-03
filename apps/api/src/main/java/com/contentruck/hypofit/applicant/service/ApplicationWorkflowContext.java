@@ -9,6 +9,8 @@ public record ApplicationWorkflowContext(
         UUID interviewPostId,
         String interviewTitle,
         String recruitmentType,
+        int recruitCount,
+        String recruitmentLimitMode,
         UUID founderId,
         UUID respondentId,
         Map<String, String> answers,

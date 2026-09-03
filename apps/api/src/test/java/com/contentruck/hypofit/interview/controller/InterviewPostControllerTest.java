@@ -1,6 +1,7 @@
 package com.contentruck.hypofit.interview.controller;
 
 import com.contentruck.hypofit.interview.dto.InterviewPostCreateRequest;
+import com.contentruck.hypofit.interview.dto.InterviewPostCreationCapabilitiesResponse;
 import com.contentruck.hypofit.interview.dto.InterviewPostResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +39,26 @@ class InterviewPostControllerTest {
     private InterviewPostWriteService interviewPostWriteService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    void creationCapabilitiesComeFromTheWriteService() {
+        InterviewPostWriteService writeService = org.mockito.Mockito.mock(InterviewPostWriteService.class);
+        when(writeService.enabledRecruitmentTypesForCreation())
+                .thenReturn(List.of("interview", "survey"));
+        when(writeService.directParticipationRecruitmentTypesForCreation())
+                .thenReturn(List.of("survey"));
+
+        InterviewPostController controller = new InterviewPostController(
+                interviewPostQueryService,
+                writeService,
+                email -> false
+        );
+
+        InterviewPostCreationCapabilitiesResponse response = controller.getCreationCapabilities();
+
+        assertThat(response.enabledRecruitmentTypes()).containsExactly("interview", "survey");
+        assertThat(response.directParticipationRecruitmentTypes()).containsExactly("survey");
+    }
 
     @Test
     void listInterviewPostsUsesViewerVisibilityAndAdminPolicy() {

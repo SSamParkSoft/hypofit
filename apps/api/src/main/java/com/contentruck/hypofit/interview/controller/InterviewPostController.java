@@ -1,6 +1,7 @@
 package com.contentruck.hypofit.interview.controller;
 
 import com.contentruck.hypofit.interview.dto.InterviewPostCreateRequest;
+import com.contentruck.hypofit.interview.dto.InterviewPostCreationCapabilitiesResponse;
 import com.contentruck.hypofit.interview.dto.InterviewPostListRequest;
 import com.contentruck.hypofit.interview.dto.InterviewPostRequestParser;
 import com.contentruck.hypofit.interview.dto.InterviewPostResponse;
@@ -108,6 +109,15 @@ public class InterviewPostController {
                         isAdmin,
                         supportsRecruitmentTypes(featuresHeader)
                 )
+        );
+    }
+
+    @GetMapping("/creation-capabilities")
+    @Operation(summary = "모집글 작성 가능 유형")
+    public InterviewPostCreationCapabilitiesResponse getCreationCapabilities() {
+        return new InterviewPostCreationCapabilitiesResponse(
+                interviewPostWriteService.enabledRecruitmentTypesForCreation(),
+                interviewPostWriteService.directParticipationRecruitmentTypesForCreation()
         );
     }
 

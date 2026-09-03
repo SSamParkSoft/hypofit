@@ -10,6 +10,7 @@ import com.contentruck.hypofit.user.service.UserAccountDeletedException;
 import com.contentruck.hypofit.user.service.UserProfileMissingException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,19 +33,22 @@ public class ApplicationWorkflowService {
     private final NotificationWriteService notificationWriteService;
     private final AuditWriteService auditWriteService;
     private final AiSummaryEnqueueService aiSummaryEnqueueService;
+    private final ApplicationWorkflowMetrics applicationWorkflowMetrics;
 
     public ApplicationWorkflowService(
             ApplicationWorkflowRepository repository,
             ApplicationChatLifecycleService chatLifecycleService,
             NotificationWriteService notificationWriteService,
             AuditWriteService auditWriteService,
-            AiSummaryEnqueueService aiSummaryEnqueueService
+            AiSummaryEnqueueService aiSummaryEnqueueService,
+            ApplicationWorkflowMetrics applicationWorkflowMetrics
     ) {
         this.repository = repository;
         this.chatLifecycleService = chatLifecycleService;
         this.notificationWriteService = notificationWriteService;
         this.auditWriteService = auditWriteService;
         this.aiSummaryEnqueueService = aiSummaryEnqueueService;
+        this.applicationWorkflowMetrics = applicationWorkflowMetrics;
     }
 
     @Transactional(readOnly = true)
@@ -184,7 +188,7 @@ public class ApplicationWorkflowService {
     ) {
         requireActiveUser(userId);
 
-        ApplicationWorkflowContext context = repository.findVisibleApplicationContext(applicationId)
+        ApplicationWorkflowContext context = loadApplicationContextForStatusChange(applicationId, nextStatus)
                 .orElseThrow(() -> new ApplicationNotFoundException("Application not found"));
         ensureApplicationWorkflowSupported(context.recruitmentType());
         if (!context.founderId().equals(userId)) {
@@ -203,6 +207,12 @@ public class ApplicationWorkflowService {
         if (normalizedReason != null && normalizedReason.isBlank()) {
             normalizedReason = null;
         }
+        if ("selected".equals(nextStatus)) {
+            if (!allowedStatuses.contains(context.status())) {
+                throw new ApplicationConflictException("Application status has already changed");
+            }
+            ensureSelectionCapacityAvailable(context);
+        }
 
         ApplicationReadModel application = repository.updateStatusIfCurrent(
                         applicationId,
@@ -212,6 +222,7 @@ public class ApplicationWorkflowService {
                 )
                 .orElseThrow(() -> new ApplicationConflictException("Application status has already changed"));
         if ("selected".equals(nextStatus)) {
+            applicationWorkflowMetrics.recordSelection("selected");
             if (shouldManageSelectedChatRoom(context.recruitmentType())) {
                 chatLifecycleService.markSelectedForApplication(
                         application.id(),
@@ -274,6 +285,23 @@ public class ApplicationWorkflowService {
             );
         }
         return application;
+    }
+
+    private Optional<ApplicationWorkflowContext> loadApplicationContextForStatusChange(UUID applicationId, String nextStatus) {
+        if ("selected".equals(nextStatus)) {
+            return repository.lockVisibleApplicationContext(applicationId);
+        }
+        return repository.findVisibleApplicationContext(applicationId);
+    }
+
+    private void ensureSelectionCapacityAvailable(ApplicationWorkflowContext context) {
+        if ("unlimited".equals(context.recruitmentLimitMode()) || context.recruitCount() <= 0) {
+            return;
+        }
+        if (repository.countSelectedVisibleApplications(context.interviewPostId()) >= context.recruitCount()) {
+            applicationWorkflowMetrics.recordSelection("capacity_reached");
+            throw new ApplicationSelectionCapacityReachedException();
+        }
     }
 
     private void ensureApplicationWorkflowSupported(String recruitmentType) {

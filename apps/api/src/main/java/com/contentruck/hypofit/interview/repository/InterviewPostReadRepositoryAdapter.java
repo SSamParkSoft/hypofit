@@ -8,6 +8,7 @@ import com.contentruck.hypofit.interview.service.InterviewAiSummaryReadModel;
 import com.contentruck.hypofit.interview.service.InterviewPostReadModel;
 import com.contentruck.hypofit.interview.service.PostingCompensation;
 import com.contentruck.hypofit.interview.service.PostingCompensations;
+import com.contentruck.hypofit.interview.service.PostingCreationConfiguration;
 import com.contentruck.hypofit.interview.service.InterviewSummaryContentModel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -162,10 +163,14 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
                   p.title,
                   p.service_summary,
                   p.target_description,
+                  p.participant_requirements::text as participant_requirements,
                   p.reward_amount,
                   p.compensations::text as compensations,
                   p.duration_minutes,
+                  p.duration_value,
+                  p.duration_unit,
                   p.recruit_count,
+                  p.recruitment_limit_mode,
                   p.external_provider,
                   p.external_url,
                   p.participation_deadline_at,
@@ -173,6 +178,8 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
                   p.beta_test_platforms,
                   p.beta_test_starts_at,
                   p.beta_test_ends_at,
+                  p.beta_test_environment,
+                  p.beta_test_workflow_note,
                   p.interview_mode,
                   p.location,
                   p.location_text,
@@ -183,6 +190,10 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
                   p.location_precision,
                   p.location_source,
                   p.schedule_options,
+                  p.schedule_mode,
+                  p.schedule_fixed_slots::text as schedule_fixed_slots,
+                  p.schedule_recurring_windows::text as schedule_recurring_windows,
+                  p.schedule_note,
                   p.status,
                   p.created_at,
                   u.id as founder_user_id,
@@ -396,8 +407,25 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
                 readFounderSummary(resultSet),
                 readFounderReviewSummary(resultSet),
                 readNullableDouble(resultSet, "distance_meters"),
-                includeAiSummary ? readInterviewAiSummary(resultSet) : null
+                includeAiSummary ? readInterviewAiSummary(resultSet) : null,
+                readScheduleOptions(resultSet.getString("participant_requirements")),
+                new PostingCreationConfiguration(
+                        getNullableInt(resultSet, "duration_value"),
+                        resultSet.getString("duration_unit"),
+                        resultSet.getString("schedule_mode"),
+                        readScheduleOptions(resultSet.getString("schedule_fixed_slots")),
+                        readScheduleOptions(resultSet.getString("schedule_recurring_windows")),
+                        resultSet.getString("schedule_note"),
+                        resultSet.getString("recruitment_limit_mode"),
+                        resultSet.getString("beta_test_environment"),
+                        resultSet.getString("beta_test_workflow_note")
+                )
         );
+    }
+
+    private Integer getNullableInt(ResultSet resultSet, String column) throws SQLException {
+        int value = resultSet.getInt(column);
+        return resultSet.wasNull() ? null : value;
     }
 
     private InterviewAiSummaryReadModel readInterviewAiSummary(ResultSet resultSet) throws SQLException {

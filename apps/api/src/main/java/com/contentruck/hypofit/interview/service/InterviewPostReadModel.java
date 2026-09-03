@@ -38,7 +38,9 @@ public record InterviewPostReadModel(
         FounderSummary founder,
         FounderReviewSummary founderReviewSummary,
         Double distanceMeters,
-        InterviewAiSummaryReadModel aiSummary
+        InterviewAiSummaryReadModel aiSummary,
+        List<String> participantRequirements,
+        PostingCreationConfiguration creationConfiguration
 ) {
     public InterviewPostReadModel(
             UUID id,
@@ -82,7 +84,9 @@ public record InterviewPostReadModel(
                 interviewMode, location, locationText, locationAddress, locationPlaceName,
                 locationLatitude, locationLongitude, locationPrecision, locationSource,
                 scheduleOptions, status, createdAt, founder, founderReviewSummary, distanceMeters,
-                aiSummary
+                aiSummary,
+                List.of(),
+                PostingCreationConfiguration.empty()
         );
     }
     public InterviewPostReadModel(
@@ -152,7 +156,9 @@ public record InterviewPostReadModel(
                 founder,
                 founderReviewSummary,
                 distanceMeters,
-                null
+                null,
+                List.of(),
+                PostingCreationConfiguration.empty()
         );
     }
 
@@ -217,7 +223,9 @@ public record InterviewPostReadModel(
                 founder,
                 founderReviewSummary,
                 distanceMeters,
-                aiSummary
+                aiSummary,
+                List.of(),
+                PostingCreationConfiguration.empty()
         );
     }
 }

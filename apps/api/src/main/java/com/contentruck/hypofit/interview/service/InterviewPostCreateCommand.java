@@ -30,8 +30,28 @@ public record InterviewPostCreateCommand(
         String locationSource,
         List<String> scheduleOptions,
         String status,
-        String entryMode
+        String entryMode,
+        List<String> participantRequirements,
+        PostingCreationConfiguration creationConfiguration
 ) {
+    public InterviewPostCreateCommand(
+            String recruitmentType, String title, String serviceSummary, String targetDescription,
+            int rewardAmount, List<PostingCompensation> compensations, int durationMinutes, int recruitCount,
+            String externalProvider, String externalUrl, OffsetDateTime participationDeadlineAt,
+            String externalDataNotice, List<String> betaTestPlatforms, OffsetDateTime betaTestStartsAt,
+            OffsetDateTime betaTestEndsAt, String interviewMode, String location, String locationText,
+            String locationAddress, String locationPlaceName, Double locationLatitude, Double locationLongitude,
+            String locationPrecision, String locationSource, List<String> scheduleOptions, String status,
+            String entryMode
+    ) {
+        this(recruitmentType, title, serviceSummary, targetDescription, rewardAmount, compensations,
+                durationMinutes, recruitCount, externalProvider, externalUrl, participationDeadlineAt,
+                externalDataNotice, betaTestPlatforms, betaTestStartsAt, betaTestEndsAt, interviewMode,
+                location, locationText, locationAddress, locationPlaceName, locationLatitude, locationLongitude,
+                locationPrecision, locationSource, scheduleOptions, status, entryMode, List.of(),
+                PostingCreationConfiguration.empty());
+    }
+
     public InterviewPostCreateCommand(
             String recruitmentType, String title, String serviceSummary, String targetDescription,
             int rewardAmount, List<PostingCompensation> compensations, int durationMinutes, int recruitCount,
@@ -45,7 +65,8 @@ public record InterviewPostCreateCommand(
                 durationMinutes, recruitCount, externalProvider, externalUrl, participationDeadlineAt,
                 externalDataNotice, betaTestPlatforms, betaTestStartsAt, betaTestEndsAt, interviewMode,
                 location, locationText, locationAddress, locationPlaceName, locationLatitude, locationLongitude,
-                locationPrecision, locationSource, scheduleOptions, status, "application_required");
+                locationPrecision, locationSource, scheduleOptions, status, "application_required", List.of(),
+                PostingCreationConfiguration.empty());
     }
     public InterviewPostCreateCommand(
             String recruitmentType,
@@ -81,7 +102,9 @@ public record InterviewPostCreateCommand(
                 betaTestPlatforms, betaTestStartsAt, betaTestEndsAt, interviewMode, location,
                 locationText, locationAddress, locationPlaceName, locationLatitude,
                 locationLongitude, locationPrecision, locationSource, scheduleOptions, status,
-                "application_required"
+                "application_required",
+                List.of(),
+                PostingCreationConfiguration.empty()
         );
     }
 

@@ -30,7 +30,9 @@ public record InterviewPostUpdateCommand(
         String locationSource,
         java.util.List<String> scheduleOptions,
         String status,
-        String entryMode
+        String entryMode,
+        java.util.List<String> participantRequirements,
+        PostingCreationConfiguration creationConfiguration
 ) {
     public InterviewPostUpdateCommand(
             Set<String> providedFields,
@@ -80,7 +82,9 @@ public record InterviewPostUpdateCommand(
                 locationSource,
                 scheduleOptions,
                 status,
-                null
+                null,
+                java.util.List.of(),
+                PostingCreationConfiguration.empty()
         );
     }
 

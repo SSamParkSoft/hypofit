@@ -53,7 +53,6 @@ public class InterviewPostWriteService {
     private static final Set<String> SURVEY_FIELDS = Set.of(
             "externalProvider",
             "externalUrl",
-            "participationDeadlineAt",
             "externalDataNotice"
     );
     private static final Set<String> BETA_FIELDS = Set.of(
@@ -160,7 +159,8 @@ public class InterviewPostWriteService {
                 && Objects.equals(existing.locationSource(), command.locationSource())
                 && Objects.equals(existing.scheduleOptions(), command.scheduleOptions())
                 && Objects.equals(existing.status(), command.status())
-                && Objects.equals(existing.entryMode(), command.entryMode());
+                && Objects.equals(existing.entryMode(), command.entryMode())
+                && Objects.equals(existing.creationConfiguration(), command.creationConfiguration());
     }
 
     private String location(InterviewPostCreateCommand command) {
@@ -300,6 +300,8 @@ public class InterviewPostWriteService {
                 command.compensations(), command.rewardAmount()
         );
         int legacyRewardAmount = PostingCompensations.legacyRewardAmount(compensations);
+        PostingCreationConfiguration creationConfiguration = normalizeCreationConfiguration(command);
+        int legacyDurationMinutes = legacyDurationMinutes(command.durationMinutes(), creationConfiguration);
 
         if (INTERVIEW_RECRUITMENT_TYPE.equals(recruitmentType)) {
             validateInterviewCreate(command);
@@ -311,11 +313,11 @@ public class InterviewPostWriteService {
                     command.targetDescription(),
                     legacyRewardAmount,
                     compensations,
-                    command.durationMinutes(),
+                    legacyDurationMinutes,
                     command.recruitCount(),
                     null,
                     null,
-                    null,
+                    command.participationDeadlineAt(),
                     null,
                     List.of(),
                     null,
@@ -331,7 +333,9 @@ public class InterviewPostWriteService {
                     online ? null : command.locationSource(),
                     safeScheduleOptions(command.scheduleOptions()),
                     command.status(),
-                    command.entryMode()
+                    command.entryMode(),
+                    command.participantRequirements(),
+                    creationConfiguration
             );
         }
 
@@ -352,7 +356,7 @@ public class InterviewPostWriteService {
                     command.targetDescription(),
                     legacyRewardAmount,
                     compensations,
-                    command.durationMinutes(),
+                    legacyDurationMinutes,
                     command.recruitCount(),
                     externalProvider,
                     externalUrl,
@@ -370,9 +374,11 @@ public class InterviewPostWriteService {
                     null,
                     null,
                     null,
-                    List.of(),
+                    canonicalScheduleOptions(command, creationConfiguration),
                     command.status(),
-                    command.entryMode()
+                    command.entryMode(),
+                    command.participantRequirements(),
+                    withoutBetaConfiguration(creationConfiguration)
             );
         }
 
@@ -386,11 +392,11 @@ public class InterviewPostWriteService {
                     command.targetDescription(),
                     legacyRewardAmount,
                     compensations,
-                    command.durationMinutes(),
+                    legacyDurationMinutes,
                     command.recruitCount(),
                     null,
                     null,
-                    null,
+                    command.participationDeadlineAt(),
                     null,
                     betaTestPlatforms,
                     command.betaTestStartsAt(),
@@ -404,9 +410,11 @@ public class InterviewPostWriteService {
                     null,
                     null,
                     null,
-                    List.of(),
+                    canonicalScheduleOptions(command, creationConfiguration),
                     command.status(),
-                    command.entryMode()
+                    command.entryMode(),
+                    command.participantRequirements(),
+                    creationConfiguration
             );
         }
 
@@ -418,11 +426,11 @@ public class InterviewPostWriteService {
                     command.targetDescription(),
                     legacyRewardAmount,
                     compensations,
-                    command.durationMinutes(),
+                    legacyDurationMinutes,
                     command.recruitCount(),
                     null,
                     null,
-                    null,
+                    command.participationDeadlineAt(),
                     null,
                     List.of(),
                     null,
@@ -436,13 +444,143 @@ public class InterviewPostWriteService {
                     null,
                     null,
                     null,
-                    List.of(),
+                    safeScheduleOptions(command.scheduleOptions()),
                     command.status(),
-                    command.entryMode()
+                    command.entryMode(),
+                    command.participantRequirements(),
+                    withoutBetaConfiguration(creationConfiguration)
             );
         }
 
         throw new InterviewPostRecruitmentTypeNotSupportedException(recruitmentType);
+    }
+
+    private PostingCreationConfiguration normalizeCreationConfiguration(InterviewPostCreateCommand command) {
+        PostingCreationConfiguration value = command.creationConfiguration() == null
+                ? PostingCreationConfiguration.empty()
+                : command.creationConfiguration();
+        if (isEmptyCreationConfiguration(value)) {
+            return PostingCreationConfiguration.empty();
+        }
+        Integer durationValue = value.durationValue() == null ? command.durationMinutes() : value.durationValue();
+        String durationUnit = hasText(value.durationUnit()) ? value.durationUnit() : "minutes";
+        String scheduleMode = hasText(value.scheduleMode())
+                ? value.scheduleMode()
+                : (command.scheduleOptions().isEmpty() ? "none" : "recurring");
+        String recruitmentLimitMode = hasText(value.recruitmentLimitMode())
+                ? value.recruitmentLimitMode()
+                : (command.recruitCount() == 0 ? "unlimited" : "limited");
+        return new PostingCreationConfiguration(
+                durationValue,
+                durationUnit,
+                scheduleMode,
+                value.scheduleFixedSlots(),
+                value.scheduleRecurringWindows(),
+                normalizeText(value.scheduleNote()),
+                recruitmentLimitMode,
+                normalizeText(value.betaTestEnvironment()),
+                normalizeText(value.betaTestWorkflowNote())
+        );
+    }
+
+    private boolean isEmptyCreationConfiguration(PostingCreationConfiguration value) {
+        return value.durationValue() == null
+                && !hasText(value.durationUnit())
+                && !hasText(value.scheduleMode())
+                && value.scheduleFixedSlots().isEmpty()
+                && value.scheduleRecurringWindows().isEmpty()
+                && !hasText(value.scheduleNote())
+                && !hasText(value.recruitmentLimitMode())
+                && !hasText(value.betaTestEnvironment())
+                && !hasText(value.betaTestWorkflowNote());
+    }
+
+    private List<String> canonicalScheduleOptions(
+            InterviewPostCreateCommand command,
+            PostingCreationConfiguration configuration
+    ) {
+        return isEmptyCreationConfiguration(command.creationConfiguration() == null
+                ? PostingCreationConfiguration.empty()
+                : command.creationConfiguration())
+                ? List.of()
+                : safeScheduleOptions(command.scheduleOptions());
+    }
+
+    private PostingCreationConfiguration withoutBetaConfiguration(PostingCreationConfiguration value) {
+        return new PostingCreationConfiguration(
+                value.durationValue(),
+                value.durationUnit(),
+                value.scheduleMode(),
+                value.scheduleFixedSlots(),
+                value.scheduleRecurringWindows(),
+                value.scheduleNote(),
+                value.recruitmentLimitMode(),
+                null,
+                null
+        );
+    }
+
+    private int legacyDurationMinutes(int fallbackMinutes, PostingCreationConfiguration value) {
+        if (value.durationValue() == null || !hasText(value.durationUnit())) {
+            return fallbackMinutes;
+        }
+        long multiplier = switch (value.durationUnit()) {
+            case "hours" -> 60L;
+            case "days" -> 24L * 60L;
+            case "weeks" -> 7L * 24L * 60L;
+            default -> 1L;
+        };
+        long total = value.durationValue().longValue() * multiplier;
+        if (total < 1 || total > 525_600) {
+            throw validationFailed(
+                    "Duration exceeds the supported range",
+                    List.of(new FieldError("duration_value", "예상 시간은 1년 이하여야 해요."))
+            );
+        }
+        return (int) total;
+    }
+
+    private boolean hasCreationConfigurationChange(InterviewPostUpdateCommand command) {
+        return Set.of(
+                "durationValue",
+                "durationUnit",
+                "scheduleMode",
+                "scheduleFixedSlots",
+                "scheduleRecurringWindows",
+                "scheduleNote",
+                "recruitmentLimitMode",
+                "betaTestEnvironment",
+                "betaTestWorkflowNote"
+        ).stream().anyMatch(command::hasField);
+    }
+
+    private PostingCreationConfiguration mergeCreationConfiguration(
+            PostingCreationConfiguration existing,
+            InterviewPostUpdateCommand command
+    ) {
+        PostingCreationConfiguration base = existing == null
+                ? PostingCreationConfiguration.empty()
+                : existing;
+        PostingCreationConfiguration update = command.creationConfiguration();
+        return new PostingCreationConfiguration(
+                command.hasField("durationValue") ? update.durationValue() : base.durationValue(),
+                command.hasField("durationUnit") ? update.durationUnit() : base.durationUnit(),
+                command.hasField("scheduleMode") ? update.scheduleMode() : base.scheduleMode(),
+                command.hasField("scheduleFixedSlots") ? update.scheduleFixedSlots() : base.scheduleFixedSlots(),
+                command.hasField("scheduleRecurringWindows")
+                        ? update.scheduleRecurringWindows()
+                        : base.scheduleRecurringWindows(),
+                command.hasField("scheduleNote") ? update.scheduleNote() : base.scheduleNote(),
+                command.hasField("recruitmentLimitMode")
+                        ? update.recruitmentLimitMode()
+                        : base.recruitmentLimitMode(),
+                command.hasField("betaTestEnvironment")
+                        ? update.betaTestEnvironment()
+                        : base.betaTestEnvironment(),
+                command.hasField("betaTestWorkflowNote")
+                        ? update.betaTestWorkflowNote()
+                        : base.betaTestWorkflowNote()
+        );
     }
 
     private Map<String, Object> buildPostChanges(InterviewPostWriteModel post, InterviewPostUpdateCommand command) {
@@ -459,11 +597,27 @@ public class InterviewPostWriteService {
         if (command.hasField("targetDescription")) {
             changes.put("targetDescription", command.targetDescription());
         }
+        if (command.hasField("participantRequirements")) {
+            changes.put("participantRequirements", command.participantRequirements());
+        }
         if (command.hasField("rewardAmount")) {
             changes.put("rewardAmount", command.rewardAmount());
         }
         if (command.hasField("durationMinutes")) {
             changes.put("durationMinutes", command.durationMinutes());
+        }
+        if (hasCreationConfigurationChange(command)) {
+            PostingCreationConfiguration configuration = mergeCreationConfiguration(
+                    post.creationConfiguration(),
+                    command
+            );
+            changes.put("creationConfiguration", configuration);
+            if (command.hasField("durationValue") || command.hasField("durationUnit")) {
+                changes.put("durationMinutes", legacyDurationMinutes(post.durationMinutes(), configuration));
+            }
+            if ("unlimited".equals(configuration.recruitmentLimitMode())) {
+                changes.put("recruitCount", 0);
+            }
         }
         if (command.hasField("recruitCount")) {
             changes.put("recruitCount", command.recruitCount());
@@ -567,8 +721,10 @@ public class InterviewPostWriteService {
         serialized.put("title", post.title());
         serialized.put("serviceSummary", post.serviceSummary());
         serialized.put("targetDescription", post.targetDescription());
+        serialized.put("participantRequirements", post.participantRequirements());
         serialized.put("rewardAmount", post.rewardAmount());
         serialized.put("durationMinutes", post.durationMinutes());
+        serialized.put("creationConfiguration", post.creationConfiguration());
         serialized.put("recruitCount", post.recruitCount());
         serialized.put("externalProvider", post.externalProvider());
         serialized.put("externalUrl", post.externalUrl());
@@ -626,7 +782,9 @@ public class InterviewPostWriteService {
                 null,
                 null,
                 null,
-                null
+                null,
+                post.participantRequirements(),
+                post.creationConfiguration()
         );
     }
 
@@ -637,9 +795,13 @@ public class InterviewPostWriteService {
         serialized.put("title", post.title());
         serialized.put("service_summary", post.serviceSummary());
         serialized.put("target_description", post.targetDescription());
+        serialized.put("participant_requirements", post.participantRequirements() == null ? List.of() : List.copyOf(post.participantRequirements()));
         serialized.put("reward_amount", post.rewardAmount());
         serialized.put("duration_minutes", post.durationMinutes());
+        serialized.put("duration_value", post.creationConfiguration().durationValue());
+        serialized.put("duration_unit", post.creationConfiguration().durationUnit());
         serialized.put("recruit_count", post.recruitCount());
+        serialized.put("recruitment_limit_mode", post.creationConfiguration().recruitmentLimitMode());
         serialized.put("external_provider", post.externalProvider());
         serialized.put("external_url", post.externalUrl());
         serialized.put("participation_deadline_at", post.participationDeadlineAt());
@@ -647,6 +809,8 @@ public class InterviewPostWriteService {
         serialized.put("beta_test_platforms", post.betaTestPlatforms() == null ? List.of() : List.copyOf(post.betaTestPlatforms()));
         serialized.put("beta_test_starts_at", post.betaTestStartsAt());
         serialized.put("beta_test_ends_at", post.betaTestEndsAt());
+        serialized.put("beta_test_environment", post.creationConfiguration().betaTestEnvironment());
+        serialized.put("beta_test_workflow_note", post.creationConfiguration().betaTestWorkflowNote());
         serialized.put("interview_mode", post.interviewMode());
         serialized.put("location", post.location());
         serialized.put("location_text", post.locationText());
@@ -657,6 +821,10 @@ public class InterviewPostWriteService {
         serialized.put("location_precision", post.locationPrecision());
         serialized.put("location_source", post.locationSource());
         serialized.put("schedule_options", post.scheduleOptions() == null ? List.of() : List.copyOf(post.scheduleOptions()));
+        serialized.put("schedule_mode", post.creationConfiguration().scheduleMode());
+        serialized.put("schedule_fixed_slots", post.creationConfiguration().scheduleFixedSlots());
+        serialized.put("schedule_recurring_windows", post.creationConfiguration().scheduleRecurringWindows());
+        serialized.put("schedule_note", post.creationConfiguration().scheduleNote());
         serialized.put("status", post.status());
         return serialized;
     }
@@ -673,8 +841,10 @@ public class InterviewPostWriteService {
             case "recruitmentType" -> "recruitment_type";
             case "serviceSummary" -> "service_summary";
             case "targetDescription" -> "target_description";
+            case "participantRequirements" -> "participant_requirements";
             case "rewardAmount" -> "reward_amount";
             case "durationMinutes" -> "duration_minutes";
+            case "creationConfiguration" -> "creation_configuration";
             case "recruitCount" -> "recruit_count";
             case "externalProvider" -> "external_provider";
             case "externalUrl" -> "external_url";
@@ -1006,18 +1176,39 @@ public class InterviewPostWriteService {
     }
 
     private void ensureRecruitmentTypeCreationEnabled(String recruitmentType) {
-        if (INTERVIEW_RECRUITMENT_TYPE.equals(recruitmentType)) {
-            return;
-        }
-        if (SURVEY_RECRUITMENT_TYPE.equals(recruitmentType) && properties.isSurveyRecruitmentCreationEnabled()) {
-            return;
-        }
-        if (BETA_TEST_RECRUITMENT_TYPE.equals(recruitmentType) && properties.isBetaTestRecruitmentCreationEnabled()) {
-            return;
-        }
-        if (EXTENDED_RECRUITMENT_TYPES.contains(recruitmentType) && properties.isExtendedRecruitmentCreationEnabled()) {
+        if (isRecruitmentTypeCreationEnabled(recruitmentType)) {
             return;
         }
         throw new InterviewPostRecruitmentTypeNotSupportedException(recruitmentType);
+    }
+
+    public List<String> enabledRecruitmentTypesForCreation() {
+        List<String> enabled = new ArrayList<>();
+        enabled.add(INTERVIEW_RECRUITMENT_TYPE);
+        if (isRecruitmentTypeCreationEnabled(SURVEY_RECRUITMENT_TYPE)) {
+            enabled.add(SURVEY_RECRUITMENT_TYPE);
+        }
+        // Beta creation remains hidden from the mobile flow until its visible
+        // environment and workflow fields have a complete round-trip contract.
+        return List.copyOf(enabled);
+    }
+
+    public List<String> directParticipationRecruitmentTypesForCreation() {
+        return isRecruitmentTypeCreationEnabled(SURVEY_RECRUITMENT_TYPE)
+                ? List.of(SURVEY_RECRUITMENT_TYPE)
+                : List.of();
+    }
+
+    private boolean isRecruitmentTypeCreationEnabled(String recruitmentType) {
+        if (INTERVIEW_RECRUITMENT_TYPE.equals(recruitmentType)) {
+            return true;
+        }
+        if (SURVEY_RECRUITMENT_TYPE.equals(recruitmentType) && properties.isSurveyRecruitmentCreationEnabled()) {
+            return true;
+        }
+        if (BETA_TEST_RECRUITMENT_TYPE.equals(recruitmentType) && properties.isBetaTestRecruitmentCreationEnabled()) {
+            return true;
+        }
+        return false;
     }
 }

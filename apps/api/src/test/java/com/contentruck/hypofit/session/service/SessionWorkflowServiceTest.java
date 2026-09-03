@@ -222,6 +222,30 @@ class SessionWorkflowServiceTest {
     }
 
     @Test
+    void createSessionRejectsDuplicateScheduledSessionForApplication() {
+        UUID respondentId = UUID.randomUUID();
+        ApplicationRecord application = application(respondentId, "selected");
+        InterviewPostRecord post = post(UUID.randomUUID());
+
+        when(repository.lockApplicationContext(application.id()))
+                .thenReturn(Optional.of(new ApplicationContext(application, post)));
+        when(repository.hasScheduledVisibleSessionForApplication(application.id())).thenReturn(true);
+
+        assertThatThrownBy(() -> service.createSession(
+                application,
+                post,
+                OffsetDateTime.parse("2026-08-01T10:00:00Z"),
+                "online",
+                "https://meet.example.com/1",
+                null
+        )).isInstanceOf(HypofitException.class)
+                .extracting("status", "debugMessage")
+                .containsExactly(409, "A scheduled session already exists for this application");
+
+        verify(repository, never()).saveSession(any());
+    }
+
+    @Test
     void createSessionForActorRejectsUnselectedApplicationBeforeLocking() {
         UUID founderId = UUID.randomUUID();
         ApplicationRecord application = application(UUID.randomUUID(), "rejected");
@@ -367,6 +391,36 @@ class SessionWorkflowServiceTest {
     }
 
     @Test
+    void updateSessionRejectsNonScheduledSessionBeforeAnyWrite() {
+        InterviewSessionRecord interviewSession = session("completed");
+
+        assertThatThrownBy(() -> service.updateSession(
+                interviewSession,
+                application(UUID.randomUUID(), "completed"),
+                post(UUID.randomUUID()),
+                UUID.randomUUID(),
+                "founder",
+                null,
+                OffsetDateTime.parse("2026-08-02T10:00:00Z"),
+                true,
+                null,
+                false,
+                null,
+                false,
+                null,
+                false
+        )).isInstanceOf(HypofitException.class)
+                .extracting("status", "debugMessage")
+                .containsExactly(400, "Only scheduled sessions can be updated");
+
+        verify(repository, never()).saveSession(any());
+        verify(auditWriteService, never()).record(any());
+        verify(notificationWriteService, never()).createNotification(
+                any(), any(), any(), any(), any(), any(), any()
+        );
+    }
+
+    @Test
     void confirmAttendanceCompletesSessionAndCreatesReward() {
         UUID founderId = UUID.randomUUID();
         UUID respondentId = UUID.randomUUID();
@@ -408,6 +462,72 @@ class SessionWorkflowServiceTest {
         assertThat(audit.metadata())
                 .containsEntry("actor_role", "respondent")
                 .containsEntry("completed_now", true);
+    }
+
+    @Test
+    void confirmAttendanceRejectsNonScheduledLockedSession() {
+        InterviewSessionRecord interviewSession = session("completed");
+        ApplicationRecord application = application(UUID.randomUUID(), "completed");
+        InterviewPostRecord post = post(UUID.randomUUID());
+
+        stubLockedSessionContext(interviewSession, application, post);
+
+        assertThatThrownBy(() -> service.confirmAttendance(
+                interviewSession,
+                application,
+                post,
+                post.founderId(),
+                "founder"
+        )).isInstanceOf(HypofitException.class)
+                .extracting("status", "debugMessage")
+                .containsExactly(400, "Only scheduled sessions can be confirmed");
+
+        verify(repository, never()).saveAttendanceRecord(any());
+        verify(repository, never()).saveSession(any());
+        verify(auditWriteService, never()).record(any());
+    }
+
+    @Test
+    void confirmAttendanceKeepsSessionScheduledUntilCounterpartAlsoConfirms() {
+        UUID founderId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        InterviewSessionRecord interviewSession = session("scheduled");
+        ApplicationRecord application = application(respondentId, "selected");
+        InterviewPostRecord post = post(founderId);
+
+        stubLockedSessionContext(interviewSession, application, post);
+        when(repository.findAttendanceRecord(interviewSession.id()))
+                .thenReturn(Optional.of(attendance(interviewSession.id(), false, false)));
+        when(repository.findChatRoomIdByApplicationId(application.id())).thenReturn(Optional.of(UUID.randomUUID()));
+
+        SessionReadModels.ConfirmAttendanceReadModel result = service.confirmAttendance(
+                interviewSession,
+                application,
+                post,
+                founderId,
+                "founder"
+        );
+
+        assertThat(result.session().status()).isEqualTo("scheduled");
+        assertThat(result.attendance().founderConfirmed()).isTrue();
+        assertThat(result.attendance().respondentConfirmed()).isFalse();
+        verify(repository, never()).saveSession(any());
+        verify(repository, never()).updateApplicationStatusIfCurrent(any(), any(), any());
+        verify(repository, never()).saveRewardConfirmation(any());
+        verify(notificationWriteService).createNotification(
+                eq(respondentId),
+                eq("attendance_confirmation_requested"),
+                eq("만남 확인이 필요해요"),
+                any(),
+                any(),
+                any(),
+                any()
+        );
+        ArgumentCaptor<AuditEventCommand> auditCaptor = ArgumentCaptor.forClass(AuditEventCommand.class);
+        verify(auditWriteService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().metadata())
+                .containsEntry("actor_role", "founder")
+                .containsEntry("completed_now", false);
     }
 
     @Test
@@ -569,6 +689,29 @@ class SessionWorkflowServiceTest {
     }
 
     @Test
+    void cancelSessionRejectsNonScheduledSessionBeforeAnyWrite() {
+        InterviewSessionRecord interviewSession = session("completed");
+
+        assertThatThrownBy(() -> service.cancelSession(
+                interviewSession,
+                application(UUID.randomUUID(), "completed"),
+                post(UUID.randomUUID()),
+                UUID.randomUUID(),
+                "respondent",
+                "취소해요"
+        ))
+                .isInstanceOf(HypofitException.class)
+                .extracting("status", "debugMessage")
+                .containsExactly(400, "Only scheduled sessions can be canceled");
+
+        verify(repository, never()).updateScheduledSessionStatus(any(), any());
+        verify(auditWriteService, never()).record(any());
+        verify(notificationWriteService, never()).createNotification(
+                any(), any(), any(), any(), any(), any(), any()
+        );
+    }
+
+    @Test
     void cancelSessionRecordsAuditAndUsesReasonInNotification() {
         UUID actorUserId = UUID.randomUUID();
         UUID founderId = UUID.randomUUID();
@@ -608,6 +751,29 @@ class SessionWorkflowServiceTest {
         assertThat(audit.reason()).isEqualTo("개인 사정으로 어렵습니다.");
         assertThat(audit.before()).containsEntry("status", "scheduled");
         assertThat(audit.after()).containsEntry("status", "canceled");
+    }
+
+    @Test
+    void markNoShowRejectsStaleSessionTransitionBeforeUpdatingApplication() {
+        InterviewSessionRecord interviewSession = session("scheduled");
+
+        when(repository.updateScheduledSessionStatus(interviewSession.id(), "no_show")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.markNoShow(
+                interviewSession,
+                application(UUID.randomUUID(), "selected"),
+                post(UUID.randomUUID()),
+                UUID.randomUUID(),
+                "respondent",
+                "founder"
+        ))
+                .isInstanceOf(HypofitException.class)
+                .extracting("status", "debugMessage")
+                .containsExactly(409, "Interview session status has already changed");
+
+        verify(repository, never()).updateApplicationStatusIfCurrent(any(), any(), any());
+        verify(repository, never()).saveAttendanceRecord(any());
+        verify(repository, never()).findSessionContext(any());
     }
 
     @Test

@@ -46,6 +46,9 @@ class ApplicationWorkflowServiceTest {
     @Mock
     private AiSummaryEnqueueService aiSummaryEnqueueService;
 
+    @Mock
+    private ApplicationWorkflowMetrics applicationWorkflowMetrics;
+
     @Test
     void listApplicationsRequiresActiveProfile() {
         UUID userId = UUID.randomUUID();
@@ -297,6 +300,8 @@ class ApplicationWorkflowServiceTest {
                 interviewPostId,
                 "인터뷰 제목",
                 "interview",
+                0,
+                null,
                 founderId,
                 userId,
                 Map.of("experience", "yes"),
@@ -348,17 +353,70 @@ class ApplicationWorkflowServiceTest {
     }
 
     @Test
+    void withdrawApplicationForAppliedInterviewRecordsAuditAndCancelsChatRoom() {
+        UUID userId = UUID.randomUUID();
+        UUID founderId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        ApplicationWorkflowContext context = context(applicationId, userId, "applied", founderId, interviewPostId, "interview");
+        ApplicationReadModel updated = readModel(applicationId, interviewPostId, userId, "canceled", null);
+
+        when(repository.findUserAccount(userId)).thenReturn(Optional.of(account(userId, "respondent")));
+        when(repository.lockVisibleApplicationContext(applicationId)).thenReturn(Optional.of(context));
+        when(repository.updateStatusIfCurrent(applicationId, "canceled", Set.of("applied", "selected"), null))
+                .thenReturn(Optional.of(updated));
+
+        ApplicationWorkflowService service = service();
+
+        ApplicationReadModel result = service.withdrawApplication(userId, applicationId);
+
+        assertThat(result.status()).isEqualTo("canceled");
+        verify(repository, never()).hasScheduledVisibleSession(any());
+        InOrder inOrder = inOrder(chatLifecycleService, notificationWriteService, auditWriteService);
+        inOrder.verify(chatLifecycleService).markCanceledForApplication(applicationId, interviewPostId, founderId, userId);
+        inOrder.verify(notificationWriteService).createNotification(
+                eq(founderId),
+                eq("application_withdrawn"),
+                eq("신청이 철회됐어요"),
+                eq("지원자가 인터뷰 신청을 철회했어요."),
+                eq("application"),
+                eq(applicationId),
+                eq(Map.of(
+                        "interview_post_id", interviewPostId.toString(),
+                        "previous_status", "applied"
+                ))
+        );
+        inOrder.verify(auditWriteService).record(new AuditEventCommand(
+                userId,
+                "user",
+                "application_withdrawn",
+                "application",
+                applicationId,
+                Map.of("status", "applied"),
+                Map.of("status", "canceled"),
+                null,
+                Map.of(
+                        "interview_post_id", interviewPostId.toString(),
+                        "founder_id", founderId.toString(),
+                        "respondent_id", userId.toString()
+                )
+        ));
+    }
+
+    @Test
     void updateApplicationStatusRequiresFounderOwnership() {
         UUID founderId = UUID.randomUUID();
         UUID otherFounderId = UUID.randomUUID();
         UUID applicationId = UUID.randomUUID();
         when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "founder")));
-        when(repository.findVisibleApplicationContext(applicationId))
+        when(repository.lockVisibleApplicationContext(applicationId))
                 .thenReturn(Optional.of(new ApplicationWorkflowContext(
                         applicationId,
                         UUID.randomUUID(),
                         "인터뷰 제목",
                         "interview",
+                        0,
+                        null,
                         otherFounderId,
                         UUID.randomUUID(),
                         Map.of(),
@@ -381,7 +439,7 @@ class ApplicationWorkflowServiceTest {
         UUID respondentId = UUID.randomUUID();
         UUID interviewPostId = UUID.randomUUID();
         when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "respondent")));
-        when(repository.findVisibleApplicationContext(applicationId))
+        when(repository.lockVisibleApplicationContext(applicationId))
                 .thenReturn(Optional.of(context(applicationId, respondentId, "applied", founderId, interviewPostId)));
         when(repository.updateStatusIfCurrent(applicationId, "selected", Set.of("applied"), null))
                 .thenReturn(Optional.of(readModel(applicationId, interviewPostId, respondentId, "selected", null)));
@@ -396,6 +454,8 @@ class ApplicationWorkflowServiceTest {
                 founderId,
                 respondentId
         );
+        verify(repository).countSelectedVisibleApplications(interviewPostId);
+        verify(applicationWorkflowMetrics).recordSelection("selected");
         verify(notificationWriteService).createNotification(
                 eq(respondentId),
                 eq("application_selected"),
@@ -465,13 +525,99 @@ class ApplicationWorkflowServiceTest {
     }
 
     @Test
+    void updateApplicationStatusForSurveySelectionUsesSurveyNotificationWithoutChatRoom() {
+        UUID founderId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "both")));
+        when(repository.lockVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, respondentId, "applied", founderId, interviewPostId, "survey")));
+        when(repository.updateStatusIfCurrent(applicationId, "selected", Set.of("applied"), null))
+                .thenReturn(Optional.of(readModel(applicationId, interviewPostId, respondentId, "selected", null)));
+
+        ApplicationWorkflowService service = service();
+        ApplicationReadModel result = service.updateApplicationStatus(founderId, applicationId, "selected", null);
+
+        assertThat(result.status()).isEqualTo("selected");
+        verify(repository).countSelectedVisibleApplications(interviewPostId);
+        verify(applicationWorkflowMetrics).recordSelection("selected");
+        verify(chatLifecycleService, never()).markSelectedForApplication(any(), any(), any(), any());
+        verify(notificationWriteService).createNotification(
+                eq(respondentId),
+                eq("application_selected"),
+                eq("설문 참여가 승인됐어요"),
+                eq("공고에서 설문을 시작할 수 있어요."),
+                eq("application"),
+                eq(applicationId),
+                any()
+        );
+    }
+
+    @Test
+    void updateApplicationStatusCancelsAppliedInterviewAndClosesChatRoom() {
+        UUID founderId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "founder")));
+        when(repository.findVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, respondentId, "applied", founderId, interviewPostId, "interview")));
+        when(repository.updateStatusIfCurrent(applicationId, "canceled", Set.of("applied", "selected"), null))
+                .thenReturn(Optional.of(readModel(applicationId, interviewPostId, respondentId, "canceled", null)));
+
+        ApplicationWorkflowService service = service();
+        ApplicationReadModel result = service.updateApplicationStatus(founderId, applicationId, "canceled", null);
+
+        assertThat(result.status()).isEqualTo("canceled");
+        verify(chatLifecycleService).markCanceledForApplication(applicationId, interviewPostId, founderId, respondentId);
+        verify(notificationWriteService).createNotification(
+                eq(respondentId),
+                eq("application_canceled"),
+                eq("인터뷰 신청이 취소됐어요"),
+                eq("인터뷰 신청 상태가 취소로 변경됐어요."),
+                eq("application"),
+                eq(applicationId),
+                eq(Map.of("interview_post_id", interviewPostId.toString()))
+        );
+    }
+
+    @Test
+    void updateApplicationStatusCancelsSelectedInterviewAndClosesChatRoom() {
+        UUID founderId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "founder")));
+        when(repository.findVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, respondentId, "selected", founderId, interviewPostId, "interview")));
+        when(repository.updateStatusIfCurrent(applicationId, "canceled", Set.of("applied", "selected"), null))
+                .thenReturn(Optional.of(readModel(applicationId, interviewPostId, respondentId, "canceled", null)));
+
+        ApplicationWorkflowService service = service();
+        ApplicationReadModel result = service.updateApplicationStatus(founderId, applicationId, "canceled", null);
+
+        assertThat(result.status()).isEqualTo("canceled");
+        verify(chatLifecycleService).markCanceledForApplication(applicationId, interviewPostId, founderId, respondentId);
+        verify(notificationWriteService).createNotification(
+                eq(respondentId),
+                eq("application_canceled"),
+                eq("인터뷰 신청이 취소됐어요"),
+                eq("인터뷰 신청 상태가 취소로 변경됐어요."),
+                eq("application"),
+                eq(applicationId),
+                eq(Map.of("interview_post_id", interviewPostId.toString()))
+        );
+    }
+
+    @Test
     void updateApplicationStatusForBetaSelectionCreatesChatRoom() {
         UUID founderId = UUID.randomUUID();
         UUID applicationId = UUID.randomUUID();
         UUID respondentId = UUID.randomUUID();
         UUID interviewPostId = UUID.randomUUID();
         when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "both")));
-        when(repository.findVisibleApplicationContext(applicationId))
+        when(repository.lockVisibleApplicationContext(applicationId))
                 .thenReturn(Optional.of(context(applicationId, respondentId, "applied", founderId, interviewPostId, "beta_test")));
         when(repository.updateStatusIfCurrent(applicationId, "selected", Set.of("applied"), null))
                 .thenReturn(Optional.of(readModel(applicationId, interviewPostId, respondentId, "selected", null)));
@@ -479,7 +625,69 @@ class ApplicationWorkflowServiceTest {
         ApplicationWorkflowService service = service();
         service.updateApplicationStatus(founderId, applicationId, "selected", null);
 
+        verify(repository).countSelectedVisibleApplications(interviewPostId);
         verify(chatLifecycleService).markSelectedForApplication(applicationId, interviewPostId, founderId, respondentId);
+    }
+
+    @Test
+    void updateApplicationStatusRejectsSelectionWhenRecruitmentCapacityIsReached() {
+        UUID founderId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "founder")));
+        when(repository.lockVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, respondentId, "applied", founderId, interviewPostId, "interview", 1)));
+        when(repository.countSelectedVisibleApplications(interviewPostId)).thenReturn(1L);
+
+        ApplicationWorkflowService service = service();
+
+        assertThatThrownBy(() -> service.updateApplicationStatus(founderId, applicationId, "selected", null))
+                .isInstanceOf(ApplicationSelectionCapacityReachedException.class)
+                .extracting("code")
+                .isEqualTo("application_selection_capacity_reached");
+        verify(repository, never()).updateStatusIfCurrent(any(), any(), any(), any());
+        verify(applicationWorkflowMetrics).recordSelection("capacity_reached");
+        verify(chatLifecycleService, never()).markSelectedForApplication(any(), any(), any(), any());
+        verify(notificationWriteService, never()).createNotification(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updateApplicationStatusSkipsCapacityCheckForUnlimitedRecruitment() {
+        UUID founderId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "founder")));
+        when(repository.lockVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, respondentId, "applied", founderId, interviewPostId, "interview", 0)));
+        when(repository.updateStatusIfCurrent(applicationId, "selected", Set.of("applied"), null))
+                .thenReturn(Optional.of(readModel(applicationId, interviewPostId, respondentId, "selected", null)));
+
+        ApplicationWorkflowService service = service();
+        ApplicationReadModel result = service.updateApplicationStatus(founderId, applicationId, "selected", null);
+
+        assertThat(result.status()).isEqualTo("selected");
+        verify(repository, never()).countSelectedVisibleApplications(any());
+    }
+
+    @Test
+    void updateApplicationStatusRejectsRepeatedSelectionBeforeCapacityCheck() {
+        UUID founderId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        UUID respondentId = UUID.randomUUID();
+        UUID interviewPostId = UUID.randomUUID();
+        when(repository.findUserAccount(founderId)).thenReturn(Optional.of(account(founderId, "founder")));
+        when(repository.lockVisibleApplicationContext(applicationId))
+                .thenReturn(Optional.of(context(applicationId, respondentId, "selected", founderId, interviewPostId)));
+
+        ApplicationWorkflowService service = service();
+
+        assertThatThrownBy(() -> service.updateApplicationStatus(founderId, applicationId, "selected", null))
+                .isInstanceOf(ApplicationConflictException.class)
+                .hasMessageContaining("Application status has already changed");
+        verify(repository, never()).countSelectedVisibleApplications(any());
+        verify(repository, never()).updateStatusIfCurrent(any(), any(), any(), any());
     }
 
     @Test
@@ -543,7 +751,8 @@ class ApplicationWorkflowServiceTest {
                 chatLifecycleService,
                 notificationWriteService,
                 auditWriteService,
-                aiSummaryEnqueueService
+                aiSummaryEnqueueService,
+                applicationWorkflowMetrics
         );
     }
 
@@ -577,11 +786,25 @@ class ApplicationWorkflowServiceTest {
             UUID interviewPostId,
             String recruitmentType
     ) {
+        return context(applicationId, respondentId, status, founderId, interviewPostId, recruitmentType, 4);
+    }
+
+    private ApplicationWorkflowContext context(
+            UUID applicationId,
+            UUID respondentId,
+            String status,
+            UUID founderId,
+            UUID interviewPostId,
+            String recruitmentType,
+            int recruitCount
+    ) {
         return new ApplicationWorkflowContext(
                 applicationId,
                 interviewPostId,
                 "인터뷰 제목",
                 recruitmentType,
+                recruitCount,
+                null,
                 founderId,
                 respondentId,
                 Map.of("experience", "yes"),

@@ -28,6 +28,9 @@ public record InterviewPostResponse(
         @JsonProperty("target_description")
         @Schema(minLength = 10, maxLength = 2000)
         String targetDescription,
+        @JsonProperty("participant_requirements")
+        @ArraySchema(schema = @Schema(type = "string", maxLength = 2000))
+        List<String> participantRequirements,
         @JsonProperty("reward_amount")
         @Schema(minimum = "0")
         int rewardAmount,
@@ -35,9 +38,18 @@ public record InterviewPostResponse(
         @JsonProperty("duration_minutes")
         @Schema(minimum = "10", maximum = "240")
         int durationMinutes,
+        @JsonProperty("duration_value")
+        @Schema(nullable = true, minimum = "1")
+        Integer durationValue,
+        @JsonProperty("duration_unit")
+        @Schema(nullable = true, allowableValues = {"minutes", "hours", "days", "weeks"})
+        String durationUnit,
         @JsonProperty("recruit_count")
         @Schema(minimum = "0", maximum = "999", defaultValue = "0")
         int recruitCount,
+        @JsonProperty("recruitment_limit_mode")
+        @Schema(nullable = true, allowableValues = {"limited", "unlimited"})
+        String recruitmentLimitMode,
         @JsonProperty("external_provider")
         @Schema(nullable = true, allowableValues = {"google_forms"})
         String externalProvider,
@@ -61,6 +73,10 @@ public record InterviewPostResponse(
         @JsonProperty("beta_test_ends_at")
         @Schema(nullable = true)
         OffsetDateTime betaTestEndsAt,
+        @JsonProperty("beta_test_environment")
+        String betaTestEnvironment,
+        @JsonProperty("beta_test_workflow_note")
+        String betaTestWorkflowNote,
         @JsonProperty("interview_mode")
         @Schema(allowableValues = {"offline", "online", "both"})
         String interviewMode,
@@ -88,6 +104,15 @@ public record InterviewPostResponse(
         String locationSource,
         @JsonProperty("schedule_options")
         List<String> scheduleOptions,
+        @JsonProperty("schedule_mode")
+        @Schema(nullable = true, allowableValues = {"fixed", "recurring", "negotiated", "none"})
+        String scheduleMode,
+        @JsonProperty("schedule_fixed_slots")
+        List<String> scheduleFixedSlots,
+        @JsonProperty("schedule_recurring_windows")
+        List<String> scheduleRecurringWindows,
+        @JsonProperty("schedule_note")
+        String scheduleNote,
         @Schema(allowableValues = {
                 "draft", "open", "closed", "completed", "archived", "hidden", "removed"
         })
@@ -112,10 +137,14 @@ public record InterviewPostResponse(
                 model.title(),
                 model.serviceSummary(),
                 model.targetDescription(),
+                model.participantRequirements(),
                 model.rewardAmount(),
                 model.compensations(),
                 model.durationMinutes(),
+                model.creationConfiguration().durationValue(),
+                model.creationConfiguration().durationUnit(),
                 model.recruitCount(),
+                model.creationConfiguration().recruitmentLimitMode(),
                 model.externalProvider(),
                 null,
                 "survey".equals(model.recruitmentType())
@@ -126,6 +155,8 @@ public record InterviewPostResponse(
                 model.betaTestPlatforms(),
                 model.betaTestStartsAt(),
                 model.betaTestEndsAt(),
+                model.creationConfiguration().betaTestEnvironment(),
+                model.creationConfiguration().betaTestWorkflowNote(),
                 model.interviewMode(),
                 model.location(),
                 model.locationText(),
@@ -136,6 +167,10 @@ public record InterviewPostResponse(
                 model.locationPrecision(),
                 model.locationSource(),
                 model.scheduleOptions(),
+                model.creationConfiguration().scheduleMode(),
+                model.creationConfiguration().scheduleFixedSlots(),
+                model.creationConfiguration().scheduleRecurringWindows(),
+                model.creationConfiguration().scheduleNote(),
                 model.status(),
                 model.createdAt(),
                 FounderSummaryResponse.from(model.founder()),

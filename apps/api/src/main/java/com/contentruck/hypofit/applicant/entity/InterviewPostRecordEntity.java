@@ -20,6 +20,12 @@ public class InterviewPostRecordEntity {
     @Column(name = "title", nullable = false)
     private String title;
 
+    @Column(name = "recruit_count", nullable = false)
+    private int recruitCount;
+
+    @Column(name = "recruitment_limit_mode", length = 16)
+    private String recruitmentLimitMode;
+
     @Column(name = "recruitment_type", nullable = false, length = 30)
     private String recruitmentType;
 
@@ -39,6 +45,14 @@ public class InterviewPostRecordEntity {
 
     public String getTitle() {
         return title;
+    }
+
+    public int getRecruitCount() {
+        return recruitCount;
+    }
+
+    public String getRecruitmentLimitMode() {
+        return recruitmentLimitMode;
     }
 
     public String getRecruitmentType() {

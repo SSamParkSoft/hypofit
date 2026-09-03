@@ -91,16 +91,16 @@ evidence:
   without enqueueing duplicate post-open side effects, while a reused key with
   a different normalized payload returns `409 idempotency_key_reused`.
 
-The authenticated deployment smoke remains intentionally manual. Current
-released clients obtain social sessions interactively, so storing a short-lived
-access token in GitHub would make later deployments fail after expiry. Do not
-replace that with a long-lived user session or a service-role key. Before CI
-automation, approve a non-interactive, least-privilege session issuance and
-rotation design. `infra/lightsail/authenticated-smoke.sh` provides the
-token-in-process manual execution path and prints only the HTTP result plus the
-safe request ID, never the token or `/me` response. Production deployment,
-migration application, and authenticated smoke have not been performed for
-this checkpoint.
+The authenticated deployment smoke remains manual because Hypofit has a
+social-only public authentication policy. Storing a social user session in
+GitHub would make later deployments fail after expiry, and email/password grant
+would reintroduce a prohibited identity path. Do not replace either with a
+long-lived user session or service-role key. Until an explicit non-interactive
+social-provider issuance design is approved, use a short-lived token from an
+interactive social login only in the invoking process. The checked-in script
+prints only the HTTP result plus safe request ID, never the token or `/me`
+response. Production deployment, migration application, and authenticated
+smoke have not been performed for this checkpoint.
 
 ### Local Validation Checkpoint, 2026-08-31
 
@@ -112,6 +112,45 @@ this checkpoint.
   it does not affect the Expo runtime or TypeScript result.
 - No migration was applied to Supabase and no API image was deployed as part of
   this local checkpoint.
+
+### Production Readiness Checkpoint, 2026-09-02
+
+- `GET https://hypofit-api.bukae.co.kr/api/v1/health/ready` returned `200` with
+  request ID `req_f8f96d0a0a1642ec8cd9c5fcfc1696e2`; its reported database,
+  JWKS configuration, and required push/provider configuration checks were
+  healthy.
+- `infra/lightsail/authenticated-smoke.sh` was invoked without a configured
+  `HYPOFIT_API_SMOKE_ACCESS_TOKEN` and stopped before making a request, as
+  designed. No token was searched for in runtime files, no user session was
+  persisted, and no service-role credential was used.
+- Therefore this is an infrastructure-readiness observation only, not a fresh
+  authenticated deployment smoke or a release verification.
+
+### Authenticated Production Smoke Checkpoint, 2026-09-02
+
+- A short-lived access token from an interactive social login was supplied only
+  to the invoking shell and `infra/lightsail/authenticated-smoke.sh` returned
+  `200` for `GET /api/v1/me` with request ID
+  `req_6086f0ae508a4b91afd7230189271261`.
+- This verifies the currently deployed API's public route, Supabase JWT
+  verification, Spring Security principal mapping, and active profile lookup.
+  The token was neither printed nor persisted.
+- This is an authenticated production smoke result for the current deployment,
+  not evidence that the uncommitted local changes, a new image, or migrations
+  have been deployed.
+
+### Social-only Smoke Policy Checkpoint, 2026-09-02
+
+- The attempted password-grant automation was removed after confirming the
+  active social-only policy removes public email/password, password-reset, and
+  OTP flows. It must not be revived as a deployment-only backdoor.
+- The deployment workflow remains an infrastructure readiness gate. A fresh
+  authenticated `/api/v1/me` verification is performed manually after an
+  interactive social login until a separately approved provider-token issuance
+  design exists.
+- The temporary GitHub `HYPOFIT_SUPABASE_URL` variable and
+  `HYPOFIT_SUPABASE_ANON_KEY` secret created for the abandoned password-grant
+  path must be removed; they are not part of the supported deployment contract.
 
 ### Observability Implementation Checkpoint, 2026-09-01
 

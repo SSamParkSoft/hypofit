@@ -2,14 +2,14 @@
 
 Status: active-index
 
-Last updated: 2026-08-31
+Last updated: 2026-09-03
 
 `docs/active/` contains only plans that still drive code, schema, deployment,
 release assets, or product configuration work. Standards and deferred designs
 belong in `docs/reference/`; implemented plans and QA history belong in
 `docs/completed/`.
 
-Current active implementation documents: 11.
+Current active implementation documents: 19.
 
 ## Execution Order
 
@@ -46,6 +46,17 @@ Current active implementation documents: 11.
   authentication smoke, bounded Supabase JWKS verification, idempotent posting
   creation, mobile/API compatibility, release observability, and constrained
   Lightsail capacity hardening. It preserves the current modular monolith.
+- `modular-monolith-workflow-integrity-plan.md`: capacity-safe applicant
+  selection, executable workflow transitions, transactional notification/push
+  durability, and enforceable feature-module boundaries. It extends rather
+  than replaces the reliability and Spring MVC maintainability plans.
+- `adaptive-posting-creation-contract-and-flow-plan.md`: the type-aware mobile
+  create-flow contract, data-loss prevention, server-owned creation capability,
+  field-level validation, draft v2 migration, and type-by-type enablement.
+- `posting-detail-decision-experience-plan.md`: the mobile decision-first
+  detail hierarchy, state-aware participation context, organizer trust rules,
+  summary/data boundaries, responsive detail QA, and deferred media/map/share
+  capability gates.
 
 ## Product Model
 
@@ -56,6 +67,23 @@ Current active implementation documents: 11.
 - `mobile-calm-emerald-native-redesign-plan.md`: the Expo phone UI migration to
   Calm Emerald Native, including capability-aware survey consumption that is
   implemented locally but not yet deployed or release-smoked.
+- `mobile-map-search-correctness-and-scalability-plan.md`: evidence-led Expo
+  map search verification and bounded hardening. It preserves the current
+  explicit-area-search UX and center-plus-radius MVP query until measured scale
+  justifies a compatible bbox follow-up.
+- `chat-tab-unread-badge-plan.md`: existing-chat-state-backed mobile bottom-tab
+  unread-room badge, accessibility, cache refresh, and focused QA. It excludes
+  launcher icon badges and changes to chat delivery semantics.
+- `service-maintenance-and-degraded-operation-plan.md`: edge-owned full
+  maintenance safety, public status contract, Expo maintenance recovery, and
+  the deferred Spring read-only/feature maintenance path. It keeps ordinary
+  deployments and generic outage handling separate from maintenance.
+- `admin-notice-and-service-operations-plan.md`: minimum DB-backed Admin
+  authorization, canonical notices, scheduled full-maintenance lifecycle,
+  public operation status, mobile notices/banner/gate integration, audit usage,
+  and the explicit Nginx hard-maintenance fallback boundary. It implements the
+  application-operation layer without making Admin an infrastructure control
+  plane.
 
 ## Web And Release Assets
 

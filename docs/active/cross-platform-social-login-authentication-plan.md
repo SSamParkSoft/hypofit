@@ -10,6 +10,13 @@ Naver Developers
 
 Implementation checkpoints:
 
+- On 2026-09-03, local Web QA gained an explicit development-only
+  `VITE_LOCAL_DIRECT_SUPABASE_AUTH=true` path. It starts Supabase OAuth without
+  the API-side social attempt/identity completion flow because local API
+  instances do not receive production service-role credentials or peppers.
+  The flag is gated by `import.meta.env.DEV`, is never set in production, and
+  returns to the existing `/auth` session/onboarding flow.
+
 - On 2026-08-26 the native login entry was reduced to a card-free canvas:
   brand mark, one product sentence, provider buttons, and legal links. Apple
   continues to use Expo's system-provided button, and iOS now opts into device

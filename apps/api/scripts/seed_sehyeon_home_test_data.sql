@@ -24,7 +24,11 @@ $$;
 insert into app_users (id, email, name, role, bio, organization_type, organization_name)
 values
   ('81000000-0000-4000-8000-000000000001', 'sehyeon-seed-founder@hypofit.invalid', '김도현', 'founder', '초기 서비스의 고객 문제를 검증하고 있어요.', 'team', '루틴랩'),
-  ('81000000-0000-4000-8000-000000000002', 'sehyeon-seed-respondent@hypofit.invalid', '이지은', 'respondent', '새로운 서비스를 직접 사용하고 경험을 나누는 것을 좋아해요.', null, null)
+  ('81000000-0000-4000-8000-000000000002', 'sehyeon-seed-respondent@hypofit.invalid', '이지은', 'respondent', '새로운 서비스를 직접 사용하고 경험을 나누는 것을 좋아해요.', null, null),
+  ('81000000-0000-4000-8000-000000000003', 'sehyeon-seed-applicant-1@hypofit.invalid', '박준서', 'respondent', '대학생 일정과 과제를 앱으로 관리해요.', null, null),
+  ('81000000-0000-4000-8000-000000000004', 'sehyeon-seed-applicant-2@hypofit.invalid', '최유진', 'respondent', '프리랜서로 여러 프로젝트 일정을 조율해요.', null, null),
+  ('81000000-0000-4000-8000-000000000005', 'sehyeon-seed-applicant-3@hypofit.invalid', '김하린', 'respondent', '업무와 개인 일정을 함께 관리하고 있어요.', null, null),
+  ('81000000-0000-4000-8000-000000000006', 'sehyeon-seed-applicant-4@hypofit.invalid', '오민재', 'respondent', '연구와 아르바이트 일정을 주 단위로 계획해요.', null, null)
 on conflict (id) do update set
   email = excluded.email,
   name = excluded.name,
@@ -74,6 +78,26 @@ values (
   '["생산성", "생활서비스", "운동"]'::jsonb,
   '["고객인터뷰", "모바일앱"]'::jsonb
 )
+on conflict (user_id) do update set
+  occupation = excluded.occupation,
+  location = excluded.location,
+  available_modes = excluded.available_modes,
+  interests = excluded.interests,
+  experience_tags = excluded.experience_tags;
+
+insert into respondent_profiles (
+  user_id, birth_year, gender, occupation, location,
+  available_modes, interests, experience_tags
+)
+values
+  ('81000000-0000-4000-8000-000000000003', 2001, null, '대학생', '안산',
+   '["online", "offline"]'::jsonb, '["생산성", "대학생활"]'::jsonb, '["일정관리", "팀프로젝트"]'::jsonb),
+  ('81000000-0000-4000-8000-000000000004', 1996, null, '프리랜서 디자이너', '서울',
+   '["online"]'::jsonb, '["생산성", "디자인"]'::jsonb, '["프로젝트관리", "캘린더"]'::jsonb),
+  ('81000000-0000-4000-8000-000000000005', 1997, null, '직장인', '수원',
+   '["online", "offline"]'::jsonb, '["생산성", "생활서비스"]'::jsonb, '["업무관리", "루틴"]'::jsonb),
+  ('81000000-0000-4000-8000-000000000006', 1998, null, '대학원생', '안산',
+   '["online", "offline"]'::jsonb, '["학업", "생산성"]'::jsonb, '["연구관리", "시간표"]'::jsonb)
 on conflict (user_id) do update set
   occupation = excluded.occupation,
   location = excluded.location,
@@ -335,6 +359,38 @@ values
     '{"relevant_experience":"안산 지역 행사와 전시를 자주 찾아봐요.","motivation":"행사 탐색 흐름을 실제 생활 기준으로 피드백할 수 있어요."}'::jsonb,
     '[]'::jsonb,
     'applied', null, 'visible', now() - interval '5 hours', now() - interval '5 hours'
+  ),
+  (
+    '83000000-0000-4000-8000-000000000007',
+    '82000000-0000-4000-8000-000000000001',
+    '81000000-0000-4000-8000-000000000003',
+    '{"relevant_experience":"수업, 팀플, 공모전 일정을 캘린더 앱으로 함께 관리해요.","motivation":"일정이 겹칠 때 우선순위를 정하는 실제 기준을 설명할 수 있어요."}'::jsonb,
+    '["평일 18시 이후", "토요일 오전"]'::jsonb,
+    'selected', null, 'visible', now() - interval '3 days', now() - interval '1 day'
+  ),
+  (
+    '83000000-0000-4000-8000-000000000008',
+    '82000000-0000-4000-8000-000000000001',
+    '81000000-0000-4000-8000-000000000004',
+    '{"relevant_experience":"여러 클라이언트 프로젝트의 마감과 회의 시간을 매주 조율해요.","motivation":"일정을 빠르게 바꿔야 했던 경험을 구체적으로 나눌 수 있어요."}'::jsonb,
+    '["평일 20시 이후", "일요일 오후"]'::jsonb,
+    'applied', null, 'visible', now() - interval '35 minutes', now() - interval '35 minutes'
+  ),
+  (
+    '83000000-0000-4000-8000-000000000009',
+    '82000000-0000-4000-8000-000000000001',
+    '81000000-0000-4000-8000-000000000005',
+    '{"relevant_experience":"업무와 개인 약속을 하나의 일정 앱에서 관리하고 있어요.","motivation":"알림과 반복 일정 기능을 주로 사용하는 이유를 말씀드릴 수 있어요."}'::jsonb,
+    '["평일 19시 이후"]'::jsonb,
+    'applied', null, 'visible', now() - interval '4 hours', now() - interval '4 hours'
+  ),
+  (
+    '83000000-0000-4000-8000-000000000010',
+    '82000000-0000-4000-8000-000000000001',
+    '81000000-0000-4000-8000-000000000006',
+    '{"relevant_experience":"연구 일정과 아르바이트 시간을 주 단위로 계획하고 있어요.","motivation":"이번 인터뷰 일정과 맞지 않아 참여가 어려울 것 같아요."}'::jsonb,
+    '["평일 오전"]'::jsonb,
+    'rejected', '가능 시간이 공고 일정과 맞지 않아요.', 'visible', now() - interval '2 days', now() - interval '1 day'
   );
 
 insert into survey_participations (
@@ -354,7 +410,8 @@ values
   ('84000000-0000-4000-8000-000000000001', '82000000-0000-4000-8000-000000000001', '83000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), '81000000-0000-4000-8000-000000000002', 'open', now() - interval '30 minutes', now() - interval '90 minutes', now() - interval '30 minutes'),
   ('84000000-0000-4000-8000-000000000002', '82000000-0000-4000-8000-000000000003', '83000000-0000-4000-8000-000000000002', '81000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), 'selected', now() - interval '1 hour', now() - interval '2 days', now() - interval '1 hour'),
   ('84000000-0000-4000-8000-000000000003', '82000000-0000-4000-8000-000000000004', '83000000-0000-4000-8000-000000000003', '81000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), 'open', now() - interval '3 hours', now() - interval '8 hours', now() - interval '3 hours'),
-  ('84000000-0000-4000-8000-000000000004', '82000000-0000-4000-8000-000000000012', '83000000-0000-4000-8000-000000000005', '81000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), 'selected', now() - interval '25 minutes', now() - interval '3 days', now() - interval '25 minutes');
+  ('84000000-0000-4000-8000-000000000004', '82000000-0000-4000-8000-000000000012', '83000000-0000-4000-8000-000000000005', '81000000-0000-4000-8000-000000000001', (select target_user_id from account_seed_context), 'selected', now() - interval '25 minutes', now() - interval '3 days', now() - interval '25 minutes'),
+  ('84000000-0000-4000-8000-000000000005', '82000000-0000-4000-8000-000000000001', '83000000-0000-4000-8000-000000000007', (select target_user_id from account_seed_context), '81000000-0000-4000-8000-000000000003', 'selected', now() - interval '20 minutes', now() - interval '1 day', now() - interval '20 minutes');
 
 insert into chat_messages (id, room_id, sender_id, message_type, body, metadata, created_at)
 values
@@ -362,7 +419,9 @@ values
   ('84100000-0000-4000-8000-000000000002', '84000000-0000-4000-8000-000000000001', '81000000-0000-4000-8000-000000000002', 'user', '평일 저녁 7시 이후에 참여할 수 있어요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '30 minutes'),
   ('84100000-0000-4000-8000-000000000003', '84000000-0000-4000-8000-000000000002', '81000000-0000-4000-8000-000000000001', 'user', '수요일 저녁 7시 일정으로 진행하면 좋겠습니다.', '{"seed_source":"sehyeon_home_test"}', now() - interval '1 hour'),
   ('84100000-0000-4000-8000-000000000004', '84000000-0000-4000-8000-000000000003', '81000000-0000-4000-8000-000000000001', 'user', '신청 내용을 확인했어요. 검토 후 안내드릴게요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '3 hours'),
-  ('84100000-0000-4000-8000-000000000005', '84000000-0000-4000-8000-000000000004', '81000000-0000-4000-8000-000000000001', 'user', '베타테스트 시작 전에 설치 방법과 피드백 방식을 안내드릴게요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '25 minutes');
+  ('84100000-0000-4000-8000-000000000005', '84000000-0000-4000-8000-000000000004', '81000000-0000-4000-8000-000000000001', 'user', '베타테스트 시작 전에 설치 방법과 피드백 방식을 안내드릴게요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '25 minutes'),
+  ('84100000-0000-4000-8000-000000000006', '84000000-0000-4000-8000-000000000005', null, 'application_selected', '지원자를 선정했어요. 이 방에서 인터뷰 일정을 조율해 주세요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '1 day'),
+  ('84100000-0000-4000-8000-000000000007', '84000000-0000-4000-8000-000000000005', '81000000-0000-4000-8000-000000000003', 'user', '평일 저녁과 토요일 오전 모두 참여할 수 있어요.', '{"seed_source":"sehyeon_home_test"}', now() - interval '20 minutes');
 
 insert into chat_room_participant_settings (room_id, user_id, is_muted, is_hidden, last_read_at)
 select room_id, user_id, false, false, last_read_at
@@ -375,7 +434,9 @@ from (
     ('84000000-0000-4000-8000-000000000003'::uuid, (select target_user_id from account_seed_context), now() - interval '4 hours'),
     ('84000000-0000-4000-8000-000000000003'::uuid, '81000000-0000-4000-8000-000000000001'::uuid, now() - interval '2 hours'),
     ('84000000-0000-4000-8000-000000000004'::uuid, (select target_user_id from account_seed_context), now() - interval '2 hours'),
-    ('84000000-0000-4000-8000-000000000004'::uuid, '81000000-0000-4000-8000-000000000001'::uuid, now() - interval '20 minutes')
+    ('84000000-0000-4000-8000-000000000004'::uuid, '81000000-0000-4000-8000-000000000001'::uuid, now() - interval '20 minutes'),
+    ('84000000-0000-4000-8000-000000000005'::uuid, (select target_user_id from account_seed_context), now() - interval '1 day'),
+    ('84000000-0000-4000-8000-000000000005'::uuid, '81000000-0000-4000-8000-000000000003'::uuid, now() - interval '20 minutes')
 ) as settings(room_id, user_id, last_read_at);
 
 insert into interview_sessions (
@@ -407,6 +468,10 @@ select
   (select jsonb_object_agg(recruitment_type, count) from (
     select recruitment_type, count(*) from interview_posts where id::text like '82%' group by recruitment_type
   ) as seeded_post_types) as seeded_post_types,
+  (select count(*) from applications a join interview_posts p on p.id = a.interview_post_id where p.founder_id = u.id and a.id::text like '83%') as received_applications,
+  (select jsonb_object_agg(status, count) from (
+    select a.status, count(*) from applications a join interview_posts p on p.id = a.interview_post_id where p.founder_id = u.id and a.id::text like '83%' group by a.status
+  ) as received_application_statuses) as received_application_statuses,
   (select count(*) from applications a where a.respondent_id = u.id and a.id::text like '83%') as applications,
   (select jsonb_object_agg(status, count) from (
     select status, count(*) from survey_participations where id::text like '86%' group by status

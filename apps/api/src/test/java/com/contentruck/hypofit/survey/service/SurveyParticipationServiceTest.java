@@ -89,6 +89,35 @@ class SurveyParticipationServiceTest {
     }
 
     @Test
+    void openAllowsApplicationRequiredSurveyWhenApplicantIsSelected() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        SurveyPostSummary post = new SurveyPostSummary(
+                postId,
+                UUID.randomUUID(),
+                "survey",
+                "application_required",
+                "open",
+                NOW.plusDays(1),
+                "https://forms.example.com/approved-only"
+        );
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(post));
+        when(repository.hasSelectedApplication(postId, actorUserId)).thenReturn(true);
+        when(repository.findParticipationForUpdate(postId, actorUserId)).thenReturn(Optional.empty());
+        when(repository.createOpenedParticipation(postId, actorUserId, NOW))
+                .thenReturn(participation(postId, actorUserId, "opened"));
+        when(repository.findParticipantSummaries(anyCollection()))
+                .thenReturn(Map.of(actorUserId, participant(actorUserId)));
+
+        SurveyParticipationActionView response = service.open(actorUserId, postId);
+
+        assertThat(response.participation().status()).isEqualTo("opened");
+        assertThat(response.externalUrl()).isEqualTo("https://forms.example.com/approved-only");
+        verify(repository).createOpenedParticipation(postId, actorUserId, NOW);
+    }
+
+    @Test
     void findOwnReturnsEmptyWhenParticipantHasNotStartedSurvey() {
         UUID actorUserId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
@@ -130,6 +159,40 @@ class SurveyParticipationServiceTest {
         SurveyParticipationActionView response = service.open(actorUserId, postId);
 
         assertThat(response.participation().status()).isEqualTo("submitted");
+        verify(repository, never()).createOpenedParticipation(postId, actorUserId, NOW);
+    }
+
+    @Test
+    void openIsIdempotentForOpenedParticipation() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "closed", NOW.minusDays(1))));
+        when(repository.findParticipationForUpdate(postId, actorUserId))
+                .thenReturn(Optional.of(participation(postId, actorUserId, "opened")));
+        when(repository.findParticipantSummaries(anyCollection()))
+                .thenReturn(Map.of(actorUserId, participant(actorUserId)));
+
+        SurveyParticipationActionView response = service.open(actorUserId, postId);
+
+        assertThat(response.participation().status()).isEqualTo("opened");
+        verify(repository, never()).createOpenedParticipation(postId, actorUserId, NOW);
+    }
+
+    @Test
+    void openIsIdempotentForConfirmedParticipation() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "closed", NOW.minusDays(1))));
+        when(repository.findParticipationForUpdate(postId, actorUserId))
+                .thenReturn(Optional.of(participation(postId, actorUserId, "confirmed")));
+        when(repository.findParticipantSummaries(anyCollection()))
+                .thenReturn(Map.of(actorUserId, participant(actorUserId)));
+
+        SurveyParticipationActionView response = service.open(actorUserId, postId);
+
+        assertThat(response.participation().status()).isEqualTo("confirmed");
         verify(repository, never()).createOpenedParticipation(postId, actorUserId, NOW);
     }
 
@@ -261,6 +324,23 @@ class SurveyParticipationServiceTest {
     }
 
     @Test
+    void submitIsIdempotentForSubmittedParticipation() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "closed", NOW.minusDays(1))));
+        when(repository.findParticipationForUpdate(postId, actorUserId))
+                .thenReturn(Optional.of(participation(postId, actorUserId, "submitted")));
+        when(repository.findParticipantSummaries(anyCollection()))
+                .thenReturn(Map.of(actorUserId, participant(actorUserId)));
+
+        SurveyParticipationActionView response = service.submit(actorUserId, postId);
+
+        assertThat(response.participation().status()).isEqualTo("submitted");
+        verify(repository, never()).updateToSubmitted(postId, actorUserId, NOW);
+    }
+
+    @Test
     void submitRejectsMissingParticipation() {
         UUID actorUserId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
@@ -325,6 +405,24 @@ class SurveyParticipationServiceTest {
 
         assertThat(response.participation().status()).isEqualTo("confirmed");
         assertThat(response.participant().id()).isEqualTo(participantId);
+    }
+
+    @Test
+    void confirmIsIdempotentForConfirmedParticipation() {
+        UUID organizerId = UUID.randomUUID();
+        UUID participantId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(organizerId)).thenReturn(Optional.of(activeAccount(organizerId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, organizerId, "closed", NOW.minusDays(2))));
+        when(repository.findParticipationForUpdate(postId, participantId))
+                .thenReturn(Optional.of(participation(postId, participantId, "confirmed")));
+        when(repository.findParticipantSummaries(anyCollection()))
+                .thenReturn(Map.of(participantId, participant(participantId)));
+
+        SurveyParticipationView response = service.confirm(organizerId, postId, participantId);
+
+        assertThat(response.participation().status()).isEqualTo("confirmed");
+        verify(repository, never()).updateToConfirmed(postId, participantId, NOW);
     }
 
     @Test

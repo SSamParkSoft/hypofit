@@ -9,6 +9,8 @@ public interface PushDispatchRepository {
 
     int resetStaleSendingDeliveries(OffsetDateTime now, int timeoutSeconds, int maxAttempts);
 
+    PushOutboxSnapshot snapshotPendingDeliveries(OffsetDateTime now);
+
     List<ClaimedPushDeliveryRecord> claimPendingDeliveries(OffsetDateTime now, int limit);
 
     void markDeliverySent(
@@ -53,6 +55,9 @@ public interface PushDispatchRepository {
             PushDeviceDispatchRecord device,
             NotificationDispatchRecord notification
     ) {
+    }
+
+    record PushOutboxSnapshot(long pendingCount, long oldestPendingAgeSeconds) {
     }
 
     record PushDeviceDispatchRecord(
