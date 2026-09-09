@@ -168,6 +168,7 @@ public class InterviewPostWriteRepositoryAdapter implements InterviewPostWriteRe
                 case "targetDescription" -> entity.setTargetDescription((String) entry.getValue());
                 case "participantRequirements" -> entity.setParticipantRequirements((List<String>) entry.getValue());
                 case "rewardAmount" -> entity.setRewardAmount((Integer) entry.getValue());
+                case "compensations" -> entity.setCompensations((List<com.contentruck.hypofit.interview.service.PostingCompensation>) entry.getValue());
                 case "durationMinutes" -> entity.setDurationMinutes((Integer) entry.getValue());
                 case "creationConfiguration" -> applyCreationConfiguration(
                         entity,

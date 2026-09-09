@@ -23,6 +23,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -150,7 +153,7 @@ class SurveyParticipationServiceTest {
         UUID actorUserId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
         when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
-        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "closed", NOW.minusDays(1))));
+        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "open", NOW.plusDays(1))));
         when(repository.findParticipationForUpdate(postId, actorUserId))
                 .thenReturn(Optional.of(participation(postId, actorUserId, "submitted")));
         when(repository.findParticipantSummaries(anyCollection()))
@@ -167,7 +170,7 @@ class SurveyParticipationServiceTest {
         UUID actorUserId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
         when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
-        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "closed", NOW.minusDays(1))));
+        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "open", NOW.plusDays(1))));
         when(repository.findParticipationForUpdate(postId, actorUserId))
                 .thenReturn(Optional.of(participation(postId, actorUserId, "opened")));
         when(repository.findParticipantSummaries(anyCollection()))
@@ -184,7 +187,7 @@ class SurveyParticipationServiceTest {
         UUID actorUserId = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
         when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
-        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "closed", NOW.minusDays(1))));
+        when(repository.findPost(postId)).thenReturn(Optional.of(surveyPost(postId, UUID.randomUUID(), "open", NOW.plusDays(1))));
         when(repository.findParticipationForUpdate(postId, actorUserId))
                 .thenReturn(Optional.of(participation(postId, actorUserId, "confirmed")));
         when(repository.findParticipantSummaries(anyCollection()))
@@ -320,6 +323,7 @@ class SurveyParticipationServiceTest {
         SurveyParticipationActionView response = service.submit(actorUserId, postId);
 
         assertThat(response.participation().status()).isEqualTo("confirmed");
+        assertThat(response.externalUrl()).isEmpty();
         verify(repository, never()).updateToSubmitted(postId, actorUserId, NOW);
     }
 
@@ -337,6 +341,7 @@ class SurveyParticipationServiceTest {
         SurveyParticipationActionView response = service.submit(actorUserId, postId);
 
         assertThat(response.participation().status()).isEqualTo("submitted");
+        assertThat(response.externalUrl()).isEmpty();
         verify(repository, never()).updateToSubmitted(postId, actorUserId, NOW);
     }
 
@@ -370,7 +375,95 @@ class SurveyParticipationServiceTest {
         SurveyParticipationActionView response = service.withdraw(actorUserId, postId);
 
         assertThat(response.participation().status()).isEqualTo("withdrawn");
+        assertThat(response.externalUrl()).isEmpty();
         verify(repository).updateToWithdrawn(postId, actorUserId, NOW);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "opened,closed,1", "submitted,closed,1", "confirmed,closed,1",
+            "opened,open,-1", "submitted,open,-1", "confirmed,open,-1",
+            "opened,open,0", "submitted,open,0", "confirmed,open,0"
+    })
+    void openNeverReissuesLinkAfterClosureOrDeadline(String state, String postStatus, int deadlineOffset) {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(
+                surveyPost(postId, UUID.randomUUID(), postStatus, NOW.plusDays(deadlineOffset))
+        ));
+        when(repository.findParticipationForUpdate(postId, actorUserId))
+                .thenReturn(Optional.of(participation(postId, actorUserId, state)));
+
+        assertThatThrownBy(() -> service.open(actorUserId, postId))
+                .isInstanceOf(HypofitException.class)
+                .extracting(error -> ((HypofitException) error).getCode())
+                .isEqualTo("survey_not_available");
+        verify(repository, never()).createOpenedParticipation(postId, actorUserId, NOW);
+    }
+
+    @Test
+    void submitRejectsNewDeclarationWhenSelectionWasRevoked() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(new SurveyPostSummary(
+                postId, UUID.randomUUID(), "survey", "application_required", "open", NOW.plusDays(1),
+                "https://docs.google.com/forms/d/example/viewform"
+        )));
+        when(repository.findParticipationForUpdate(postId, actorUserId))
+                .thenReturn(Optional.of(participation(postId, actorUserId, "opened")));
+        when(repository.hasSelectedApplication(postId, actorUserId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.submit(actorUserId, postId))
+                .isInstanceOf(HypofitException.class)
+                .extracting(error -> ((HypofitException) error).getCode())
+                .isEqualTo("survey_access_not_granted");
+        verify(repository, never()).updateToSubmitted(postId, actorUserId, NOW);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"submitted", "confirmed"})
+    void submitReplayPreservesStateButMasksLinkAfterSelectionRevoked(String state) {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(new SurveyPostSummary(
+                postId, UUID.randomUUID(), "survey", "application_required", "open", NOW.plusDays(1),
+                "https://docs.google.com/forms/d/example/viewform"
+        )));
+        when(repository.findParticipationForUpdate(postId, actorUserId))
+                .thenReturn(Optional.of(participation(postId, actorUserId, state)));
+        when(repository.findParticipantSummaries(anyCollection())).thenReturn(Map.of());
+        when(repository.hasSelectedApplication(postId, actorUserId)).thenReturn(false);
+
+        SurveyParticipationActionView response = service.submit(actorUserId, postId);
+
+        assertThat(response.participation().status()).isEqualTo(state);
+        assertThat(response.externalUrl()).isEmpty();
+        verify(repository, never()).updateToSubmitted(postId, actorUserId, NOW);
+    }
+
+    @Test
+    void withdrawalRemainsPossibleAfterClosureAndRevocationWithoutReturningLink() {
+        UUID actorUserId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeAccount(actorUserId)));
+        when(repository.findPost(postId)).thenReturn(Optional.of(new SurveyPostSummary(
+                postId, UUID.randomUUID(), "survey", "application_required", "closed", NOW.minusDays(1),
+                "https://docs.google.com/forms/d/example/viewform"
+        )));
+        when(repository.findParticipationForUpdate(postId, actorUserId))
+                .thenReturn(Optional.of(participation(postId, actorUserId, "submitted")));
+        when(repository.updateToWithdrawn(postId, actorUserId, NOW))
+                .thenReturn(participation(postId, actorUserId, "withdrawn"));
+        when(repository.findParticipantSummaries(anyCollection())).thenReturn(Map.of());
+
+        SurveyParticipationActionView response = service.withdraw(actorUserId, postId);
+
+        assertThat(response.participation().status()).isEqualTo("withdrawn");
+        assertThat(response.externalUrl()).isEmpty();
+        verify(repository, never()).hasSelectedApplication(postId, actorUserId);
     }
 
     @Test

@@ -32,7 +32,8 @@ public record InterviewPostUpdateCommand(
         String status,
         String entryMode,
         java.util.List<String> participantRequirements,
-        PostingCreationConfiguration creationConfiguration
+        PostingCreationConfiguration creationConfiguration,
+        java.util.List<PostingCompensation> compensations
 ) {
     public InterviewPostUpdateCommand(
             Set<String> providedFields,
@@ -84,7 +85,8 @@ public record InterviewPostUpdateCommand(
                 status,
                 null,
                 java.util.List.of(),
-                PostingCreationConfiguration.empty()
+                PostingCreationConfiguration.empty(),
+                java.util.List.of()
         );
     }
 

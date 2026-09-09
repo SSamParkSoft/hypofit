@@ -627,6 +627,15 @@ class ApplicationWorkflowServiceTest {
 
         verify(repository).countSelectedVisibleApplications(interviewPostId);
         verify(chatLifecycleService).markSelectedForApplication(applicationId, interviewPostId, founderId, respondentId);
+        verify(notificationWriteService).createNotification(
+                eq(respondentId),
+                eq("application_selected"),
+                eq("베타테스트 참여자로 선정됐어요"),
+                eq("채팅에서 테스트 준비와 진행 방법을 확인해 주세요."),
+                eq("application"),
+                eq(applicationId),
+                any()
+        );
     }
 
     @Test

@@ -531,7 +531,13 @@ public class InterviewPostWriteService {
             default -> 1L;
         };
         long total = value.durationValue().longValue() * multiplier;
-        if (total < 1 || total > 525_600) {
+        if (total < 10) {
+            throw validationFailed(
+                    "Duration is below the supported range",
+                    List.of(new FieldError("duration_value", "예상 시간은 10분 이상이어야 해요."))
+            );
+        }
+        if (total > 525_600) {
             throw validationFailed(
                     "Duration exceeds the supported range",
                     List.of(new FieldError("duration_value", "예상 시간은 1년 이하여야 해요."))
@@ -602,6 +608,21 @@ public class InterviewPostWriteService {
         }
         if (command.hasField("rewardAmount")) {
             changes.put("rewardAmount", command.rewardAmount());
+        }
+        if (command.hasField("compensations")) {
+            List<PostingCompensation> compensations = PostingCompensations.normalize(
+                    command.compensations(), post.rewardAmount()
+            );
+            changes.put("compensations", compensations);
+            changes.put("rewardAmount", PostingCompensations.legacyRewardAmount(compensations));
+        } else if (command.hasField("rewardAmount") && command.rewardAmount() != null) {
+            List<PostingCompensation> compensations = new ArrayList<>(post.compensations().stream()
+                    .filter(item -> !"cash".equals(item.type()) && !"none".equals(item.type()))
+                    .toList());
+            if (command.rewardAmount() > 0 || compensations.isEmpty()) {
+                compensations.addAll(PostingCompensations.legacy(command.rewardAmount()));
+            }
+            changes.put("compensations", compensations);
         }
         if (command.hasField("durationMinutes")) {
             changes.put("durationMinutes", command.durationMinutes());
@@ -723,6 +744,7 @@ public class InterviewPostWriteService {
         serialized.put("targetDescription", post.targetDescription());
         serialized.put("participantRequirements", post.participantRequirements());
         serialized.put("rewardAmount", post.rewardAmount());
+        serialized.put("compensations", post.compensations());
         serialized.put("durationMinutes", post.durationMinutes());
         serialized.put("creationConfiguration", post.creationConfiguration());
         serialized.put("recruitCount", post.recruitCount());
@@ -797,6 +819,7 @@ public class InterviewPostWriteService {
         serialized.put("target_description", post.targetDescription());
         serialized.put("participant_requirements", post.participantRequirements() == null ? List.of() : List.copyOf(post.participantRequirements()));
         serialized.put("reward_amount", post.rewardAmount());
+        serialized.put("compensations", post.compensations());
         serialized.put("duration_minutes", post.durationMinutes());
         serialized.put("duration_value", post.creationConfiguration().durationValue());
         serialized.put("duration_unit", post.creationConfiguration().durationUnit());
@@ -1188,8 +1211,9 @@ public class InterviewPostWriteService {
         if (isRecruitmentTypeCreationEnabled(SURVEY_RECRUITMENT_TYPE)) {
             enabled.add(SURVEY_RECRUITMENT_TYPE);
         }
-        // Beta creation remains hidden from the mobile flow until its visible
-        // environment and workflow fields have a complete round-trip contract.
+        if (isRecruitmentTypeCreationEnabled(BETA_TEST_RECRUITMENT_TYPE)) {
+            enabled.add(BETA_TEST_RECRUITMENT_TYPE);
+        }
         return List.copyOf(enabled);
     }
 

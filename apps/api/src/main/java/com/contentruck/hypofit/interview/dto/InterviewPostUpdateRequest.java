@@ -31,6 +31,8 @@ public record InterviewPostUpdateRequest(Object rawBody) {
             @JsonProperty("reward_amount")
             @Schema(nullable = true, minimum = "0")
             Integer rewardAmount,
+            @JsonProperty("compensations")
+            List<com.contentruck.hypofit.interview.service.PostingCompensation> compensations,
             @JsonProperty("duration_minutes")
             @Schema(nullable = true, minimum = "10", maximum = "240")
             Integer durationMinutes,

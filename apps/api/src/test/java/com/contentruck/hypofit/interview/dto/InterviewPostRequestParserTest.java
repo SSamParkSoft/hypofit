@@ -8,10 +8,63 @@ import com.contentruck.hypofit.common.error.HypofitValidationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class InterviewPostRequestParserTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @ParameterizedTest
+    @ValueSource(ints = {-1, 0, 5, 9, 525601})
+    void createAndUpdateRejectDurationOutsideLegacyContract(int minutes) throws Exception {
+        var body = validCreateBody().put("duration_minutes", minutes);
+        var createError = catchThrowableOfType(() -> InterviewPostRequestParser.parseCreate(body),
+                HypofitValidationException.class);
+        var updateError = catchThrowableOfType(() -> InterviewPostRequestParser.parseUpdate(
+                objectMapper.createObjectNode().put("duration_minutes", minutes)), HypofitValidationException.class);
+        assertThat(createError.getFieldErrors()).extracting(error -> error.field()).contains("duration_minutes");
+        assertThat(updateError.getFieldErrors()).extracting(error -> error.field()).contains("duration_minutes");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {10, 525600})
+    void createAndUpdateAcceptDurationContractBoundaries(int minutes) throws Exception {
+        assertThat(InterviewPostRequestParser.parseCreate(validCreateBody().put("duration_minutes", minutes))
+                .durationMinutes()).isEqualTo(minutes);
+        assertThat(InterviewPostRequestParser.parseUpdate(objectMapper.createObjectNode().put("duration_minutes", minutes))
+                .durationMinutes()).isEqualTo(minutes);
+    }
+
+    private com.fasterxml.jackson.databind.node.ObjectNode validCreateBody() throws Exception {
+        return (com.fasterxml.jackson.databind.node.ObjectNode) objectMapper.readTree("""
+                {"title":"인터뷰 모집", "service_summary":"서비스 사용 경험을 확인하는 인터뷰입니다.",
+                 "target_description":"최근 3개월 내 관련 경험이 있는 분", "reward_amount":0,
+                 "duration_minutes":30, "interview_mode":"online", "status":"draft"}
+                """);
+    }
+
+    @Test
+    void updateParsesExplicitCompensationsAndLeavesAbsentFieldsOmitted() throws Exception {
+        var patch = InterviewPostRequestParser.parseUpdate(objectMapper.readTree("""
+                {"compensations":[{"type":"gift_card","label":"커피 기프티콘"}]}
+                """));
+        assertThat(patch.hasField("compensations")).isTrue();
+        assertThat(patch.hasField("rewardAmount")).isFalse();
+        assertThat(patch.hasField("externalUrl")).isFalse();
+        assertThat(patch.compensations()).singleElement().satisfies(item -> assertThat(item.label()).isEqualTo("커피 기프티콘"));
+        var titleOnly = InterviewPostRequestParser.parseUpdate(objectMapper.readTree("{\"title\":\"제목만 수정\"}"));
+        assertThat(titleOnly.hasField("compensations")).isFalse();
+    }
+
+    @Test
+    void updateRejectsNullOrEmptyCompensationInsteadOfSilentlyClearingIt() throws Exception {
+        for (String value : java.util.List.of("null", "[]")) {
+            var body = objectMapper.readTree("{\"compensations\":" + value + "}");
+            assertThatThrownBy(() -> InterviewPostRequestParser.parseUpdate(body))
+                    .isInstanceOf(HypofitValidationException.class);
+        }
+    }
 
     @Test
     void createDefaultsRecruitmentTypeToInterview() throws Exception {

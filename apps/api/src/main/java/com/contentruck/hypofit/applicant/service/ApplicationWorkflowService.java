@@ -341,15 +341,19 @@ public class ApplicationWorkflowService {
     }
 
     private String selectedNotificationTitle(String recruitmentType) {
-        return RECRUITMENT_TYPE_SURVEY.equals(recruitmentType)
-                ? "설문 참여가 승인됐어요"
-                : "인터뷰 대상자로 선정됐어요";
+        return switch (recruitmentType) {
+            case RECRUITMENT_TYPE_SURVEY -> "설문 참여가 승인됐어요";
+            case RECRUITMENT_TYPE_BETA_TEST -> "베타테스트 참여자로 선정됐어요";
+            default -> "인터뷰 대상자로 선정됐어요";
+        };
     }
 
     private String selectedNotificationBody(String recruitmentType) {
-        return RECRUITMENT_TYPE_SURVEY.equals(recruitmentType)
-                ? "공고에서 설문을 시작할 수 있어요."
-                : "채팅에서 일정과 진행 방식을 조율해보세요.";
+        return switch (recruitmentType) {
+            case RECRUITMENT_TYPE_SURVEY -> "공고에서 설문을 시작할 수 있어요.";
+            case RECRUITMENT_TYPE_BETA_TEST -> "채팅에서 테스트 준비와 진행 방법을 확인해 주세요.";
+            default -> "채팅에서 일정과 진행 방식을 조율해보세요.";
+        };
     }
 
     private ApplicationUserAccount requireActiveUser(UUID userId) {

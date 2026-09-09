@@ -51,6 +51,7 @@ public class SurveyParticipationService {
         ensureExternalUrlConfigured(post);
 
         Optional<SurveyParticipationReadModel> existing = repository.findParticipationForUpdate(postId, actorUserId);
+        ensureSurveyAvailableForOpen(post);
         SurveyParticipationReadModel participation;
         if (existing.isPresent()) {
             participation = switch (existing.get().status()) {
@@ -63,7 +64,6 @@ public class SurveyParticipationService {
                 );
             };
         } else {
-            ensureSurveyAvailableForOpen(post);
             participation = repository.createOpenedParticipation(postId, actorUserId, now());
         }
 
@@ -101,6 +101,7 @@ public class SurveyParticipationService {
         SurveyParticipationReadModel participation = switch (existing.status()) {
             case STATUS_OPENED -> {
                 ensureSurveyAvailableForOpen(post);
+                ensureExternalAccessAllowed(post, actorUserId);
                 yield repository.updateToSubmitted(postId, actorUserId, now());
             }
             case STATUS_SUBMITTED, STATUS_CONFIRMED -> existing;
@@ -115,7 +116,7 @@ public class SurveyParticipationService {
         return new SurveyParticipationActionView(
                 participation,
                 resolveParticipant(actorUserId),
-                post.externalUrl()
+                externalUrlForCurrentAccess(post, actorUserId)
         );
     }
 
@@ -144,7 +145,7 @@ public class SurveyParticipationService {
         return new SurveyParticipationActionView(
                 participation,
                 resolveParticipant(actorUserId),
-                post.externalUrl()
+                ""
         );
     }
 
@@ -245,7 +246,7 @@ public class SurveyParticipationService {
             throw surveyNotAvailable("Survey post is not open: " + post.id() + " status=" + post.status());
         }
         OffsetDateTime deadline = post.participationDeadlineAt();
-        if (deadline != null && deadline.isBefore(now())) {
+        if (deadline != null && !deadline.isAfter(now())) {
             throw surveyNotAvailable("Survey participation deadline has passed for post " + post.id());
         }
     }
@@ -259,6 +260,17 @@ public class SurveyParticipationService {
                     "Survey post has no external URL: " + post.id()
             );
         }
+    }
+
+    private String externalUrlForCurrentAccess(SurveyPostSummary post, UUID actorUserId) {
+        // Preserve the v1 string field on replay without renewing expired or revoked access.
+        if (!POST_OPEN_STATUS.equals(post.status())
+                || (post.participationDeadlineAt() != null && !post.participationDeadlineAt().isAfter(now()))
+                || (!ENTRY_MODE_DIRECT.equals(post.entryMode())
+                    && !repository.hasSelectedApplication(post.id(), actorUserId))) {
+            return "";
+        }
+        return post.externalUrl() == null ? "" : post.externalUrl();
     }
 
     private void ensureExternalAccessAllowed(SurveyPostSummary post, UUID actorUserId) {

@@ -14,6 +14,9 @@ import static org.mockito.Mockito.when;
 import com.contentruck.hypofit.ai.service.AiSummaryEnqueueService;
 import com.contentruck.hypofit.audit.service.AuditWriteService;
 import com.contentruck.hypofit.common.config.HypofitProperties;
+import com.contentruck.hypofit.common.error.HypofitValidationException;
+import com.contentruck.hypofit.interview.dto.InterviewPostRequestParser;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.contentruck.hypofit.user.service.UserProfileMissingException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -25,6 +28,9 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -81,6 +87,97 @@ class InterviewPostWriteServiceTest {
                         assertThat(tag.getKey()).isEqualTo("outcome")
                 )
         );
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 5, 9})
+    void canonicalDurationCannotBypassMinimumWithValidLegacyMinutes(int minutes) throws Exception {
+        UUID actor = UUID.randomUUID();
+        when(repository.findUserAccount(actor)).thenReturn(Optional.of(activeFounder(actor, "both")));
+        var body = new ObjectMapper().readTree("""
+                {"title":"인터뷰 모집", "service_summary":"서비스 사용 경험을 확인하는 인터뷰입니다.",
+                 "target_description":"최근 3개월 내 관련 경험이 있는 분", "reward_amount":0,
+                 "duration_minutes":30, "duration_value":%d, "duration_unit":"minutes",
+                 "interview_mode":"online", "status":"draft"}
+                """.formatted(minutes));
+        var command = InterviewPostRequestParser.parseCreate(body);
+        var error = org.assertj.core.api.Assertions.catchThrowableOfType(() -> service.createPost(actor, command),
+                HypofitValidationException.class);
+        assertThat(error).isNotNull();
+        assertThat(error.getFieldErrors()).extracting(field -> field.field()).contains("duration_value");
+        verify(repository, never()).createPost(any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 5, 9})
+    void canonicalDurationUpdateRejectsBelowMinimumBeforePersistence(int minutes) throws Exception {
+        UUID actor = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        when(repository.findUserAccount(actor)).thenReturn(Optional.of(activeFounder(actor, "both")));
+        when(repository.findPost(postId)).thenReturn(Optional.of(writePost(postId, actor, "open", "online")));
+        var command = InterviewPostRequestParser.parseUpdate(new ObjectMapper().readTree("""
+                {"duration_value":%d, "duration_unit":"minutes"}
+                """.formatted(minutes)));
+        var error = org.assertj.core.api.Assertions.catchThrowableOfType(() -> service.updatePost(actor, postId, command),
+                HypofitValidationException.class);
+        assertThat(error).isNotNull();
+        assertThat(error.getFieldErrors()).extracting(field -> field.field()).contains("duration_value");
+        verify(repository, never()).updatePost(any(), anyMap());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"10,minutes,10", "1,hours,60", "7,days,10080", "1,weeks,10080"})
+    void canonicalDurationUpdateDerivesLegacyMinutes(int value, String unit, int expectedMinutes) throws Exception {
+        UUID actor = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+        var post = writePost(postId, actor, "draft", "online");
+        when(repository.findUserAccount(actor)).thenReturn(Optional.of(activeFounder(actor, "both")));
+        when(repository.findPost(postId)).thenReturn(Optional.of(post));
+        when(repository.updatePost(eq(postId), anyMap())).thenReturn(post);
+        var command = InterviewPostRequestParser.parseUpdate(new ObjectMapper().readTree("""
+                {"duration_value":%d, "duration_unit":"%s"}
+                """.formatted(value, unit)));
+        service.updatePost(actor, postId, command);
+        verify(repository).updatePost(eq(postId), argThat(changes -> expectedMinutes == (int) changes.get("durationMinutes")));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false,false", "false,true", "true,false", "true,true"})
+    void creationCapabilitiesFollowIndependentWriteFlags(boolean surveyEnabled, boolean betaEnabled) {
+        HypofitProperties properties = new HypofitProperties();
+        properties.setSurveyRecruitmentCreationEnabled(surveyEnabled);
+        properties.setBetaTestRecruitmentCreationEnabled(betaEnabled);
+        properties.setExtendedRecruitmentCreationEnabled(true);
+        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService, meterRegistry);
+
+        List<String> enabled = service.enabledRecruitmentTypesForCreation();
+        assertThat(enabled).contains("interview");
+        assertThat(enabled.contains("survey")).isEqualTo(surveyEnabled);
+        assertThat(enabled.contains("beta_test")).isEqualTo(betaEnabled);
+        assertThat(enabled).doesNotContain("usability_test", "research_experiment", "focus_group", "other");
+        assertThat(service.directParticipationRecruitmentTypesForCreation())
+                .isEqualTo(surveyEnabled ? List.of("survey") : List.of());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"usability_test", "research_experiment", "focus_group", "other"})
+    void extendedFlagDoesNotAcceptUnimplementedWorkflows(String recruitmentType) {
+        UUID actorUserId = UUID.randomUUID();
+        HypofitProperties properties = new HypofitProperties();
+        properties.setSurveyRecruitmentCreationEnabled(true);
+        properties.setBetaTestRecruitmentCreationEnabled(true);
+        properties.setExtendedRecruitmentCreationEnabled(true);
+        service = new InterviewPostWriteService(repository, auditWriteService, properties, aiSummaryEnqueueService, meterRegistry);
+        when(repository.findUserAccount(actorUserId)).thenReturn(Optional.of(activeFounder(actorUserId, "both")));
+
+        assertThatThrownBy(() -> service.createPost(actorUserId, new InterviewPostCreateCommand(
+                recruitmentType, "미지원 유형 검증", "입력한 내용을 임의로 바꾸지 않습니다.", "관련 경험이 있는 참여자",
+                10000, 30, 4,
+                "online", null, null, null, null, null, null, null, null,
+                List.of(), "draft"
+        )))
+                .isInstanceOf(InterviewPostRecruitmentTypeNotSupportedException.class);
+        verify(repository, never()).createPost(any(), any());
     }
 
     @Test

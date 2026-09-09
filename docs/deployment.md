@@ -116,3 +116,21 @@ Also inspect the deployed digest, container restarts, memory/swap/disk, recent
 logs, database readiness, and affected authenticated flows. Do not claim a web,
 mobile, or API deployment occurred unless that exact release path was run and
 verified.
+
+## 2026-09-09 Pre-QA API Release
+
+Scope: compensation PATCH persistence and legacy cash compatibility, canonical
+duration minimum validation, scheduled-maintenance linked-notice synchronization,
+survey authorization/deadline rechecks, and beta capability/notification alignment.
+No Flyway migration, new endpoint, production flag change, or frontend release
+is included. Existing runtime flags remain authoritative for survey/beta creation.
+
+Preflight: `./gradlew check integrationTest bootJar` passes locally (existing
+457 unit and 76 integration test results; up-to-date tasks reused at packaging).
+The deployment uses the existing GitHub Actions API CI/CD with fresh CI tests,
+GHCR digest and Lightsail readiness/rollback checks. Prior runtime digest:
+`sha256:5d73e5c2af18a43a414252f1f73c6c942835e8127758e45b4cda59b626a1467b`.
+
+After deployment, record the run/revision and public smoke results. Authenticated
+`/me` requires a fresh interactive social token; never substitute stored tokens,
+password login or service-role credentials. Frontend changes remain local for QA.

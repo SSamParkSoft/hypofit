@@ -84,6 +84,10 @@ public class MaintenanceService {
         if (maintenance == null) {
             throw conflict();
         }
+        if (maintenance.noticeId() != null) {
+            noticeService.update(actor, maintenance.noticeId(),
+                    new NoticeRepository.NoticeWriteCommand("MAINTENANCE", command.title(), renderedNoticeBody(command)));
+        }
         audit(actor, "MAINTENANCE_UPDATED", maintenance);
         return maintenance;
     }

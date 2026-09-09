@@ -271,6 +271,13 @@ public final class InterviewPostRequestParser {
                 providedFields
         );
         Integer rewardAmount = optionalNullableInteger(object, "reward_amount", 0, null, errors, providedFields);
+        List<PostingCompensation> compensations = parseCompensations(object, errors);
+        if (object.has("compensations")) {
+            providedFields.add("compensations");
+            if (compensations.isEmpty()) {
+                errors.add(new FieldError("compensations", "보상을 선택해 주세요."));
+            }
+        }
         Integer durationMinutes = optionalNullableInteger(object, "duration_minutes", 10, 525_600, errors, providedFields);
         Integer recruitCount = optionalNullableInteger(object, "recruit_count", 0, 999, errors, providedFields);
         String interviewMode = optionalNullableEnum(object, "interview_mode", INTERVIEW_MODES, errors, providedFields);
@@ -388,7 +395,8 @@ public final class InterviewPostRequestParser {
                         recruitmentLimitMode,
                         betaTestEnvironment,
                         betaTestWorkflowNote
-                )
+                ),
+                compensations
         );
     }
 
