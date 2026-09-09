@@ -131,6 +131,23 @@ The deployment uses the existing GitHub Actions API CI/CD with fresh CI tests,
 GHCR digest and Lightsail readiness/rollback checks. Prior runtime digest:
 `sha256:5d73e5c2af18a43a414252f1f73c6c942835e8127758e45b4cda59b626a1467b`.
 
-After deployment, record the run/revision and public smoke results. Authenticated
-`/me` requires a fresh interactive social token; never substitute stored tokens,
-password login or service-role credentials. Frontend changes remain local for QA.
+Deployment completed through Actions run `34326659400`: Verify Spring API,
+Publish immutable image, and Deploy to Lightsail all succeeded.
+Deployed revision: `cd45f1f840accaaacb2aafcc973d35eea26d0dc8`.
+Deployed image digest:
+`sha256:effb0303cf0ecf55b23eb45c5ad219f6a086de5caf4ad7983d27a3f840a1d7e6`.
+Direct container inspection confirmed that revision, running status and zero
+restarts after deployment.
+
+Post-deploy smoke: `/health`, `/api/v1/health/ready`, `/api/v1/service-status`,
+`/api/v1/notices`, `/api/v1/interview-posts/`, and creation-capabilities returned
+200. Service status is NORMAL/NONE; creation remains interview-only. The list's
+existing trailing slash is required (the slashless route returns 404).
+Unauthenticated `/api/v1/me` and `/api/v1/admin/me` returned 401 as expected.
+Local Web at `http://127.0.0.1:5173` and its production API readiness proxy
+returned 200; Metro at port 8081 reports `packager-status:running`.
+
+Authenticated `/me` and write-flow production smoke remain pending a fresh
+interactive social token; never substitute stored tokens, password login or
+service-role credentials. Frontend changes remain local for QA. No native/store
+release or survey/beta creation activation is implied by this deployment.
