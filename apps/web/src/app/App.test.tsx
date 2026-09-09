@@ -18,6 +18,16 @@ vi.mock("../features/auth/AuthBootstrapGate", () => ({
   AuthBootstrapGate: () => <div>MockAuthBootstrapGate</div>,
 }));
 
+const mockUseMaintenance = vi.fn();
+
+vi.mock("../features/maintenance/MaintenanceProvider", () => ({
+  useMaintenance: () => mockUseMaintenance(),
+}));
+
+vi.mock("../features/maintenance/MaintenanceScreen", () => ({
+  MaintenanceScreen: () => <div>MockMaintenanceScreen</div>,
+}));
+
 vi.mock("./shell/ConnectedAppShell", () => ({
   ConnectedAppShell: ({
     activeDestination,
@@ -103,6 +113,7 @@ describe("App route/auth entry handling", () => {
       isLoading: true,
       user: null,
     });
+    mockUseMaintenance.mockReturnValue({ isActive: false });
   });
 
   afterEach(() => {
@@ -132,6 +143,31 @@ describe("App route/auth entry handling", () => {
       "data-active-destination",
       "none",
     );
+  });
+
+  it("shows a full maintenance screen for customer routes while keeping public and admin routes available", () => {
+    mockUseMaintenance.mockReturnValue({ isActive: true });
+    mockUseAuth.mockReturnValue({
+      accessToken: "access-token",
+      appUser: { id: "user-1", role: "respondent" },
+      errorMessage: null,
+      isLoading: false,
+      user: { id: "user-1" },
+    });
+
+    window.history.pushState(null, "", "/interviews");
+    const view = render(<App />);
+    expect(screen.getByText("MockMaintenanceScreen")).toBeInTheDocument();
+
+    view.unmount();
+    window.history.pushState(null, "", "/");
+    render(<App />);
+    expect(screen.queryByText("MockMaintenanceScreen")).not.toBeInTheDocument();
+
+    cleanup();
+    window.history.pushState(null, "", "/admin");
+    render(<App />);
+    expect(screen.queryByText("MockMaintenanceScreen")).not.toBeInTheDocument();
   });
 
   it("renders the responsive Profile 2.0 entry", async () => {

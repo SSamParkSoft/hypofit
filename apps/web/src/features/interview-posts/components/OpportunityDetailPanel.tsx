@@ -6,6 +6,7 @@ import {
   Target,
 } from "lucide-react";
 import { type ReactNode } from "react";
+import { SurveyParticipationPanel } from "./SurveyParticipationPanel";
 
 import {
   ApplicationForm,
@@ -122,7 +123,9 @@ export function OpportunityDetailPanel({
         </section> : null}
 
         <section className="grid gap-4 px-5 py-5">
-          {existingApplication ? (
+          {post.recruitment_type === "survey" && (post.entry_mode === "direct" || existingApplication?.status === "selected") ? (
+            <SurveyParticipationPanel key={post.id} post={post} />
+          ) : existingApplication ? (
             <div className="border-l-2 border-hypo-brand bg-hypo-brand-soft/35 px-4 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">

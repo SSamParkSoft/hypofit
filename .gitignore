@@ -19,6 +19,7 @@ venv/
 .corepack/
 .gradle-home/
 .gradle-home-spring-candidate/
+.gradle/
 node_modules/
 dist/
 build/

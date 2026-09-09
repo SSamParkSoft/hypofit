@@ -2,16 +2,28 @@
 
 Status: reference
 
-Last updated: 2026-08-12
+Last updated: 2026-09-06
 
 This directory contains standards, design references, architecture decisions,
 and review-readiness background material. These documents guide work, but they
 are not the current task backlog.
 
-Use `docs/active/` for work that still needs implementation.
+Use MainVault Active Plans for work that still needs implementation.
 Move documents here when the remaining value is guidance, not execution.
 
 ## Current Reference Documents
+
+### Deferred Recruitment Designs And Policy
+
+- [Usability tests](usability-test-recruitment-plan.md)
+- [Research experiments](research-experiment-recruitment-plan.md)
+- [Focus groups](focus-group-recruitment-plan.md)
+- [Other-type boundary](other-recruitment-type-boundary-plan.md)
+
+Reclassified 2026-09-06. The first three preserve unimplemented proposals,
+not approved release contracts. Their headers define reactivation conditions.
+The other-type policy stays reference; pending capability/draft verification
+belongs to the [active adaptive creation plan](../active/adaptive-posting-creation-contract-and-flow-plan.md).
 
 ### `lightsail-spring-deployment-runbook.md`
 
@@ -44,7 +56,7 @@ Apple App Store and TestFlight readiness material.
 This folder preserves the Apple Developer account, App Store Connect,
 TestFlight, App Privacy label, metadata, screenshots, and review-assets plans.
 Use these docs for iOS release work, but keep implementation backlog in
-`docs/active/` only when code or deployment work remains.
+MainVault Active Plans only when code or deployment work remains.
 These documents are reference guidance, not the active backlog by themselves.
 
 ### `legal-pages-implementation-history.md`

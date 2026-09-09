@@ -13,7 +13,7 @@ into an ambiguous manual process.
 
 This document is retained as an implementation record. The backend state model,
 mobile UI, workflow APIs, tests, and GPU deployment have been implemented. Any
-new changes to the workflow should start from a new `docs/active/` plan instead
+new changes to the workflow should start from a new MainVault Active Plan instead
 of reactivating this historical plan.
 
 ## Source Basis

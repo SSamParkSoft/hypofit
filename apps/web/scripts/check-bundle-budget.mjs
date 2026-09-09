@@ -41,7 +41,7 @@ async function main() {
   if (command === "write-baseline") {
     const baseline = {
       version: 1,
-      measuredAt: "2026-07-16",
+      measuredAt: new Date().toISOString().slice(0, 10),
       metrics: report.metrics,
       notes: {
         largestDynamicJsChunkFile: report.largestDynamicJsChunk?.file ?? null,

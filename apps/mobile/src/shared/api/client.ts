@@ -4,6 +4,7 @@ import { captureAppError } from "@/shared/diagnostics/sentry";
 import { Platform } from "react-native";
 import { buildClientReleaseHeaders } from "./releaseMetadata";
 import { mobileEnv } from "./env";
+import { notifyMaintenanceDetected } from "@/shared/maintenance/maintenanceSignal";
 
 export interface ApiFieldError {
   code: string;
@@ -282,11 +283,18 @@ export async function apiRequest<T>(path: string, init?: ApiRequestInit): Promis
       path,
       response,
     });
+    if (isMaintenanceError(apiError)) {
+      notifyMaintenanceDetected();
+    }
     reportApiError(apiError);
     throw apiError;
   }
 
   return body as T;
+}
+
+function isMaintenanceError(error: ApiError) {
+  return error.status === 503 && error.code === "maintenance_in_progress";
 }
 
 export function apiGet<T>(path: string, token?: string | null): Promise<T> {

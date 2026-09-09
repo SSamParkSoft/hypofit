@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, type InputHTMLAttributes, useState } from "react";
 
 import { loadKakaoMaps, type KakaoKeywordSearchResult } from "../../../shared/map/kakaoMapLoader";
 import { Button } from "../../../shared/ui/button";
@@ -32,6 +32,20 @@ const initialValues: PostCreationFormValues = {
   targetDescription: "",
   title: "",
 };
+
+function NumberWithUnit({
+  unit,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { unit: string }) {
+  return (
+    <div className="relative">
+      <TextInput {...props} className="pr-12" inputMode="numeric" type="number" />
+      <span className="pointer-events-none absolute inset-y-0 right-4 grid place-items-center text-sm font-bold text-hypo-text-muted">
+        {unit}
+      </span>
+    </div>
+  );
+}
 
 export function PostCreationForm({
   errorMessage,
@@ -193,40 +207,26 @@ export function PostCreationForm({
         </Field>
 
         <Field label="사례비" error={errorFor("사례비는 0원 이상의 숫자로 입력하세요.")}>
-          <div className="relative">
-            <TextInput
-              required
-              className="pr-12"
-              inputMode="numeric"
-              min={0}
-              type="number"
-              value={values.rewardAmount}
-              onChange={(event) => updateValue("rewardAmount", event.target.value)}
-            />
-            <span className="pointer-events-none absolute inset-y-0 right-4 grid place-items-center text-sm font-bold text-hypo-text-muted">
-              원
-            </span>
-          </div>
+          <NumberWithUnit
+            required
+            unit="원"
+            min={0}
+            value={values.rewardAmount}
+            onChange={(event) => updateValue("rewardAmount", event.target.value)}
+          />
         </Field>
 
         <Field
           label="예상 소요 시간"
-          error={errorFor("예상 소요 시간은 5분 이상으로 입력하세요.")}
+          error={errorFor("예상 소요 시간은 10분 이상으로 입력하세요.")}
         >
-          <div className="relative">
-            <TextInput
-              required
-              className="pr-12"
-              inputMode="numeric"
-              min={5}
-              type="number"
-              value={values.durationMinutes}
-              onChange={(event) => updateValue("durationMinutes", event.target.value)}
-            />
-            <span className="pointer-events-none absolute inset-y-0 right-4 grid place-items-center text-sm font-bold text-hypo-text-muted">
-              분
-            </span>
-          </div>
+          <NumberWithUnit
+            required
+            unit="분"
+            min={10}
+            value={values.durationMinutes}
+            onChange={(event) => updateValue("durationMinutes", event.target.value)}
+          />
         </Field>
 
         <Field label="진행 방식">

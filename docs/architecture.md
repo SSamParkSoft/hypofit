@@ -198,7 +198,7 @@ provider authorization
 
 The API must not introduce a second Hypofit JWT. Provider subjects are stable
 identity keys; email, name, and profile image remain nullable profile metadata.
-See `docs/active/cross-platform-social-login-authentication-plan.md` while the
+See the MainVault `cross-platform-social-login-authentication-plan.md` while the
 implementation is active.
 
 Lightsail connects to a supported Supabase direct or pooler endpoint. Do not

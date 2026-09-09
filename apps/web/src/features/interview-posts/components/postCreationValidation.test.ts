@@ -34,8 +34,20 @@ describe("post creation validation", () => {
       "사례비는 0원 이상의 숫자로 입력하세요.",
     );
     expect(validatePostCreation({ ...validValues, durationMinutes: "4" })).toBe(
-      "예상 소요 시간은 5분 이상으로 입력하세요.",
+      "예상 소요 시간은 10분 이상으로 입력하세요.",
     );
+  });
+
+  it.each(["5", "9"])("rejects %s minutes below the API minimum", (durationMinutes) => {
+    expect(validatePostCreation({ ...validValues, durationMinutes })).toBe(
+      "예상 소요 시간은 10분 이상으로 입력하세요.",
+    );
+  });
+
+  it("accepts and serializes the API minimum of 10 minutes", () => {
+    const values = { ...validValues, durationMinutes: "10" };
+    expect(validatePostCreation(values)).toBeNull();
+    expect(toCreateInterviewPostInput(values).duration_minutes).toBe(10);
   });
 
   it("normalizes a form into the API input contract", () => {

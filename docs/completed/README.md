@@ -2,17 +2,20 @@
 
 Status: completed-index
 
-Last updated: 2026-08-12
+Last updated: 2026-09-06
 
 This directory stores planning documents whose main design or analysis work has
 already been completed.
 
 Completed documents may still contain useful rationale, Figma node references,
 open questions, and source links. They should not be used as the current task
-backlog unless they are explicitly reactivated and moved back to `docs/active/`.
+backlog unless they are explicitly reactivated and moved to MainVault Active Plans.
 
 Current completed documents:
 
+- [chat-tab-unread-badge-plan.md](chat-tab-unread-badge-plan.md): local
+  implementation and targeted fixture/typecheck verified 2026-09-06;
+  device/release QA remains in the reference UI checklist.
 - `authenticated-web-ui-ux-quality-remediation-plan.md`
 - `account-info-list-redesign-plan.md`
 - `account-deletion-retention-reregistration-plan.md`

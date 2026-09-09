@@ -664,10 +664,10 @@ Validation:
 - [ ] Update active docs after each implementation phase.
 - [ ] Move completed implementation history to `docs/completed`.
 - [ ] Move stable guidance to `docs/reference`.
-- [x] Keep `docs/active/README.md` accurate.
+- [x] Keep MainVault Active Plans `README.md` accurate.
 
 2026-06-15 update: moved
-`interview-detail-application-state-redesign-plan.md` from `docs/active/` to
+`interview-detail-application-state-redesign-plan.md` from the former repository active-plan folder to
 `docs/completed/` because the implementation work is complete enough for
 history/reference use. Active README now lists only the remaining launch,
 release-smoke, and cross-cutting QA work.

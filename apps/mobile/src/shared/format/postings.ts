@@ -38,7 +38,56 @@ export function getPostingPlaceOrSchedule(post: InterviewPost) {
 }
 
 export function getPostingDurationLabel(post: InterviewPost) {
+  if (post.duration_value && post.duration_unit) {
+    const unitLabel = {
+      minutes: "분",
+      hours: "시간",
+      days: "일",
+      weeks: "주",
+    }[post.duration_unit];
+    return `${post.duration_value}${unitLabel}`;
+  }
+
+  if (post.recruitment_type === "beta_test") {
+    const periodDays = getBetaTestPeriodDays(
+      post.beta_test_starts_at,
+      post.beta_test_ends_at,
+    );
+    if (periodDays) return `${periodDays}일`;
+  }
+
   return post.duration_minutes > 0 ? `${post.duration_minutes}분` : null;
+}
+
+export function getPostingScheduleLabel(post: InterviewPost) {
+  if (post.schedule_mode === "negotiated") return "선정 후 일정 조율";
+  if (post.schedule_mode === "fixed" && post.schedule_fixed_slots?.length) {
+    return post.schedule_fixed_slots.join(" · ");
+  }
+  if (post.schedule_mode === "recurring" && post.schedule_recurring_windows?.length) {
+    return post.schedule_recurring_windows.join(" · ");
+  }
+  return post.schedule_note?.trim() || post.schedule_options[0] || "모집자와 협의";
+}
+
+export function getPostingRecruitmentLimitLabel(post: InterviewPost) {
+  return post.recruitment_limit_mode === "unlimited"
+    ? "인원 제한 없음"
+    : `${post.recruit_count}명`;
+}
+
+function getBetaTestPeriodDays(
+  startsAt?: string | null,
+  endsAt?: string | null,
+) {
+  if (!startsAt || !endsAt) return null;
+
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+
+  const days = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+  return days > 0 ? days : null;
 }
 
 export function getPostingDeadlineLabel(post: InterviewPost) {

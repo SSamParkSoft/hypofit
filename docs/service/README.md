@@ -9,7 +9,7 @@ Hypofit is, where the code lives, what the product is trying to prove, and how
 new work should fit into the existing system.
 
 These documents do not replace detailed implementation plans under
-`docs/reference/`, `docs/completed/`, or `docs/active/`. They provide the
+`docs/reference/`, `docs/completed/`, or the MainVault Active Plans folder. They provide the
 high-level product and engineering map that helps agents decide which detailed
 document to open next.
 
@@ -46,13 +46,13 @@ For responsive customer-web or web authentication UI work:
 6. `docs/completed/web-navigation-motion-system-plan.md` before changing web
    history, browser back/forward, route transitions, scroll restoration,
    landing interactions, or motion accessibility.
-7. `docs/active/desktop-web-service-ui-advancement-plan.md`
+7. MainVault `desktop-web-service-ui-advancement-plan.md`
 8. `docs/completed/authenticated-web-ui-ux-quality-remediation-plan.md` before
    changing authenticated web branding, typography, spacing, surface hierarchy,
    cards, rows, list/detail panes, or route-level visual quality.
 9. `docs/completed/responsive-web-auth-entry-experience-plan.md` for landing-to-login,
    web auth bootstrap, splash/loading, login/signup, or protected return paths.
-10. `docs/active/brainwave-inspired-landing-visual-reconstruction-plan.md` for
+10. MainVault `brainwave-inspired-landing-visual-reconstruction-plan.md` for
     public landing structure, product-led hero imagery, section rhythm, pricing,
     and Brainwave/Figma-derived visual adaptation.
 
@@ -61,7 +61,7 @@ For authentication, identity, or account-deletion policy work:
 1. `00-agent-start-here.md`
 2. `06-app-surfaces.md`
 3. `08-data-state-and-permissions.md`
-4. `docs/active/cross-platform-social-login-authentication-plan.md`
+4. MainVault `cross-platform-social-login-authentication-plan.md`
 5. `docs/completed/public-support-and-authenticated-inquiry-experience-plan.md`
    for the dedicated account-deletion email OTP flow.
 6. `docs/completed/email-otp-verification-transition-plan.md` only when
@@ -75,7 +75,7 @@ For backend/API work:
 4. `08-data-state-and-permissions.md`
 5. `docs/reference/error-observability-contract.md`
 6. `docs/completed/api-operations-readiness-plan.md`
-7. `docs/active/ai-interview-and-applicant-summary-plan.md` when changing AI
+7. MainVault `ai-interview-and-applicant-summary-plan.md` when changing AI
    interview/applicant summaries, provider calls, summary workers, structured
    output, source minimization, or AI-specific authorization and observability.
 
@@ -114,7 +114,7 @@ For deployment or store-release work:
 
 - Keep this directory current when the product meaning, core workflow,
   architecture, app surfaces, or compliance posture changes.
-- Keep implementation task lists in `docs/active/`, not here.
+- Keep implementation task lists in MainVault Active Plans, not here.
 - Keep detailed runbooks, platform worksheets, and policy references in
   `docs/reference/`.
 - Keep finished plans and implementation history in `docs/completed/`.

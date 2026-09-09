@@ -45,7 +45,7 @@ reason to create extra architectural layers.
 
 For the active, behavior-preserving extraction of observed session/chat/account
 deletion hotspots, read
-`docs/active/spring-mvc-maintainability-hardening-plan.md`. That plan is the
+the MainVault `spring-mvc-maintainability-hardening-plan.md`. That plan is the
 authority for MVC responsibility splits; do not split classes only to reduce
 line counts or introduce generic layers.
 

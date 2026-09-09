@@ -1,8 +1,10 @@
 import type {
   CreateInterviewPostInput,
+  InterviewPostCreationCapabilities,
   InterviewMode,
   InterviewPost,
   InterviewPostStatus,
+  UpdateInterviewPostInput,
 } from "@hypofit/contracts";
 import { ApiError, apiRequest } from "./client";
 import { withInterviewPostFeatures } from "./interviewPostFeatures";
@@ -52,9 +54,16 @@ export const interviewPostRoutes = {
     `${interviewPostRoutes.detail(interviewPostId)}/archive`,
   reopen: (interviewPostId: string) =>
     `${interviewPostRoutes.detail(interviewPostId)}/reopen`,
+  creationCapabilities: `${interviewPostsCollectionPath}creation-capabilities`,
 } as const;
 
 export const interviewPostsApi = {
+  getCreationCapabilities(accessToken?: string | null) {
+    return apiRequest<InterviewPostCreationCapabilities>(
+      interviewPostRoutes.creationCapabilities,
+      withInterviewPostFeatures({ accessToken }),
+    );
+  },
   list(params?: ListInterviewPostsParams) {
     return apiRequest<InterviewPost[]>(
       buildInterviewPostsPath(params),
@@ -84,6 +93,14 @@ export const interviewPostsApi = {
     return apiRequest<InterviewPost>(interviewPostRoutes.collection, {
       ...withInterviewPostFeatures(),
       method: "POST",
+      accessToken,
+      body: JSON.stringify(input),
+    });
+  },
+  update(interviewPostId: string, input: UpdateInterviewPostInput, accessToken?: string | null) {
+    return apiRequest<InterviewPost>(interviewPostRoutes.detail(interviewPostId), {
+      ...withInterviewPostFeatures(),
+      method: "PATCH",
       accessToken,
       body: JSON.stringify(input),
     });

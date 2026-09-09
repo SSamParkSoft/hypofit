@@ -2,11 +2,12 @@ import { Feather } from "@expo/vector-icons";
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import type { ComponentProps } from "react";
-import { useEffect, useState } from "react";
+import type { ComponentProps, ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActionSheetIOS,
   Alert,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -24,24 +25,37 @@ import type {
   Compensation,
   CompensationType,
   InterviewMode,
+  InterviewPost,
   PostingType,
 } from "@hypofit/contracts";
 import { formatCompensation, postingTypeLabels } from "@hypofit/contracts";
 import { useAuth } from "@/features/auth/AuthProvider";
 import {
   clearPostingCreationDraft,
+  clearPostingEditDraft,
   createInitialPostingCreationDraft,
-  durationToMinutes,
   hasDraftContent,
   loadPostingCreationDraft,
+  loadPostingEditDraft,
   requiresLocation,
   savePostingCreationDraft,
+  savePostingEditDraft,
   serializePostingCreationDraft,
   type CreationStep,
   type DurationUnit,
   type PostingCreationDraft,
 } from "@/features/interview-posts/postingCreationDraft";
 import { useCreateInterviewPost } from "@/features/interview-posts/useCreateInterviewPost";
+import {
+  getPostingDurationError,
+  isGoogleFormsParticipationUrl,
+} from "@/features/interview-posts/postingCreationMethod";
+import {
+  getCreatablePostingTypes,
+  getPostingCreationCapabilityError,
+} from "@/features/interview-posts/postingCreationCapability";
+import { useInterviewPostCreationCapabilities, useUpdateInterviewPost } from "@/features/interview-posts/useInterviewPosts";
+import { postingToEditDraft, serializePostingEditDraft } from "@/features/interview-posts/postingCreationPayload";
 import { usePlaceSearch } from "@/features/places/usePlaceSearch";
 import type { PlaceSearchResult } from "@/shared/api/places";
 import { ApiError } from "@/shared/api/client";
@@ -107,6 +121,11 @@ const durationUnits: Array<{ value: DurationUnit; label: string }> = [
   { value: "minutes", label: "분" },
   { value: "hours", label: "시간" },
 ];
+const betaDurationUnits: Array<{ value: DurationUnit; label: string }> = [
+  { value: "days", label: "일" },
+  { value: "weeks", label: "주" },
+  ...durationUnits,
+];
 const compensationTypes: Array<{ type: CompensationType; label: string }> = [
   { type: "cash", label: "현금" },
   { type: "gift_card", label: "기프티콘 · 상품권" },
@@ -116,7 +135,7 @@ const compensationTypes: Array<{ type: CompensationType; label: string }> = [
   { type: "other", label: "기타" },
 ];
 
-export function CreateInterviewScreen() {
+export function CreateInterviewScreen({ initialPost }: { initialPost?: InterviewPost } = {}) {
   const params = useLocalSearchParams<{
     returnTo?: string | string[];
     draftAction?: "new" | "resume" | string[];
@@ -125,18 +144,57 @@ export function CreateInterviewScreen() {
   const shouldRestoreDraft = params.draftAction === "resume";
   const insets = useSafeAreaInsets();
   const { accessToken } = useAuth();
+  const isEditing = Boolean(initialPost);
   const createPost = useCreateInterviewPost(accessToken);
+  const updatePost = useUpdateInterviewPost(accessToken);
+  const isSubmitting = isEditing ? updatePost.isPending : createPost.isPending;
+  const creationCapabilities = useInterviewPostCreationCapabilities(accessToken);
   const [step, setStep] = useState<CreationStep>(1);
   const [draft, setDraft] = useState<PostingCreationDraft>(
-    createInitialPostingCreationDraft,
+    () => initialPost ? postingToEditDraft(initialPost, createInitialPostingCreationDraft()) : createInitialPostingCreationDraft(),
   );
+  const [editBaseline, setEditBaseline] = useState(draft);
+  const editSnapshot = useRef({ baseline: editBaseline, draft });
+  editSnapshot.current = { baseline: editBaseline, draft };
+  const editSaved = useRef(false);
+  const submitLock = useRef(false);
+  const editSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const initializedPost = useRef(false);
   const [isDraftReady, setIsDraftReady] = useState(false);
   const [draftStatus, setDraftStatus] = useState<"saving" | "saved" | "failed">(
     "saved",
   );
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationField, setValidationField] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const inputRefs = useRef<Record<string, TextInput | null>>({});
+  const fieldOffsets = useRef<Record<string, number>>({});
+  const pendingAttentionField = useRef<string | null>(null);
+  const focusTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (initialPost) {
+      if (initializedPost.current) return;
+      initializedPost.current = true;
+      let cancelled = false;
+      void loadPostingEditDraft(initialPost.founder_id, initialPost.id)
+        .then((stored) => {
+          if (cancelled) return;
+          if (stored && stored.draft.type === (initialPost.recruitment_type ?? "interview")) {
+            setDraft({ ...stored.draft, entryMode: initialPost.entry_mode ?? "application_required" });
+            setEditBaseline(stored.baseline);
+          }
+          setIsDraftReady(true);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          Alert.alert("저장한 수정 내용을 불러오지 못했어요", "현재 공고 내용으로 수정할까요?", [
+            { text: "돌아가기", style: "cancel", onPress: () => goBackOrReplaceFallback(backTo) },
+            { text: "현재 공고로 수정", onPress: () => setIsDraftReady(true) },
+          ]);
+        });
+      return () => { cancelled = true; };
+    }
     if (!shouldRestoreDraft) {
       setIsDraftReady(true);
       return;
@@ -149,40 +207,87 @@ export function CreateInterviewScreen() {
         }
       })
       .finally(() => setIsDraftReady(true));
-  }, [shouldRestoreDraft]);
+  }, [shouldRestoreDraft, initialPost?.id, initialPost?.founder_id, backTo]);
+  const enabledTypes = getCreatablePostingTypes(creationCapabilities.data);
+  const directParticipationTypes: PostingType[] =
+    enabledTypes.includes("survey") &&
+    creationCapabilities.data?.direct_participation_recruitment_types.includes("survey")
+      ? ["survey"]
+      : [];
+  const capabilityError = isEditing ? null : getPostingCreationCapabilityError(draft, creationCapabilities.data);
+  const persistEdit = useCallback(() => {
+    if (!initialPost || editSaved.current) return Promise.resolve();
+    const snapshot = editSnapshot.current;
+    editSaveQueue.current = editSaveQueue.current.catch(() => undefined).then(() =>
+      savePostingEditDraft(initialPost.founder_id, initialPost.id, snapshot),
+    );
+    return editSaveQueue.current;
+  }, [initialPost?.founder_id, initialPost?.id]);
   useEffect(() => {
     if (!isDraftReady || !hasDraftContent(draft)) return;
     setDraftStatus("saving");
     const timeout = setTimeout(
       () =>
-        void savePostingCreationDraft(draft)
+        void (isEditing ? persistEdit() : savePostingCreationDraft(draft))
           .then(() => setDraftStatus("saved"))
           .catch(() => setDraftStatus("failed")),
       500,
     );
     return () => clearTimeout(timeout);
-  }, [draft, isDraftReady]);
-
-  if (!accessToken)
-    return (
-      <SafeAreaView className="flex-1 bg-hypo-bg">
-        <View className="flex-1 px-4 pt-3">
-          <CreationHeader
-            draftStatus="saved"
-            onBack={() => goBackOrReplaceFallback(backTo)}
-          />
-          <StateMessage
-            title="로그인이 필요해요."
-            description="공고를 만들려면 먼저 로그인해 주세요."
-          />
-        </View>
-      </SafeAreaView>
-    );
+  }, [draft, isDraftReady, isEditing, persistEdit]);
+  useEffect(() => () => {
+    if (isDraftReady && isEditing && !editSaved.current) void persistEdit().catch(() => undefined);
+  }, [isDraftReady, isEditing, persistEdit]);
+  useEffect(
+    () => () => {
+      if (focusTimeout.current) clearTimeout(focusTimeout.current);
+    },
+    [],
+  );
 
   const updateDraft = (patch: Partial<PostingCreationDraft>) => {
     setDraft((current) => ({ ...current, ...patch }));
     setValidationError(null);
+    setValidationField(null);
   };
+  const scrollToValidationField = useCallback((field: string | null) => {
+    const attentionField = resolveAttentionField(field);
+    if (!attentionField) return;
+
+    const y = fieldOffsets.current[attentionField];
+    if (typeof y !== "number") {
+      pendingAttentionField.current = attentionField;
+      return;
+    }
+
+    pendingAttentionField.current = null;
+    scrollViewRef.current?.scrollTo({ animated: true, y: Math.max(y - 24, 0) });
+
+    const input = inputRefs.current[attentionField];
+    if (!input) return;
+
+    if (focusTimeout.current) clearTimeout(focusTimeout.current);
+    focusTimeout.current = setTimeout(() => input.focus(), 140);
+  }, []);
+  const registerFieldLayout = useCallback((field: string, y: number) => {
+    fieldOffsets.current[field] = y;
+    if (pendingAttentionField.current === field) {
+      requestAnimationFrame(() => scrollToValidationField(field));
+    }
+  }, [scrollToValidationField]);
+  const registerInputRef = useCallback(
+    (field: string) => (input: TextInput | null) => {
+      inputRefs.current[field] = input;
+    },
+    [],
+  );
+  useEffect(() => {
+    if (!validationField) return;
+    const frame = requestAnimationFrame(() =>
+      scrollToValidationField(validationField),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [scrollToValidationField, step, validationField]);
   const toggle = (
     field: "betaPlatforms" | "recurringWindows",
     value: string,
@@ -194,11 +299,14 @@ export function CreateInterviewScreen() {
         : [...current[field], value],
     }));
     setValidationError(null);
+    setValidationField(null);
   };
   const chooseType = (type: PostingType) =>
     updateDraft({
       type,
-      entryMode: allowsDirect(type) ? draft.entryMode : "application_required",
+      entryMode: directParticipationTypes.includes(type)
+        ? draft.entryMode
+        : "application_required",
       interviewMode: type === "interview" ? draft.interviewMode : "online",
       ...(type === "interview" && draft.recruitmentLimitMode === "unlimited"
         ? { recruitmentLimitMode: "limited", recruitmentCount: "10" }
@@ -221,21 +329,61 @@ export function CreateInterviewScreen() {
       ),
     }));
     setValidationError(null);
+    setValidationField(null);
   };
   const next = () => {
-    const error = validateStep(step, draft);
+    if (capabilityError) {
+      setStep(1);
+      return;
+    }
+    const error = validateStep(step, draft, initialPost ? editBaseline : undefined);
     if (error) {
       setValidationError(error);
+      setValidationField(getValidationFieldForMessage(error));
       return;
     }
     setValidationError(null);
+    setValidationField(null);
     setStep((current) => Math.min(current + 1, 5) as CreationStep);
   };
   const publish = () => {
-    const issue = validateAll(draft);
+    if (capabilityError) {
+      setStep(1);
+      return;
+    }
+    if (isSubmitting || submitLock.current) return;
+    const issue = validateAll(draft, initialPost ? editBaseline : undefined);
     if (issue) {
       setValidationError(issue.message);
+      setValidationField(getValidationFieldForMessage(issue.message));
       setStep(issue.step);
+      return;
+    }
+    const onError = (error: Error) => {
+      const field = getApiValidationField(error);
+      setValidationError(getPublishErrorMessage(error));
+      setValidationField(field);
+      const issueStep = getStepForValidationField(field);
+      if (issueStep) setStep(issueStep);
+    };
+    if (initialPost) {
+      const input = serializePostingEditDraft(draft, editBaseline);
+      if (!Object.keys(input).length) {
+        goBackOrReplaceFallback(backTo);
+        return;
+      }
+      submitLock.current = true;
+      void persistEdit().catch(() => undefined);
+      updatePost.mutate({ postId: initialPost.id, input }, {
+          onSuccess: async () => {
+            editSaved.current = true;
+            await editSaveQueue.current.catch(() => undefined);
+            await clearPostingEditDraft(initialPost.founder_id, initialPost.id).catch(() => undefined);
+            goBackOrReplaceFallback(backTo);
+          },
+          onError,
+          onSettled: () => { submitLock.current = false; },
+      });
       return;
     }
     createPost.mutate(serializePostingCreationDraft(draft), {
@@ -246,17 +394,45 @@ export function CreateInterviewScreen() {
           params: { postId: post.id },
         });
       },
-      onError: (error) => setValidationError(getPublishErrorMessage(error)),
+      onError,
     });
   };
   const back = () => {
+    if (isSubmitting || submitLock.current) return;
     if (step > 1) {
       setValidationError(null);
       setStep((current) => (current - 1) as CreationStep);
-    } else goBackOrReplaceFallback(backTo);
+    } else {
+      if (isEditing) void persistEdit().catch(() => undefined);
+      goBackOrReplaceFallback(backTo);
+    }
   };
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      back();
+      return true;
+    });
+    return () => subscription.remove();
+  });
   const primaryLabel =
-    step === 5 ? "공고 올리기" : step === 4 ? "검토하기" : "다음";
+    step === 5 ? isEditing ? "수정 내용 저장" : "공고 올리기" : step === 4 ? "검토하기" : "다음";
+  const primaryDisabled = isSubmitting || !isDraftReady || (!isEditing && creationCapabilities.isPending);
+
+  if (!accessToken)
+    return (
+      <SafeAreaView className="flex-1 bg-hypo-bg">
+        <View className="flex-1 px-4 pt-3">
+          <CreationHeader
+            draftStatus="saved"
+            onBack={() => goBackOrReplaceFallback(backTo)}
+          />
+          <StateMessage
+            title="로그인이 필요해요."
+            description="공고를 만들려면 먼저 로그인해 주세요."
+          />
+        </View>
+      </SafeAreaView>
+    );
 
   return (
     <SafeAreaView
@@ -269,35 +445,77 @@ export function CreateInterviewScreen() {
       >
         <View className="flex-1">
           <View className="px-4 pt-2">
-            <CreationHeader draftStatus={draftStatus} onBack={back} />
+            <CreationHeader title={isEditing ? "공고 수정" : "공고 만들기"} draftStatus={draftStatus} onBack={back} />
             <ProgressIndicator step={step} />
           </View>
           <ScrollView
+            ref={scrollViewRef}
             className="flex-1"
             contentContainerClassName="gap-6 px-4 pb-7 pt-5"
             keyboardShouldPersistTaps="handled"
+            pointerEvents={isSubmitting || !isDraftReady ? "none" : "auto"}
           >
             <View className="gap-1">
               <Text className="text-[24px] font-bold leading-8 text-hypo-text">
-                {stepTitle(step, draft.type).heading}
+                {isEditing && step === 1 ? "공고 유형을 확인해 주세요" : stepTitle(step, draft.type).heading}
               </Text>
-              <Text className="text-[15px] leading-[22px] text-hypo-text-secondary">
-                {stepTitle(step, draft.type).description}
-              </Text>
+              {!(isEditing && step === 1) && <Text className="text-[15px] leading-[22px] text-hypo-text-secondary">
+                {isEditing && step === 5 ? "변경한 내용을 확인한 뒤 저장해 주세요." : stepTitle(step, draft.type).description}
+              </Text>}
             </View>
-            {step === 1 ? (
+            {step === 1 && isEditing ? (
+              <View className="gap-4">
+                <Text className="text-[18px] font-semibold text-hypo-text">{postingTypeLabels[draft.type]}</Text>
+                <Text className="text-[16px] text-hypo-text">{draft.entryMode === "direct" ? "바로 참여" : "신청 후 참여"}</Text>
+                <Text className="text-[15px] text-hypo-text-secondary">공고 유형과 참여 방식은 수정할 수 없어요.</Text>
+              </View>
+            ) : null}
+            {step === 1 && !isEditing ? (
+              <View className="gap-3">
+              {creationCapabilities.isPending ? (
+                <Text accessibilityLiveRegion="polite" className="text-[15px] text-hypo-text-secondary">
+                  공고 유형을 확인하고 있어요.
+                </Text>
+              ) : capabilityError ? (
+                <InlineError message={capabilityError} />
+              ) : null}
+              {creationCapabilities.isError ? (
+                <Pressable
+                  accessibilityRole="button"
+                  className="min-h-[44px] justify-center"
+                  disabled={creationCapabilities.isFetching}
+                  onPress={() => void creationCapabilities.refetch()}
+                >
+                  <Text className="text-[15px] font-semibold text-hypo-brand">공고 유형 다시 확인</Text>
+                </Pressable>
+              ) : null}
               <StepOne
                 draft={draft}
+                enabledTypes={enabledTypes}
+                directParticipationTypes={directParticipationTypes}
                 onChooseType={chooseType}
                 onUpdate={updateDraft}
               />
+              </View>
             ) : null}
             {step === 2 ? (
-              <StepTwo draft={draft} onUpdate={updateDraft} />
+              <StepTwo
+                draft={draft}
+                validationError={validationError}
+                validationField={validationField}
+                onFieldLayout={registerFieldLayout}
+                registerInputRef={registerInputRef}
+                onUpdate={updateDraft}
+              />
             ) : null}
             {step === 3 ? (
               <StepThree
                 draft={draft}
+                preserveExternalUrl={isEditing && !editBaseline.externalUrl}
+                validationError={validationError}
+                validationField={validationField}
+                onFieldLayout={registerFieldLayout}
+                registerInputRef={registerInputRef}
                 onAddSlot={addSlot}
                 onRemoveSlot={(value) =>
                   updateDraft({
@@ -313,6 +531,10 @@ export function CreateInterviewScreen() {
             {step === 4 ? (
               <StepFour
                 draft={draft}
+                validationError={validationError}
+                validationField={validationField}
+                onFieldLayout={registerFieldLayout}
+                registerInputRef={registerInputRef}
                 onAddCompensation={() =>
                   updateDraft({
                     compensations: [
@@ -338,9 +560,11 @@ export function CreateInterviewScreen() {
               />
             ) : null}
             {step === 5 ? <ReviewStep draft={draft} onEdit={setStep} /> : null}
-            {validationError ? <InlineError message={validationError} /> : null}
-            {createPost.error && !validationError ? (
-              <InlineError message="공고를 올리지 못했어요. 잠시 후 다시 시도해 주세요." />
+            {validationError && !validationField ? (
+              <InlineError message={validationError} />
+            ) : null}
+            {(isEditing ? updatePost.error : createPost.error) && !validationError ? (
+              <InlineError message={isEditing ? "수정 내용을 저장하지 못했어요. 잠시 후 다시 시도해 주세요." : "공고를 올리지 못했어요. 잠시 후 다시 시도해 주세요."} />
             ) : null}
           </ScrollView>
           <View
@@ -351,14 +575,15 @@ export function CreateInterviewScreen() {
               accessibilityLabel={primaryLabel}
               accessibilityRole="button"
               className="h-[54px] items-center justify-center rounded-[12px] bg-hypo-brand"
-              disabled={createPost.isPending}
+              disabled={primaryDisabled}
+              accessibilityState={{ disabled: primaryDisabled, busy: isSubmitting }}
               style={({ pressed }) => ({
-                opacity: createPost.isPending ? 0.5 : pressed ? 0.84 : 1,
+                opacity: primaryDisabled ? 0.5 : pressed ? 0.84 : 1,
               })}
               onPress={step === 5 ? publish : next}
             >
               <Text className="text-[16px] font-semibold text-white">
-                {createPost.isPending ? "게시 중" : primaryLabel}
+                {isSubmitting ? isEditing ? "저장 중" : "게시 중" : primaryLabel}
               </Text>
             </Pressable>
           </View>
@@ -370,10 +595,14 @@ export function CreateInterviewScreen() {
 
 function StepOne({
   draft,
+  directParticipationTypes,
+  enabledTypes,
   onChooseType,
   onUpdate,
 }: {
   draft: PostingCreationDraft;
+  directParticipationTypes: PostingType[];
+  enabledTypes: PostingType[];
   onChooseType: (type: PostingType) => void;
   onUpdate: (patch: Partial<PostingCreationDraft>) => void;
 }) {
@@ -382,7 +611,7 @@ function StepOne({
       <View className="gap-2">
         <SectionLabel>공고 유형</SectionLabel>
         <View className="border-t border-hypo-border">
-          {typeOptions.map((option) => (
+          {typeOptions.filter((option) => enabledTypes.includes(option.type)).map((option) => (
             <SelectableRow
               key={option.type}
               description={option.description}
@@ -403,7 +632,7 @@ function StepOne({
             label="신청 후 참여"
             onPress={() => onUpdate({ entryMode: "application_required" })}
           />
-          {allowsDirect(draft.type) ? (
+          {directParticipationTypes.includes(draft.type) ? (
             <SelectableRow
               description="별도 승인 없이 설문이나 테스트에 바로 참여할 수 있어요."
               isSelected={draft.entryMode === "direct"}
@@ -422,48 +651,79 @@ function StepOne({
 }
 function StepTwo({
   draft,
+  validationError,
+  validationField,
+  onFieldLayout,
+  registerInputRef,
   onUpdate,
 }: {
   draft: PostingCreationDraft;
+  validationError: string | null;
+  validationField: string | null;
+  onFieldLayout: (field: string, y: number) => void;
+  registerInputRef: (field: string) => (input: TextInput | null) => void;
   onUpdate: (patch: Partial<PostingCreationDraft>) => void;
 }) {
   return (
     <View className="gap-5">
-      <FormField
-        label="제목"
-        value={draft.title}
-        placeholder="예: 1인 가구 식재료 관리 경험 인터뷰"
-        maxLength={120}
-        onChangeText={(title) => onUpdate({ title })}
-      />
-      <FormField
-        label="공고 설명"
-        value={draft.description}
-        placeholder="무엇을 확인하거나 테스트하려는지 간단히 설명해 주세요."
-        multiline
-        maxLength={2000}
-        onChangeText={(description) => onUpdate({ description })}
-      />
-      <FormField
-        label="찾는 참여자"
-        value={draft.targetParticipant}
-        placeholder="예: 최근 3개월 내 직접 장을 보고 남은 식재료를 버린 경험이 있는 1인 가구"
-        multiline
-        maxLength={2000}
-        helper="참여 조건을 구체적으로 작성하면 더 잘 맞는 사람에게 닿을 수 있어요."
-        onChangeText={(targetParticipant) => onUpdate({ targetParticipant })}
-      />
+      <FieldAnchor field="title" onFieldLayout={onFieldLayout}>
+        <FormField
+          inputRef={registerInputRef("title")}
+          label="제목"
+          value={draft.title}
+          placeholder="예: 1인 가구 식재료 관리 경험 인터뷰"
+          maxLength={120}
+          error={validationField === "title" ? validationError ?? undefined : undefined}
+          onChangeText={(title) => onUpdate({ title })}
+        />
+      </FieldAnchor>
+      <FieldAnchor field="service_summary" onFieldLayout={onFieldLayout}>
+        <FormField
+          inputRef={registerInputRef("service_summary")}
+          label="공고 설명"
+          value={draft.description}
+          placeholder="무엇을 확인하거나 테스트하려는지 간단히 설명해 주세요."
+          multiline
+          maxLength={2000}
+          helper="무엇을 확인하는지와 참여자가 하게 될 일을 자연스럽게 설명해 주세요."
+          error={validationField === "service_summary" ? validationError ?? undefined : undefined}
+          onChangeText={(description) => onUpdate({ description })}
+        />
+      </FieldAnchor>
+      <FieldAnchor field="target_description" onFieldLayout={onFieldLayout}>
+        <FormField
+          inputRef={registerInputRef("target_description")}
+          label="찾는 참여자"
+          value={draft.targetParticipant}
+          placeholder="예: 최근 3개월 내 직접 장을 보고 남은 식재료를 버린 경험이 있는 1인 가구"
+          multiline
+          maxLength={2000}
+          helper="조건이 여러 개면 한 줄에 하나씩 적어 주세요. 더 잘 맞는 사람에게 닿을 수 있어요."
+          error={validationField === "target_description" ? validationError ?? undefined : undefined}
+          onChangeText={(targetParticipant) => onUpdate({ targetParticipant })}
+        />
+      </FieldAnchor>
     </View>
   );
 }
 function StepThree({
   draft,
+  preserveExternalUrl = false,
+  validationError,
+  validationField,
+  onFieldLayout,
+  registerInputRef,
   onAddSlot,
   onRemoveSlot,
   onToggle,
   onUpdate,
 }: {
   draft: PostingCreationDraft;
+  preserveExternalUrl?: boolean;
+  validationError: string | null;
+  validationField: string | null;
+  onFieldLayout: (field: string, y: number) => void;
+  registerInputRef: (field: string) => (input: TextInput | null) => void;
   onAddSlot: (value: string) => void;
   onRemoveSlot: (value: string) => void;
   onToggle: (
@@ -477,26 +737,30 @@ function StepThree({
   const showLocation = requiresLocation(draft);
   return (
     <View className="gap-6">
-      <View className="gap-2">
-        <SectionLabel>진행 방식</SectionLabel>
-        <View className="flex-row flex-wrap gap-2">
-          {(survey
-            ? [{ value: "online" as const, label: "온라인 · 외부 설문" }]
-            : [
-                { value: "online" as const, label: "온라인" },
-                { value: "offline" as const, label: "대면" },
-                { value: "both" as const, label: "대면·화상" },
-              ]
-          ).map((option) => (
-            <ChoiceChip
-              key={option.value}
-              isSelected={draft.interviewMode === option.value}
-              label={option.label}
-              onPress={() => onUpdate({ interviewMode: option.value })}
-            />
-          ))}
+      {!beta ? (
+      <FieldAnchor field="interview_mode" onFieldLayout={onFieldLayout}>
+        <View className="gap-2">
+          <SectionLabel>진행 방식</SectionLabel>
+          <View className="flex-row flex-wrap gap-2">
+            {(survey
+              ? [{ value: "online" as const, label: "온라인 · 외부 설문" }]
+              : [
+                  { value: "online" as const, label: "온라인" },
+                  { value: "offline" as const, label: "대면" },
+                  { value: "both" as const, label: "대면·화상" },
+                ]
+            ).map((option) => (
+              <ChoiceChip
+                key={option.value}
+                isSelected={draft.interviewMode === option.value}
+                label={option.label}
+                onPress={() => onUpdate({ interviewMode: option.value })}
+              />
+            ))}
+          </View>
         </View>
-      </View>
+      </FieldAnchor>
+      ) : null}
       {survey ? (
         <View className="gap-5">
           <FormField
@@ -505,145 +769,271 @@ function StepThree({
             editable={false}
             placeholder="Google Forms"
           />
-          <FormField
-            label="참여 링크"
-            value={draft.externalUrl}
-            placeholder="https://forms.gle/..."
-            keyboardType="url"
-            autoCapitalize="none"
-            helper={
-              draft.entryMode === "application_required"
-                ? "승인된 참여자에게만 링크가 공개돼요."
-                : "공고에서 바로 참여할 수 있어요."
-            }
-            onChangeText={(externalUrl) => onUpdate({ externalUrl })}
-          />
-          <FormField
-            label="외부 설문 안내"
-            value={draft.externalDataNotice}
-            placeholder="외부 설문 서비스에서 응답을 처리해요."
-            multiline
-            onChangeText={(externalDataNotice) =>
-              onUpdate({ externalDataNotice })
-            }
-          />
-          <DurationField
-            label="예상 응답 시간"
-            value={draft.durationValue}
-            unit={draft.durationUnit}
-            onChangeValue={(durationValue) => onUpdate({ durationValue })}
-            onChangeUnit={(durationUnit) => onUpdate({ durationUnit })}
-          />
+          <FieldAnchor field="external_url" onFieldLayout={onFieldLayout}>
+            <FormField
+              inputRef={registerInputRef("external_url")}
+              label="참여 링크"
+              value={draft.externalUrl}
+              placeholder="https://forms.gle/..."
+              keyboardType="url"
+              autoCapitalize="none"
+              helper={
+                preserveExternalUrl ? "새 링크를 입력하지 않으면 기존 참여 링크를 유지해요." : draft.entryMode === "application_required"
+                  ? "승인된 참여자에게만 링크가 공개돼요."
+                  : "공고에서 바로 참여할 수 있어요."
+              }
+              error={
+                validationField === "external_url"
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onChangeText={(externalUrl) => onUpdate({ externalUrl })}
+            />
+          </FieldAnchor>
+          <FieldAnchor field="external_data_notice" onFieldLayout={onFieldLayout}>
+            <FormField
+              inputRef={registerInputRef("external_data_notice")}
+              label="외부 설문 안내"
+              value={draft.externalDataNotice}
+              placeholder="외부 설문 서비스에서 응답을 처리해요."
+              multiline
+              error={
+                validationField === "external_data_notice"
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onChangeText={(externalDataNotice) =>
+                onUpdate({ externalDataNotice })
+              }
+            />
+          </FieldAnchor>
+          <FieldAnchor field="duration_value" onFieldLayout={onFieldLayout}>
+            <DurationField
+              inputRef={registerInputRef("duration_value")}
+              label="예상 응답 시간"
+              value={draft.durationValue}
+              unit={draft.durationUnit}
+              error={
+                ["duration_minutes", "duration_value", "duration_unit"].includes(
+                  validationField ?? "",
+                )
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onChangeValue={(durationValue) => onUpdate({ durationValue })}
+              onChangeUnit={(durationUnit) => onUpdate({ durationUnit })}
+            />
+          </FieldAnchor>
         </View>
       ) : null}
       {beta ? (
         <View className="gap-5">
-          <ChipField
-            label="테스트 플랫폼"
-            options={["iOS", "Android", "Web", "기타"]}
-            selected={draft.betaPlatforms}
-            onToggle={(value) => onToggle("betaPlatforms", value)}
-          />
-          <View className="gap-2">
-            <SectionLabel>테스트 기간</SectionLabel>
-            <View className="flex-row gap-2">
-              <DateField
-                containerClassName="flex-1"
-                label="시작일"
-                value={draft.betaStartsAt}
-                onChange={(betaStartsAt) => onUpdate({ betaStartsAt })}
-              />
-              <DateField
-                containerClassName="flex-1"
-                label="종료일"
-                value={draft.betaEndsAt}
-                onChange={(betaEndsAt) => onUpdate({ betaEndsAt })}
-              />
+          <FieldAnchor field="duration_value" onFieldLayout={onFieldLayout}>
+            <DurationField
+              inputRef={registerInputRef("duration_value")}
+              label="예상 참여 기간"
+              value={draft.durationValue}
+              unit={draft.durationUnit}
+              units={betaDurationUnits.slice(0, 2)}
+              error={
+                ["duration_minutes", "duration_value", "duration_unit"].includes(validationField ?? "")
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onChangeValue={(durationValue) => onUpdate({ durationValue })}
+              onChangeUnit={(durationUnit) => onUpdate({ durationUnit })}
+            />
+          </FieldAnchor>
+          <FieldAnchor field="beta_platforms" onFieldLayout={onFieldLayout}>
+            <ChipField
+              label="테스트 플랫폼"
+              options={["iOS", "Android", "Web", "기타"]}
+              selected={draft.betaPlatforms}
+              error={
+                ["beta_platforms", "beta_test_platforms"].includes(
+                  validationField ?? "",
+                )
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onToggle={(value) => onToggle("betaPlatforms", value)}
+            />
+          </FieldAnchor>
+          <FieldAnchor field="beta_dates" onFieldLayout={onFieldLayout}>
+            <View className="gap-2">
+              <SectionLabel>테스트 진행 날짜</SectionLabel>
+              <View className="flex-row gap-2">
+                <DateField
+                  containerClassName="flex-1"
+                  label="시작일"
+                  value={draft.betaStartsAt}
+                  error={
+                    ["beta_dates", "beta_test_starts_at", "beta_test_ends_at"].includes(
+                      validationField ?? "",
+                    )
+                      ? validationError ?? undefined
+                      : undefined
+                  }
+                  onChange={(betaStartsAt) => onUpdate({ betaStartsAt })}
+                />
+                <DateField
+                  containerClassName="flex-1"
+                  label="종료일"
+                  value={draft.betaEndsAt}
+                  error={
+                    ["beta_dates", "beta_test_starts_at", "beta_test_ends_at"].includes(
+                      validationField ?? "",
+                    )
+                      ? validationError ?? undefined
+                      : undefined
+                  }
+                  onChange={(betaEndsAt) => onUpdate({ betaEndsAt })}
+                />
+              </View>
             </View>
-          </View>
-          <FormField
-            label="필요 기기 또는 환경"
-            value={draft.environment}
-            placeholder="예: iPhone iOS 17 이상"
-            onChangeText={(environment) => onUpdate({ environment })}
-          />
-          <FormField
-            label="테스트 방법 · 피드백 방식"
-            value={draft.workflowNote}
-            placeholder="예: 앱을 7일간 사용한 뒤 설문을 제출해 주세요."
-            multiline
-            onChangeText={(workflowNote) => onUpdate({ workflowNote })}
-          />
+          </FieldAnchor>
+          <FieldAnchor field="beta_test_environment" onFieldLayout={onFieldLayout}>
+            <FormField
+              inputRef={registerInputRef("beta_test_environment")}
+              label="필요 기기 또는 환경"
+              value={draft.environment}
+              placeholder="예: iPhone iOS 17 이상"
+              error={
+                validationField === "beta_test_environment"
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onChangeText={(environment) => onUpdate({ environment })}
+            />
+          </FieldAnchor>
+          <FieldAnchor field="beta_test_workflow_note" onFieldLayout={onFieldLayout}>
+            <FormField
+              inputRef={registerInputRef("beta_test_workflow_note")}
+              label="테스트 방법 · 피드백 방식"
+              value={draft.workflowNote}
+              placeholder="예: 앱을 7일간 사용한 뒤 설문을 제출해 주세요."
+              multiline
+              error={
+                validationField === "beta_test_workflow_note"
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onChangeText={(workflowNote) => onUpdate({ workflowNote })}
+            />
+          </FieldAnchor>
         </View>
       ) : null}
       {!survey && !beta ? (
         <>
-          <DurationField
-            label="예상 소요 시간"
-            value={draft.durationValue}
-            unit={draft.durationUnit}
-            onChangeValue={(durationValue) => onUpdate({ durationValue })}
-            onChangeUnit={(durationUnit) => onUpdate({ durationUnit })}
-          />
-          <View className="gap-3">
-            <SectionLabel>일정 설정 방식</SectionLabel>
-            <View className="border-t border-hypo-border">
-              <SelectableRow
-                description="참여 가능한 날짜와 시간을 알려줘요."
-                isSelected={draft.scheduleMode === "fixed"}
-                label="날짜와 시간 제시"
-                onPress={() => onUpdate({ scheduleMode: "fixed" })}
-              />
-              <SelectableRow
-                description="평일이나 주말의 참여 가능 시간대를 알려줘요."
-                isSelected={draft.scheduleMode === "recurring"}
-                label="시간대"
-                onPress={() => onUpdate({ scheduleMode: "recurring" })}
-              />
-              <SelectableRow
-                description="선정된 참여자와 채팅에서 세부 일정을 정해요."
-                isSelected={draft.scheduleMode === "negotiated"}
-                label="선정 후 채팅으로 조율"
-                onPress={() => onUpdate({ scheduleMode: "negotiated" })}
-              />
-            </View>
-            {draft.scheduleMode === "fixed" ? (
-              <View className="gap-2">
-                <DateTimeSlotPicker onAdd={onAddSlot} />
-                {draft.fixedSlots.map((slot) => (
-                  <RemovableValue
-                    key={slot}
-                    value={slot}
-                    onRemove={() => onRemoveSlot(slot)}
-                  />
-                ))}
+          <FieldAnchor field="duration_value" onFieldLayout={onFieldLayout}>
+            <DurationField
+              inputRef={registerInputRef("duration_value")}
+              label="예상 소요 시간"
+              value={draft.durationValue}
+              unit={draft.durationUnit}
+              error={
+                ["duration_minutes", "duration_value", "duration_unit"].includes(
+                  validationField ?? "",
+                )
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onChangeValue={(durationValue) => onUpdate({ durationValue })}
+              onChangeUnit={(durationUnit) => onUpdate({ durationUnit })}
+            />
+          </FieldAnchor>
+          <FieldAnchor field="schedule_mode" onFieldLayout={onFieldLayout}>
+            <View className="gap-3">
+              <SectionLabel>일정 설정 방식</SectionLabel>
+              <View className="border-t border-hypo-border">
+                <SelectableRow
+                  description="참여 가능한 날짜와 시간을 알려줘요."
+                  isSelected={draft.scheduleMode === "fixed"}
+                  label="날짜와 시간 제시"
+                  onPress={() => onUpdate({ scheduleMode: "fixed" })}
+                />
+                <SelectableRow
+                  description="평일이나 주말의 참여 가능 시간대를 알려줘요."
+                  isSelected={draft.scheduleMode === "recurring"}
+                  label="시간대"
+                  onPress={() => onUpdate({ scheduleMode: "recurring" })}
+                />
+                <SelectableRow
+                  description="선정된 참여자와 채팅에서 세부 일정을 정해요."
+                  isSelected={draft.scheduleMode === "negotiated"}
+                  label="선정 후 채팅으로 조율"
+                  onPress={() => onUpdate({ scheduleMode: "negotiated" })}
+                />
               </View>
-            ) : null}
-            {draft.scheduleMode === "recurring" ? (
-              <ChipField
-                options={recurringWindows}
-                selected={draft.recurringWindows}
-                onToggle={(value) => onToggle("recurringWindows", value)}
-              />
-            ) : null}
+              {draft.scheduleMode === "fixed" ? (
+                <View className="gap-2">
+                  <DateTimeSlotPicker onAdd={onAddSlot} />
+                  {draft.fixedSlots.map((slot) => (
+                    <RemovableValue
+                      key={slot}
+                      value={slot}
+                      onRemove={() => onRemoveSlot(slot)}
+                    />
+                  ))}
+                </View>
+              ) : null}
+              {draft.scheduleMode === "recurring" ? (
+                <ChipField
+                  options={recurringWindows}
+                  selected={draft.recurringWindows}
+                  error={
+                    validationField === "schedule_mode"
+                      ? validationError ?? undefined
+                      : undefined
+                  }
+                  onToggle={(value) => onToggle("recurringWindows", value)}
+                />
+              ) : null}
+              {draft.scheduleMode === "fixed" && validationField === "schedule_mode" ? (
+                <InlineError message={validationError ?? "일정 설정을 다시 확인해 주세요."} />
+              ) : null}
+            </View>
+          </FieldAnchor>
+          <FieldAnchor field="schedule_note" onFieldLayout={onFieldLayout}>
             <FormField
+              inputRef={registerInputRef("schedule_note")}
               label="추가 안내"
               value={draft.scheduleNote}
               placeholder="예: 정확한 시간은 선정 후 채팅에서 조율할 수 있어요."
               multiline
+              error={
+                validationField === "schedule_note"
+                  ? validationError ?? undefined
+                  : undefined
+              }
               onChangeText={(scheduleNote) => onUpdate({ scheduleNote })}
             />
-          </View>
+          </FieldAnchor>
         </>
       ) : null}
       {showLocation ? (
-        <LocationChooser draft={draft} onUpdate={onUpdate} />
+        <FieldAnchor field="location" onFieldLayout={onFieldLayout}>
+          <LocationChooser
+            draft={draft}
+            error={
+              validationField === "location"
+                ? validationError ?? undefined
+                : undefined
+            }
+            inputRef={registerInputRef("location")}
+            onUpdate={onUpdate}
+          />
+        </FieldAnchor>
       ) : null}
     </View>
   );
 }
 function StepFour({
   draft,
+  validationError,
+  validationField,
+  onFieldLayout,
+  registerInputRef,
   onAddCompensation,
   onRemoveCompensation,
   onSetNoCompensation,
@@ -651,6 +1041,10 @@ function StepFour({
   onUpdateCompensation,
 }: {
   draft: PostingCreationDraft;
+  validationError: string | null;
+  validationField: string | null;
+  onFieldLayout: (field: string, y: number) => void;
+  registerInputRef: (field: string) => (input: TextInput | null) => void;
   onAddCompensation: () => void;
   onRemoveCompensation: (index: number) => void;
   onSetNoCompensation: () => void;
@@ -660,96 +1054,137 @@ function StepFour({
   const provided = draft.compensations.some((item) => item.type !== "none");
   return (
     <View className="gap-7">
-      <View className="gap-3">
-        <SectionLabel>보상을 제공하나요?</SectionLabel>
-        <View className="border-t border-hypo-border">
-          <SelectableRow
-            description="현금, 기프티콘, 제품, 이용권 등으로 보상할 수 있어요."
-            isSelected={provided}
-            label="보상 제공"
-            onPress={() => !provided && onAddCompensation()}
-          />
-          <SelectableRow
-            description="참여에 별도 보상을 제공하지 않아요."
-            isSelected={!provided}
-            label="보상 없음"
-            onPress={onSetNoCompensation}
-          />
-        </View>
-        {provided ? (
-          <View className="gap-4 pt-2">
-            {draft.compensations.map((item, index) => (
-              <CompensationEditor
-                compensation={item}
-                index={index}
-                key={`${item.type}-${index}`}
-                canRemove={draft.compensations.length > 1}
-                onRemove={() => onRemoveCompensation(index)}
-                onUpdate={(patch) => onUpdateCompensation(index, patch)}
-              />
-            ))}
-            <Pressable
-              accessibilityRole="button"
-              className="min-h-[44px] items-start justify-center"
-              onPress={onAddCompensation}
-            >
-              <Text className="text-[14px] font-semibold text-hypo-brand">
-                + 보상 추가
-              </Text>
-            </Pressable>
+      <FieldAnchor field="compensations" onFieldLayout={onFieldLayout}>
+        <View className="gap-3">
+          <SectionLabel>보상을 제공하나요?</SectionLabel>
+          <View className="border-t border-hypo-border">
+            <SelectableRow
+              description="현금, 기프티콘, 제품, 이용권 등으로 보상할 수 있어요."
+              isSelected={provided}
+              label="보상 제공"
+              onPress={() => !provided && onAddCompensation()}
+            />
+            <SelectableRow
+              description="참여에 별도 보상을 제공하지 않아요."
+              isSelected={!provided}
+              label="보상 없음"
+              onPress={onSetNoCompensation}
+            />
           </View>
-        ) : null}
-      </View>
-      <View className="gap-3">
-        <SectionLabel>모집 인원</SectionLabel>
-        <View className="border-t border-hypo-border">
-          <SelectableRow
-            description="참여 인원을 제한하지 않아요."
-            isSelected={draft.recruitmentLimitMode === "unlimited"}
-            label="인원 제한 없음"
-            onPress={() =>
-              onUpdate({
-                recruitmentLimitMode: "unlimited",
-                recruitmentCount: "",
-              })
-            }
-          />
-          <SelectableRow
-            description="필요한 참여자 수를 직접 정해요."
-            isSelected={draft.recruitmentLimitMode === "limited"}
-            label="인원 지정"
-            onPress={() => onUpdate({ recruitmentLimitMode: "limited" })}
-          />
+          {provided ? (
+            <View className="gap-4 pt-2">
+              {draft.compensations.map((item, index) => (
+                <CompensationEditor
+                  compensation={item}
+                  index={index}
+                  key={`${item.type}-${index}`}
+                  canRemove={draft.compensations.length > 1}
+                  error={
+                    validationField === "compensations"
+                      ? validationError ?? undefined
+                      : undefined
+                  }
+                  onRemove={() => onRemoveCompensation(index)}
+                  onUpdate={(patch) => onUpdateCompensation(index, patch)}
+                />
+              ))}
+              <Pressable
+                accessibilityRole="button"
+                className="min-h-[44px] items-start justify-center"
+                onPress={onAddCompensation}
+              >
+                <Text className="text-[14px] font-semibold text-hypo-brand">
+                  + 보상 추가
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
-        {draft.recruitmentLimitMode === "limited" ? (
-          <FormField
-            label="참여자 수"
-            value={draft.recruitmentCount}
-            placeholder="4"
-            suffix="명"
-            keyboardType="number-pad"
-            onChangeText={(recruitmentCount) => onUpdate({ recruitmentCount })}
-          />
-        ) : null}
-      </View>
-      <View className="gap-3">
-        <SectionLabel>마감일</SectionLabel>
-        <View className="border-t border-hypo-border">
-          <DeadlineSettingRow
-            deadline={draft.deadline}
-            enabled={draft.deadlineEnabled}
-            onChange={(deadline) =>
-              onUpdate({ deadlineEnabled: true, deadline })
-            }
-          />
-          <SelectableRow
-            description="별도 마감일 없이 모집을 이어가요."
-            isSelected={!draft.deadlineEnabled}
-            label="마감일 없음"
-            onPress={() => onUpdate({ deadlineEnabled: false, deadline: "" })}
-          />
+      </FieldAnchor>
+      <FieldAnchor field="recruit_count" onFieldLayout={onFieldLayout}>
+        <View className="gap-3">
+          <SectionLabel>모집 인원</SectionLabel>
+          <View className="border-t border-hypo-border">
+            <SelectableRow
+              description="참여 인원을 제한하지 않아요."
+              isSelected={draft.recruitmentLimitMode === "unlimited"}
+              label="인원 제한 없음"
+              onPress={() =>
+                onUpdate({
+                  recruitmentLimitMode: "unlimited",
+                  recruitmentCount: "",
+                })
+              }
+            />
+            <SelectableRow
+              description="필요한 참여자 수를 직접 정해요."
+              isSelected={draft.recruitmentLimitMode === "limited"}
+              label="인원 지정"
+              onPress={() => onUpdate({ recruitmentLimitMode: "limited" })}
+            />
+          </View>
+          {draft.recruitmentLimitMode === "limited" ? (
+            <FormField
+              inputRef={registerInputRef("recruit_count")}
+              label="참여자 수"
+              value={draft.recruitmentCount}
+              placeholder="4"
+              suffix="명"
+              keyboardType="number-pad"
+              error={
+                ["recruit_count", "recruitment_limit_mode"].includes(
+                  validationField ?? "",
+                )
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onChangeText={(recruitmentCount) => onUpdate({ recruitmentCount })}
+            />
+          ) : null}
         </View>
-      </View>
+      </FieldAnchor>
+      <FieldAnchor field="participation_deadline_at" onFieldLayout={onFieldLayout}>
+        <View className="gap-3">
+          <SectionLabel>마감일</SectionLabel>
+          <View className="border-t border-hypo-border">
+            <DeadlineSettingRow
+              deadline={draft.deadline}
+              enabled={draft.deadlineEnabled}
+              error={
+                validationField === "participation_deadline_at"
+                  ? validationError ?? undefined
+                  : undefined
+              }
+              onChange={(deadline) =>
+                onUpdate({ deadlineEnabled: true, deadline })
+              }
+            />
+            <SelectableRow
+              description="별도 마감일 없이 모집을 이어가요."
+              isSelected={!draft.deadlineEnabled}
+              label="마감일 없음"
+              onPress={() => onUpdate({ deadlineEnabled: false, deadline: "" })}
+            />
+          </View>
+        </View>
+      </FieldAnchor>
+    </View>
+  );
+}
+function FieldAnchor({
+  field,
+  onFieldLayout,
+  children,
+}: {
+  field: string;
+  onFieldLayout: (field: string, y: number) => void;
+  children: ReactNode;
+}) {
+  return (
+    <View
+      onLayout={(event) => onFieldLayout(field, event.nativeEvent.layout.y)}
+    >
+      {children}
     </View>
   );
 }
@@ -760,7 +1195,7 @@ function ReviewStep({
   draft: PostingCreationDraft;
   onEdit: (step: CreationStep) => void;
 }) {
-  const duration = `${draft.durationValue || "-"}${durationUnits.find((unit) => unit.value === draft.durationUnit)?.label ?? "분"}`;
+  const duration = `${draft.durationValue || "-"}${betaDurationUnits.find((unit) => unit.value === draft.durationUnit)?.label ?? "분"}`;
   return (
     <View className="gap-7">
       <ReviewSection
@@ -806,9 +1241,11 @@ function ReviewStep({
   );
 }
 function CreationHeader({
+  title = "공고 만들기",
   draftStatus,
   onBack,
 }: {
+  title?: string;
   draftStatus: "saving" | "saved" | "failed";
   onBack: () => void;
 }) {
@@ -830,7 +1267,7 @@ function CreationHeader({
         <Feather color={colors.text} name="chevron-left" size={24} />
       </Pressable>
       <Text className="flex-1 text-[17px] font-bold text-hypo-text">
-        공고 만들기
+        {title}
       </Text>
       <Text
         accessibilityLiveRegion="polite"
@@ -860,6 +1297,7 @@ function ProgressIndicator({ step }: { step: CreationStep }) {
   );
 }
 function FormField({
+  inputRef,
   label,
   value,
   placeholder,
@@ -871,8 +1309,10 @@ function FormField({
   keyboardType,
   autoCapitalize,
   editable = true,
+  error,
   maxLength,
 }: {
+  inputRef?: (input: TextInput | null) => void;
   label: string;
   value: string;
   placeholder: string;
@@ -884,6 +1324,7 @@ function FormField({
   keyboardType?: "default" | "number-pad" | "url";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
   editable?: boolean;
+  error?: string;
   maxLength?: number;
 }) {
   return (
@@ -899,7 +1340,7 @@ function FormField({
         ) : null}
       </View>
       <View
-        className={`rounded-[12px] border border-hypo-border bg-hypo-surface px-4 ${multiline ? "min-h-[116px]" : "h-[52px] flex-row items-center"}`}
+        className={`rounded-[12px] border bg-hypo-surface px-4 ${error ? "border-hypo-danger" : "border-hypo-border"} ${multiline ? "min-h-[116px]" : "h-[52px] flex-row items-center"}`}
       >
         <TextInput
           accessibilityLabel={label}
@@ -910,6 +1351,7 @@ function FormField({
           multiline={multiline}
           placeholder={placeholder}
           placeholderTextColor={colors.textSoft}
+          ref={inputRef}
           className={`min-w-0 flex-1 text-[15px] text-hypo-text ${multiline ? "min-h-[114px] py-3 leading-[22px]" : "h-[50px] py-0"} ${editable ? "" : "text-hypo-text-secondary"}`}
           style={{ textAlignVertical: multiline ? "top" : "center" }}
           value={value}
@@ -926,29 +1368,36 @@ function FormField({
           {helper}
         </Text>
       ) : null}
+      {error ? <InlineError message={error} /> : null}
     </View>
   );
 }
 
 function DurationField({
+  inputRef,
   label,
   value,
   unit,
+  error,
+  units = durationUnits,
   onChangeValue,
   onChangeUnit,
 }: {
+  inputRef?: (input: TextInput | null) => void;
   label: string;
   value: string;
   unit: DurationUnit;
+  error?: string;
+  units?: Array<{ value: DurationUnit; label: string }>;
   onChangeValue: (value: string) => void;
   onChangeUnit: (unit: DurationUnit) => void;
 }) {
   const unitLabel =
-    durationUnits.find((option) => option.value === unit)?.label ?? "분";
+    betaDurationUnits.find((option) => option.value === unit)?.label ?? "분";
   const chooseUnit = () => {
-    const options = durationUnits.map((option) => option.label);
+    const options = units.map((option) => option.label);
     const select = (index: number) => {
-      const next = durationUnits[index];
+      const next = units[index];
       if (next) onChangeUnit(next.value);
     };
 
@@ -965,7 +1414,7 @@ function DurationField({
     }
 
     Alert.alert("시간 단위", undefined, [
-      ...durationUnits.map((option, index) => ({
+      ...units.map((option, index) => ({
         text: option.label,
         onPress: () => select(index),
       })),
@@ -976,7 +1425,9 @@ function DurationField({
   return (
     <View className="gap-2">
       <SectionLabel>{label}</SectionLabel>
-      <View className="h-[52px] flex-row items-center rounded-[12px] border border-hypo-border bg-hypo-surface px-4">
+      <View
+        className={`h-[52px] flex-row items-center rounded-[12px] border bg-hypo-surface px-4 ${error ? "border-hypo-danger" : "border-hypo-border"}`}
+      >
         <Text className="mr-2 text-[15px] text-hypo-text-secondary">약</Text>
         <TextInput
           accessibilityLabel={label}
@@ -984,6 +1435,7 @@ function DurationField({
           keyboardType="number-pad"
           placeholder="30"
           placeholderTextColor={colors.textSoft}
+          ref={inputRef}
           value={value}
           onChangeText={onChangeValue}
         />
@@ -999,6 +1451,7 @@ function DurationField({
           <Feather color={colors.brand} name="chevron-down" size={16} />
         </Pressable>
       </View>
+      {error ? <InlineError message={error} /> : null}
     </View>
   );
 }
@@ -1006,11 +1459,13 @@ function DurationField({
 function DateField({
   label,
   value,
+  error,
   onChange,
   containerClassName = "",
 }: {
   label: string;
   value: string;
+  error?: string;
   onChange: (value: string) => void;
   containerClassName?: string;
 }) {
@@ -1057,6 +1512,7 @@ function DateField({
           onChange={handleChange}
         />
       ) : null}
+      {error ? <InlineError message={error} /> : null}
     </View>
   );
 }
@@ -1064,10 +1520,12 @@ function DateField({
 function DeadlineSettingRow({
   enabled,
   deadline,
+  error,
   onChange,
 }: {
   enabled: boolean;
   deadline: string;
+  error?: string;
   onChange: (deadline: string) => void;
 }) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -1122,6 +1580,7 @@ function DeadlineSettingRow({
           onChange={handleChange}
         />
       ) : null}
+      {error ? <InlineError message={error} /> : null}
     </View>
   );
 }
@@ -1260,11 +1719,13 @@ function ChipField({
   label,
   options,
   selected,
+  error,
   onToggle,
 }: {
   label?: string;
   options: string[];
   selected: string[];
+  error?: string;
   onToggle: (value: string) => void;
 }) {
   return (
@@ -1280,14 +1741,19 @@ function ChipField({
           />
         ))}
       </View>
+      {error ? <InlineError message={error} /> : null}
     </View>
   );
 }
 function LocationChooser({
   draft,
+  error,
+  inputRef,
   onUpdate,
 }: {
   draft: PostingCreationDraft;
+  error?: string;
+  inputRef?: (input: TextInput | null) => void;
   onUpdate: (patch: Partial<PostingCreationDraft>) => void;
 }) {
   const [query, setQuery] = useState("");
@@ -1313,6 +1779,7 @@ function LocationChooser({
           className="h-[52px] min-w-0 flex-1 rounded-[12px] border border-hypo-border bg-hypo-surface px-4 text-[15px] text-hypo-text"
           placeholder="장소, 역, 학교를 검색해요"
           placeholderTextColor={colors.textSoft}
+          ref={inputRef}
           returnKeyType="search"
           value={query}
           onChangeText={setQuery}
@@ -1364,6 +1831,7 @@ function LocationChooser({
           대면 진행에는 지도에 표시할 장소를 선택해 주세요.
         </Text>
       )}
+      {error ? <InlineError message={error} /> : null}
     </View>
   );
 }
@@ -1394,12 +1862,14 @@ function CompensationEditor({
   compensation,
   index,
   canRemove,
+  error,
   onRemove,
   onUpdate,
 }: {
   compensation: Compensation;
   index: number;
   canRemove: boolean;
+  error?: string;
   onRemove: () => void;
   onUpdate: (patch: Partial<Compensation>) => void;
 }) {
@@ -1475,6 +1945,7 @@ function CompensationEditor({
           onChangeText={(label) => onUpdate({ label })}
         />
       ) : null}
+      {error ? <InlineError message={error} /> : null}
     </View>
   );
 }
@@ -1527,9 +1998,6 @@ function InlineError({ message }: { message: string }) {
     </Text>
   );
 }
-function allowsDirect(type: PostingType) {
-  return ["survey", "usability_test", "other"].includes(type);
-}
 function getPublishErrorMessage(error: unknown) {
   if (!(error instanceof ApiError)) {
     return "공고를 올리지 못했어요. 네트워크를 확인한 뒤 다시 시도해 주세요.";
@@ -1541,9 +2009,21 @@ function getPublishErrorMessage(error: unknown) {
     return "공고 설명을 다시 확인해 주세요.";
   if (field === "target_description" || field === "targetDescription")
     return "찾는 참여자를 다시 확인해 주세요.";
-  if (field === "duration_minutes" || field === "durationMinutes")
+  if (
+    field === "duration_minutes" ||
+    field === "durationMinutes" ||
+    field === "duration_value" ||
+    field === "durationValue" ||
+    field === "duration_unit" ||
+    field === "durationUnit"
+  )
     return "예상 소요 시간을 다시 확인해 주세요.";
-  if (field === "recruit_count" || field === "recruitCount")
+  if (
+    field === "recruit_count" ||
+    field === "recruitCount" ||
+    field === "recruitment_limit_mode" ||
+    field === "recruitmentLimitMode"
+  )
     return "모집 인원을 다시 확인해 주세요.";
   if (field === "interview_mode" || field === "interviewMode")
     return "진행 방식을 다시 확인해 주세요.";
@@ -1561,7 +2041,18 @@ function getPublishErrorMessage(error: unknown) {
     field === "locationSource"
   )
     return "대면 진행에는 지도에서 장소를 선택해 주세요.";
-  if (field === "schedule_options" || field === "scheduleOptions")
+  if (
+    field === "schedule_options" ||
+    field === "scheduleOptions" ||
+    field === "schedule_mode" ||
+    field === "scheduleMode" ||
+    field === "schedule_fixed_slots" ||
+    field === "scheduleFixedSlots" ||
+    field === "schedule_recurring_windows" ||
+    field === "scheduleRecurringWindows" ||
+    field === "schedule_note" ||
+    field === "scheduleNote"
+  )
     return "일정 설정을 다시 확인해 주세요.";
   if (field === "external_url" || field === "externalUrl")
     return "외부 설문 참여 링크를 다시 확인해 주세요.";
@@ -1586,6 +2077,125 @@ function getPublishErrorMessage(error: unknown) {
   if (error.status === 422) return "입력한 내용을 다시 확인해 주세요.";
   return "공고를 올리지 못했어요. 작성한 내용은 초안으로 보관했어요.";
 }
+
+function getApiValidationField(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  return normalizeValidationField(error.fieldErrors?.[0]?.field ?? null);
+}
+
+function normalizeValidationField(field: string | null): string | null {
+  if (!field) return null;
+  const aliases: Record<string, string> = {
+    serviceSummary: "service_summary",
+    targetDescription: "target_description",
+    durationMinutes: "duration_minutes",
+    durationValue: "duration_value",
+    durationUnit: "duration_unit",
+    recruitCount: "recruit_count",
+    recruitmentLimitMode: "recruitment_limit_mode",
+    interviewMode: "interview_mode",
+    scheduleOptions: "schedule_options",
+    scheduleMode: "schedule_mode",
+    scheduleFixedSlots: "schedule_fixed_slots",
+    scheduleRecurringWindows: "schedule_recurring_windows",
+    scheduleNote: "schedule_note",
+    betaTestEnvironment: "beta_test_environment",
+    betaTestWorkflowNote: "beta_test_workflow_note",
+    externalUrl: "external_url",
+    participationDeadlineAt: "participation_deadline_at",
+    locationText: "location",
+    locationLatitude: "location",
+    locationLongitude: "location",
+    locationPrecision: "location",
+    locationSource: "location",
+  };
+  return aliases[field] ?? field;
+}
+
+function getStepForValidationField(field: string | null): CreationStep | null {
+  if (!field) return null;
+  if (["title", "service_summary", "target_description"].includes(field)) return 2;
+  if (
+    [
+      "duration_minutes",
+      "duration_value",
+      "duration_unit",
+      "interview_mode",
+      "location",
+      "schedule_options",
+      "schedule_mode",
+      "schedule_fixed_slots",
+      "schedule_recurring_windows",
+      "schedule_note",
+      "external_url",
+      "external_data_notice",
+      "beta_platforms",
+      "beta_test_platforms",
+      "beta_dates",
+      "beta_test_starts_at",
+      "beta_test_ends_at",
+      "beta_test_environment",
+      "beta_test_workflow_note",
+    ].includes(field)
+  )
+    return 3;
+  if (
+    [
+      "recruit_count",
+      "recruitment_limit_mode",
+      "participation_deadline_at",
+      "compensations",
+      "reward_amount",
+    ].includes(field)
+  )
+    return 4;
+  return null;
+}
+
+function resolveAttentionField(field: string | null): string | null {
+  if (!field) return null;
+
+  const aliases: Record<string, string> = {
+    duration_minutes: "duration_value",
+    duration_unit: "duration_value",
+    schedule_options: "schedule_mode",
+    schedule_fixed_slots: "schedule_mode",
+    schedule_recurring_windows: "schedule_mode",
+    beta_test_platforms: "beta_platforms",
+    beta_test_starts_at: "beta_dates",
+    beta_test_ends_at: "beta_dates",
+    recruitment_limit_mode: "recruit_count",
+  };
+
+  return aliases[field] ?? field;
+}
+
+function getValidationFieldForMessage(message: string): string | null {
+  if (message.startsWith("제목")) return "title";
+  if (message.startsWith("공고 설명")) return "service_summary";
+  if (message.startsWith("찾는 참여자")) return "target_description";
+  if (message.startsWith("예상 시간")) return "duration_minutes";
+  if (message.startsWith("예상 참여 기간")) return "duration_value";
+  if (message.startsWith("Google Forms 참여 링크")) return "external_url";
+  if (message.startsWith("외부 설문 안내")) return "external_data_notice";
+  if (message.startsWith("테스트 플랫폼")) return "beta_platforms";
+  if (message.startsWith("테스트 시작일")) return "beta_dates";
+  if (message.startsWith("대면 진행")) return "location";
+  if (
+    message.startsWith("참여 가능한 날짜") ||
+    message.startsWith("반복 가능한 시간대")
+  )
+    return "schedule_mode";
+  if (message.startsWith("모집 인원")) return "recruit_count";
+  if (message.startsWith("마감일")) return "participation_deadline_at";
+  if (
+    message.startsWith("현금 보상") ||
+    message.startsWith("포인트") ||
+    message.startsWith("보상 이름")
+  )
+    return "compensations";
+  return null;
+}
 function stepTitle(step: CreationStep, type: PostingType) {
   if (step === 1)
     return {
@@ -1599,7 +2209,7 @@ function stepTitle(step: CreationStep, type: PostingType) {
     };
   if (step === 3)
     return {
-      heading: "진행 방법을 정하세요",
+      heading: "진행 방법을 정해주세요",
       description: `${postingTypeLabels[type]}에 필요한 방식과 일정만 입력해요.`,
     };
   if (step === 4)
@@ -1615,21 +2225,30 @@ function stepTitle(step: CreationStep, type: PostingType) {
 function validateStep(
   step: CreationStep,
   draft: PostingCreationDraft,
+  baseline?: PostingCreationDraft,
 ): string | null {
+  const changed = (...keys: Array<keyof PostingCreationDraft>) =>
+    !baseline || keys.some((key) => JSON.stringify(draft[key]) !== JSON.stringify(baseline[key]));
   if (step === 1) return null;
   if (step === 2) {
-    if (draft.title.trim().length < 2) return "제목을 2자 이상 입력해 주세요.";
-    if (draft.description.trim().length < 10)
+    if (changed("title") && draft.title.trim().length < 2) return "제목을 2자 이상 입력해 주세요.";
+    if (changed("title") && !containsMeaningfulPostingText(draft.title))
+      return "제목을 의미 있게 입력해 주세요.";
+    if (changed("description") && draft.description.trim().length < 10)
       return "공고 설명을 10자 이상 입력해 주세요.";
-    if (draft.targetParticipant.trim().length < 10)
+    if (changed("description") && !containsMeaningfulPostingText(draft.description))
+      return "공고 설명을 의미 있게 입력해 주세요.";
+    if (changed("targetParticipant") && draft.targetParticipant.trim().length < 10)
       return "찾는 참여자를 10자 이상 입력해 주세요.";
+    if (changed("targetParticipant") && !containsMeaningfulPostingText(draft.targetParticipant))
+      return "찾는 참여자를 의미 있게 입력해 주세요.";
   }
   if (step === 3) {
-    const duration = durationToMinutes(draft.durationValue, draft.durationUnit);
-    if (draft.type !== "beta_test" && (duration < 10 || duration > 240))
-      return "예상 시간은 10분에서 4시간 사이로 입력해 주세요.";
+    const durationError = getPostingDurationError(draft.type, draft.durationValue, draft.durationUnit);
+    if (changed("durationValue", "durationUnit") && durationError) return durationError;
     if (
       draft.type === "interview" &&
+      changed("interviewMode", "location", "locationLatitude", "locationLongitude") &&
       draft.interviewMode !== "online" &&
       (!draft.location.trim() ||
         draft.locationLatitude === null ||
@@ -1637,43 +2256,40 @@ function validateStep(
     )
       return "대면 진행에는 지도에서 장소를 선택해 주세요.";
     if (draft.type === "survey") {
-      if (
-        !/^https:\/\/(docs\.google\.com|forms\.gle)\//.test(
-          draft.externalUrl.trim(),
-        )
-      )
+      if (changed("externalUrl") && !isGoogleFormsParticipationUrl(draft.externalUrl))
         return "Google Forms 참여 링크를 입력해 주세요.";
-      if (!draft.externalDataNotice.trim())
+      if (changed("externalDataNotice") && !draft.externalDataNotice.trim())
         return "외부 설문 안내를 입력해 주세요.";
     }
     if (draft.type === "beta_test") {
-      if (!draft.betaPlatforms.length)
+      if (changed("betaPlatforms") && !draft.betaPlatforms.length)
         return "테스트 플랫폼을 하나 이상 선택해 주세요.";
       if (
+        changed("betaStartsAt", "betaEndsAt") && (
         !isIsoDate(draft.betaStartsAt) ||
         !isIsoDate(draft.betaEndsAt) ||
-        draft.betaStartsAt >= draft.betaEndsAt
+        draft.betaStartsAt >= draft.betaEndsAt)
       )
         return "테스트 시작일과 종료일을 확인해 주세요.";
     }
-    if (draft.scheduleMode === "fixed" && !draft.fixedSlots.length)
+    if (changed("scheduleMode", "fixedSlots") && draft.type === "interview" && draft.scheduleMode === "fixed" && !draft.fixedSlots.length)
       return "참여 가능한 날짜와 시간을 하나 이상 추가해 주세요.";
-    if (draft.scheduleMode === "recurring" && !draft.recurringWindows.length)
+    if (changed("scheduleMode", "recurringWindows") && draft.type === "interview" && draft.scheduleMode === "recurring" && !draft.recurringWindows.length)
       return "반복 가능한 시간대를 하나 이상 선택해 주세요.";
   }
   if (step === 4) {
     if (
-      draft.recruitmentLimitMode === "limited" &&
+      changed("recruitmentLimitMode", "recruitmentCount") && draft.recruitmentLimitMode === "limited" &&
       (!Number.isInteger(Number(draft.recruitmentCount)) ||
         Number(draft.recruitmentCount) < 1 ||
         Number(draft.recruitmentCount) > 999)
     )
       return "모집 인원은 1명 이상 입력해 주세요.";
-    if (draft.deadlineEnabled && !isFutureIsoDate(draft.deadline))
+    if (changed("deadlineEnabled", "deadline") && draft.deadlineEnabled && !isFutureIsoDate(draft.deadline))
       return "마감일은 오늘 이후 날짜로 입력해 주세요.";
-    if (draft.type === "survey" && !draft.deadlineEnabled)
+    if (changed("deadlineEnabled") && draft.type === "survey" && !draft.deadlineEnabled)
       return "설문조사에는 마감일이 필요해요.";
-    for (const compensation of draft.compensations) {
+    for (const compensation of changed("compensations") ? draft.compensations : []) {
       if (
         compensation.type === "cash" &&
         (!compensation.amount || compensation.amount <= 0)
@@ -1693,11 +2309,17 @@ function validateStep(
   }
   return null;
 }
+
+function containsMeaningfulPostingText(value: string): boolean {
+  return /[A-Za-z0-9가-힣]/.test(value);
+}
+
 function validateAll(
   draft: PostingCreationDraft,
+  baseline?: PostingCreationDraft,
 ): { step: CreationStep; message: string } | null {
   for (const step of [1, 2, 3, 4] as CreationStep[]) {
-    const message = validateStep(step, draft);
+    const message = validateStep(step, draft, baseline);
     if (message) return { step, message };
   }
   return null;
@@ -1711,6 +2333,7 @@ function reviewMethodValues(
       "방식",
       draft.type === "survey"
         ? "온라인 · 외부 설문"
+        : draft.type === "beta_test" ? "온라인"
         : draft.interviewMode === "offline"
           ? "대면"
           : draft.interviewMode === "both"
@@ -1718,20 +2341,29 @@ function reviewMethodValues(
             : "온라인",
     ],
   ];
-  if (draft.type === "beta_test")
+  if (draft.type === "beta_test") {
     values.push(
-      ["테스트 기간", `${draft.betaStartsAt} ~ ${draft.betaEndsAt}`],
+      ["예상 참여 기간", duration],
+      ["테스트 진행 날짜", `${draft.betaStartsAt} ~ ${draft.betaEndsAt}`],
       ["플랫폼", draft.betaPlatforms.join(" · ")],
     );
-  else values.push(["예상 시간", duration]);
-  if (draft.type === "survey") values.push(["외부 서비스", "Google Forms"]);
-  if (draft.scheduleMode === "fixed")
+    if (draft.environment.trim()) values.push(["필요 환경", draft.environment]);
+    if (draft.workflowNote.trim())
+      values.push(["테스트 방법", draft.workflowNote]);
+  } else values.push(["예상 시간", duration]);
+  if (draft.type === "survey") {
+    values.push(["외부 서비스", "Google Forms"]);
+    if (draft.externalDataNotice.trim())
+      values.push(["참여 안내", draft.externalDataNotice]);
+  }
+  if (draft.type === "interview" && draft.scheduleMode === "fixed")
     values.push(["일정", draft.fixedSlots.join(" · ")]);
-  if (draft.scheduleMode === "recurring")
+  if (draft.type === "interview" && draft.scheduleMode === "recurring")
     values.push(["가능 시간", draft.recurringWindows.join(" · ")]);
-  if (draft.scheduleMode === "negotiated")
+  if (draft.type === "interview" && draft.scheduleMode === "negotiated")
     values.push(["일정", "선정 후 채팅으로 조율"]);
-  if (draft.location.trim()) values.push(["위치", draft.location]);
+  if (draft.type === "interview" && draft.scheduleNote.trim()) values.push(["추가 안내", draft.scheduleNote]);
+  if (requiresLocation(draft) && draft.location.trim()) values.push(["위치", draft.location]);
   return values;
 }
 function isIsoDate(value: string) {
@@ -1741,7 +2373,7 @@ function isIsoDate(value: string) {
   );
 }
 function isFutureIsoDate(value: string) {
-  return isIsoDate(value) && value >= new Date().toISOString().slice(0, 10);
+  return isIsoDate(value) && Date.parse(`${value}T23:59:59.999+09:00`) > Date.now();
 }
 
 function formatDate(date: Date) {

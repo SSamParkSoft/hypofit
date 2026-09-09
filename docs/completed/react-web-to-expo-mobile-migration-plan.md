@@ -7,7 +7,7 @@ Last updated: 2026-05-29
 Historical note: this is a migration and decision-history reference. The Expo
 mobile app now exists under `apps/mobile`; do not treat the phase checklists in
 this document as the current active backlog. Current implementation work lives
-in `docs/active/`.
+in MainVault Active Plans.
 
 ## Purpose
 
@@ -933,7 +933,7 @@ Status: completed on 2026-05-25
 Outputs:
 
 - This plan exists in `docs/active`.
-- `docs/active/README.md` references this plan.
+- MainVault Active Plans `README.md` references this plan.
 - `AGENTS.md` is updated so future agents know:
   - `apps/web` is web-first React.
   - `apps/mobile` is Expo RN.

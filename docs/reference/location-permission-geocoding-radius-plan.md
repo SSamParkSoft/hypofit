@@ -71,9 +71,11 @@ QA or a small amount of remaining regression coverage to close.
   turns on a distance filter. The first request uses the native system
   permission dialog directly; denied/unavailable states are handled with inline
   copy in the filter flow.
-- [x] Expo map search refreshes automatically after
-  `onRegionChangeComplete` settles. The current mobile behavior is debounced
-  search-on-idle around the map center, not a tap-to-confirm re-search button.
+- [x] Expo map keeps the last searched viewport separate from the live camera.
+  After a meaningful pan or zoom, it shows an explicit `이 지역에서 검색`
+  control instead of immediately refreshing nearby posts on every idle event.
+  This keeps map exploration stable while preserving the existing center/radius
+  API query.
 - [x] Expo map interview queries currently use the centered region plus a
   region-derived radius, clamped between `800m` and `20000m`, so zooming the
   map changes the nearby result scope.
@@ -97,8 +99,9 @@ QA or a small amount of remaining regression coverage to close.
 
 ## Plan Text That Is No Longer Current
 
-- The older manual `이 지역에서 다시 검색` CTA is not the current behavior on
-  either active client path.
+- Older text describing automatic Expo map refresh after every camera idle is
+  no longer current. Expo now uses the explicit `이 지역에서 검색` confirmation
+  after a meaningful viewport change.
 - The place-search server boundary is already
   resolved for Expo mobile. Mobile uses the Spring Kakao REST proxy.
 - The architecture is currently split by platform:
@@ -115,9 +118,9 @@ QA or a small amount of remaining regression coverage to close.
   sheet/list surface. Basic iPhone 17 Pro render smoke passed, but the custom
   reward markers, list-mode, selected-preview transitions, and search
   suggestion flow still need manual interaction QA.
-- [ ] Device-level behavior review for automatic search-on-idle. If it causes
-  too much churn or accidental refresh, open a smaller follow-up instead of
-  treating the current behavior as final.
+- [ ] Device-level QA for the explicit area-search threshold and CTA placement
+  after pan/zoom, including whether it remains reachable above the bottom
+  sheet on small iOS and Android phones.
 - [x] Backend regression coverage added for:
   - offline post create requires coordinates
   - online post create allows null location

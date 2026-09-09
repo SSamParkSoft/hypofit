@@ -21,7 +21,7 @@ truth for Android/Play Console execution details.
 When Apple App Store work is explicitly in scope, use
 `docs/reference/ios-store-readiness/apple-app-store-first-launch-readiness-plan.md`
 as the starting reference for iOS execution details. Move the relevant iOS
-document back into `docs/active/` only when Apple submission work is actually
+document back into MainVault Active Plans only when Apple submission work is actually
 scheduled.
 
 The current web/PWA deployment remains useful for MVP web distribution and

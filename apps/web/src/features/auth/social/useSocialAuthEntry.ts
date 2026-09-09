@@ -18,6 +18,18 @@ import {
 
 const visibleProviders = getVisibleWebSocialProviderOptions();
 
+function isLocalDirectSupabaseAuthEnabled() {
+  return import.meta.env.DEV && import.meta.env.VITE_LOCAL_DIRECT_SUPABASE_AUTH === "true";
+}
+
+function buildLocalDirectCallbackUrl() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return new URL("/auth", window.location.origin).toString();
+}
+
 function getAccountSelectionQueryParams(providerId: SocialProviderId) {
   if (providerId === "google" || providerId === "kakao") {
     return { prompt: "select_account" };
@@ -54,7 +66,10 @@ export function useSocialAuthEntry() {
         return;
       }
 
-      const callbackUrl = buildSocialAuthCallbackUrl();
+      const useLocalDirectSupabaseAuth = isLocalDirectSupabaseAuthEnabled();
+      const callbackUrl = useLocalDirectSupabaseAuth
+        ? buildLocalDirectCallbackUrl()
+        : buildSocialAuthCallbackUrl();
       if (!callbackUrl) {
         setFeedback({
           message: "브라우저 환경을 확인한 뒤 다시 시도해 주세요.",
@@ -67,33 +82,35 @@ export function useSocialAuthEntry() {
         clearFeedback();
         setPendingProviderId(providerId);
 
-        const approvedReturnTo = getApprovedSocialReturnTo();
-        const attempt = await createSocialAuthAttempt({
-          intent,
-          provider: capability.provider,
-          returnTo: approvedReturnTo,
-        });
+        if (!useLocalDirectSupabaseAuth) {
+          const approvedReturnTo = getApprovedSocialReturnTo();
+          const attempt = await createSocialAuthAttempt({
+            intent,
+            provider: capability.provider,
+            returnTo: approvedReturnTo,
+          });
 
-        if (!attempt.attemptId) {
-          throw new Error("social_attempt_missing");
-        }
+          if (!attempt.attemptId) {
+            throw new Error("social_attempt_missing");
+          }
 
-        const didStoreAttempt = writeStoredSocialAuthAttempt({
-          approvedReturnTo: attempt.returnTo,
-          attemptId: attempt.attemptId,
-          attemptSecret: attempt.attemptSecret,
-          completionStartedAt: null,
-          completedAt: null,
-          createdAt: new Date().toISOString(),
-          expiresAt: attempt.expiresAt,
-          intent,
-          navigationTarget: null,
-          provider: capability.provider,
-          providerIdentifier: capability.providerIdentifier,
-        });
+          const didStoreAttempt = writeStoredSocialAuthAttempt({
+            approvedReturnTo: attempt.returnTo,
+            attemptId: attempt.attemptId,
+            attemptSecret: attempt.attemptSecret,
+            completionStartedAt: null,
+            completedAt: null,
+            createdAt: new Date().toISOString(),
+            expiresAt: attempt.expiresAt,
+            intent,
+            navigationTarget: null,
+            provider: capability.provider,
+            providerIdentifier: capability.providerIdentifier,
+          });
 
-        if (!didStoreAttempt) {
-          throw new Error("social_storage_unavailable");
+          if (!didStoreAttempt) {
+            throw new Error("social_storage_unavailable");
+          }
         }
 
         const client = getSupabaseClientOrThrow();

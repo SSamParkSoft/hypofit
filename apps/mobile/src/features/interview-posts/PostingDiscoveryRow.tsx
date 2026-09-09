@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from "react-native";
-import type { Application, InterviewPost } from "@hypofit/contracts";
+import { normalizeCompensations, type Application, type CompensationType, type InterviewPost } from "@hypofit/contracts";
 import {
   getPostingCompensationLabel,
   getPostingListMetadata,
@@ -10,11 +10,13 @@ import { colors } from "@/shared/theme/tokens";
 
 export function PostingDiscoveryRow({
   existingApplication,
+  isLast = false,
   isRead,
   onPress,
   post,
 }: {
   existingApplication?: Application | null;
+  isLast?: boolean;
   isRead: boolean;
   onPress: () => void;
   post: InterviewPost;
@@ -25,11 +27,13 @@ export function PostingDiscoveryRow({
     ? getApplicationStatusLabel(existingApplication.status)
     : null;
   const metadata = getPostingListMetadata(post);
+  const compensationLabel = getPostingCompensationLabel(post);
+  const primaryCompensationType = normalizeCompensations(post.compensations, post.reward_amount)[0]?.type ?? "none";
   const accessibilitySummary = [
     typeLabel,
     modeLabel,
     post.title,
-    getPostingCompensationLabel(post),
+    compensationLabel,
     statusLabel,
     metadata,
   ]
@@ -41,7 +45,7 @@ export function PostingDiscoveryRow({
       accessibilityHint="공고 상세를 엽니다"
       accessibilityLabel={accessibilitySummary}
       accessibilityRole="button"
-      className={`border-b px-3.5 py-4 ${isRead ? "border-[#E5EAE3] bg-[#F8F8F4]" : "border-hypo-border bg-transparent"}`}
+      className={`${isLast ? "" : "border-b"} px-3.5 py-4 ${isRead ? "border-[#E5EAE3] bg-[#F8F8F4]" : "border-hypo-border bg-transparent"}`}
       onPress={onPress}
       style={({ pressed }) => ({
         backgroundColor: pressed
@@ -77,10 +81,10 @@ export function PostingDiscoveryRow({
           {post.title}
         </Text>
         <Text
-          numberOfLines={1}
-          className="max-w-[42%] shrink-0 text-right text-[14px] font-semibold leading-5 text-hypo-text"
+          numberOfLines={2}
+          className={`w-[112px] shrink-0 text-right leading-5 ${getCompensationTextClassName(primaryCompensationType)}`}
         >
-          {getPostingCompensationLabel(post)}
+          {compensationLabel}
         </Text>
       </View>
 
@@ -99,6 +103,18 @@ export function PostingDiscoveryRow({
       </Text>
     </Pressable>
   );
+}
+
+function getCompensationTextClassName(type: CompensationType) {
+  if (type === "cash") {
+    return "text-[15px] font-bold text-hypo-text";
+  }
+
+  if (type === "none") {
+    return "text-[14px] font-medium text-hypo-text-secondary";
+  }
+
+  return "text-[14px] font-semibold text-hypo-text";
 }
 
 function ApplicationStatusBadge({

@@ -1,18 +1,18 @@
 {
   "version": 1,
-  "measuredAt": "2026-07-16",
+  "measuredAt": "2026-09-04",
   "metrics": {
-    "largestDynamicJsChunkGzipBytes": 11880,
-    "largestDynamicJsChunkRawBytes": 49341,
-    "largestJsAssetGzipBytes": 147129,
-    "largestJsAssetRawBytes": 513111,
-    "totalCssGzipBytes": 16545,
-    "totalCssRawBytes": 98896
+    "largestDynamicJsChunkGzipBytes": 11500,
+    "largestDynamicJsChunkRawBytes": 49211,
+    "largestJsAssetGzipBytes": 153066,
+    "largestJsAssetRawBytes": 527996,
+    "totalCssGzipBytes": 20251,
+    "totalCssRawBytes": 124218
   },
   "notes": {
-    "largestDynamicJsChunkFile": "assets/LandingPage-pLltujPu.js",
-    "largestJsAssetFile": "assets/index-Cto-oydu.js",
-    "topCssFile": "assets/index-CSAfzbOJ.css"
+    "largestDynamicJsChunkFile": "assets/AdminPage-CmLlHGuS.js",
+    "largestJsAssetFile": "assets/index-6I7FP0ts.js",
+    "topCssFile": "assets/index-DDd78WE_.css"
   },
   "budgets": {
     "largestDynamicJsChunkGzipBytes": {

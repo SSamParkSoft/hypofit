@@ -17,6 +17,9 @@
     "android": "expo start --android",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:posting-creation": "node scripts/postingCreationPayload.node-test.mjs",
+    "test:posting-detail": "node scripts/postingDetailCta.node-test.mjs",
+    "test:chat-unread-badge": "node scripts/chatUnreadBadge.node-test.mjs",
+    "test:important-notice": "node scripts/importantNotice.node-test.mjs",
     "build:ios:local": "bash scripts/eas-local-ios-build.sh",
     "build:android:local": "bash scripts/eas-local-android-build.sh"
   },

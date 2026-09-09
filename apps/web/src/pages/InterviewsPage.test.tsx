@@ -216,7 +216,7 @@ describe("InterviewsPage", () => {
 
     expect(screen.getByTestId("detail-post-title")).toHaveTextContent("alpha interview");
     expect(screen.getByTestId("detail-can-apply")).toHaveTextContent("true");
-    expect(screen.getByRole("button", { name: "모집글 만들기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "공고 만들기" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "beta interview" }));
 
@@ -235,7 +235,7 @@ describe("InterviewsPage", () => {
       available_times: ["평일 저녁"],
     });
 
-    await user.click(screen.getByRole("button", { name: "모집글 만들기" }));
+    await user.click(screen.getByRole("button", { name: "공고 만들기" }));
     expect(mocks.navigateTo).toHaveBeenCalledWith("/interviews/new");
   });
 

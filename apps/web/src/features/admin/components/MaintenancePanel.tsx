@@ -119,7 +119,7 @@ export function MaintenancePanel({ accessToken, maintenances, onChanged, onError
     if (scheduledEnd && scheduledEnd <= new Date(startsAt)) { onError("종료 예정 시간은 시작 시간 이후로 설정해 주세요."); return; }
     setPending(true);
     try {
-      await adminApi.createMaintenance({ title: title.trim(), message: message.trim(), starts_at: startsAt, ends_at: scheduledEnd?.toISOString() ?? null, show_banner: showBanner, banner_starts_at: showBanner ? startsAt : null, create_notice: createNotice }, accessToken);
+      await adminApi.createMaintenance({ title: title.trim(), message: message.trim(), starts_at: startsAt, ends_at: scheduledEnd?.toISOString() ?? null, show_banner: showBanner, banner_starts_at: showBanner ? new Date().toISOString() : null, create_notice: createNotice }, accessToken);
       setTitle(""); setMessage(""); onChanged("점검을 예약했어요.");
     } catch { onError("점검을 예약하지 못했습니다."); } finally { setPending(false); }
   };

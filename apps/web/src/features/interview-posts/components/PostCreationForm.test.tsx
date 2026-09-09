@@ -39,6 +39,34 @@ describe("PostCreationForm", () => {
     });
   });
 
+  it("blocks durations below 10 minutes and submits at the API minimum", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<PostCreationForm isSubmitting={false} onCancel={vi.fn()} onSubmit={onSubmit} />);
+
+    await user.type(screen.getByLabelText("제목"), "온라인 인터뷰");
+    await user.type(screen.getByLabelText("서비스 설명"), "서비스 검증 설명");
+    await user.type(screen.getByLabelText("찾는 응답자 조건"), "응답자 조건");
+    const duration = screen.getByLabelText("예상 소요 시간");
+    expect(duration).toHaveAttribute("min", "10");
+
+    for (const value of ["5", "9"]) {
+      await user.clear(duration);
+      await user.type(duration, value);
+      await user.click(screen.getByRole("button", { name: "모집글 저장" }));
+      expect(duration).toBeInvalid();
+      expect(onSubmit).not.toHaveBeenCalled();
+    }
+
+    await user.clear(duration);
+    await user.type(duration, "10");
+    await user.click(screen.getByRole("button", { name: "모집글 저장" }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ durationMinutes: "10" }),
+    );
+  });
+
   it("requires a selected place before submitting offline interviews", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

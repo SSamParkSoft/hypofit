@@ -73,7 +73,7 @@ Founder manual applicant review is intentional. It teaches what screening data
 matters before ranking automation is introduced.
 
 Source-grounded interview and applicant summaries are separately approved
-under `docs/active/ai-interview-and-applicant-summary-plan.md` as reading aids.
+under the MainVault `ai-interview-and-applicant-summary-plan.md` as reading aids.
 They may restate only the current post or application source, must keep the
 original content available, and must not rank, score, recommend, select, or
 reject applicants. This exception does not reopen AI matching as MVP scope.

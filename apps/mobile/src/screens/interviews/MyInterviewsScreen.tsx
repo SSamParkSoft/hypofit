@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -8,11 +9,12 @@ import {
   View,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { router, type Href, useLocalSearchParams } from "expo-router";
+import { router, type Href, useLocalSearchParams, usePathname } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Application, InterviewPost } from "@hypofit/contracts";
-import { formatRecruitCount, formatUserDisplayName, interviewModeLabels } from "@hypofit/contracts";
+import { formatUserDisplayName } from "@hypofit/contracts";
 import { useApplications } from "@/features/applications/useApplications";
+import { useUpdateApplicationStatus } from "@/features/applications/useApplicationMutations";
 import { useChatRooms } from "@/features/chat/useChat";
 import {
   useInterviewPosts,
@@ -20,6 +22,7 @@ import {
   type InterviewPostLifecycleAction,
 } from "@/features/interview-posts/useInterviewPosts";
 import { useSessions } from "@/features/sessions/useSessions";
+import { SurveyOwnerParticipants } from "@/features/surveys/SurveyOwnerParticipants";
 import {
   buildApplicationReadModels,
   formatAnswerLabel,
@@ -30,15 +33,27 @@ import { StateMessage } from "@/screens/home/HomeScreen";
 import { getPostingCompensationLabel, getPostingModeLabel, getPostingTypeLabel } from "@/shared/format/postings";
 import { goBackOrReplaceFallback, resolveReturnTo } from "@/shared/navigation/backNavigation";
 import { ListRow, ListSection } from "@/shared/ui/ListSurface";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 
 type MyInterviewTab = "applications" | "posts";
-type FounderPostManagementTab = "applicants" | "post";
+type ApplicantManagementTab = "applicants" | "in_progress" | "completed";
 
 export function MyInterviewsScreen() {
-  const params = useLocalSearchParams<{ returnTo?: string | string[] }>();
-  const backTo = resolveReturnTo(params.returnTo, "/(tabs)/interviews");
+  const params = useLocalSearchParams<{ returnTo?: string | string[]; tab?: MyInterviewTab | MyInterviewTab[] }>();
+  const pathname = usePathname();
+  const isHomeActivityRoute = pathname.startsWith("/home/");
+  const activityRoot = isHomeActivityRoute ? "/(tabs)/home/my-interviews" : "/(tabs)/interviews/my-interviews";
+  const backTo = resolveReturnTo(params.returnTo, isHomeActivityRoute ? "/(tabs)/home" : "/(tabs)/interviews");
   const { accessToken, appUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<MyInterviewTab>("applications");
+  const requestedTab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+  const [activeTab, setActiveTab] = useState<MyInterviewTab>(requestedTab === "posts" ? "posts" : "applications");
+  const activityReturnTo = `${activityRoot}?tab=${activeTab}&returnTo=${encodeURIComponent(String(backTo))}`;
+
+  useEffect(() => {
+    if (requestedTab === "applications" || requestedTab === "posts") {
+      setActiveTab(requestedTab);
+    }
+  }, [requestedTab]);
   const { data: posts = [], isError: isPostsError, isLoading: isPostsLoading } = useInterviewPosts(undefined, accessToken);
   const {
     data: applications = [],
@@ -128,7 +143,7 @@ export function MyInterviewsScreen() {
                           pathname: "/interviews/[postId]",
                           params: {
                             postId: model.application.interview_post_id,
-                            returnTo: "/(tabs)/interviews/my-interviews",
+                            returnTo: activityReturnTo,
                           },
                         })
                       }
@@ -153,7 +168,7 @@ export function MyInterviewsScreen() {
                           pathname: "/(tabs)/interviews/my-posts/[postId]",
                           params: {
                             postId: post.id,
-                            returnTo: "/(tabs)/interviews/my-interviews",
+                            returnTo: activityReturnTo,
                           },
                         })
                       }
@@ -176,7 +191,7 @@ export function FounderPostApplicantsScreen() {
   const postId = Array.isArray(params.postId) ? params.postId[0] : params.postId;
   const backTo = resolveReturnTo(params.returnTo, "/(tabs)/interviews/my-interviews");
   const { accessToken, appUser } = useAuth();
-  const [activeManagementTab, setActiveManagementTab] = useState<FounderPostManagementTab>("applicants");
+  const [activeApplicantTab, setActiveApplicantTab] = useState<ApplicantManagementTab>("applicants");
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const { data: posts = [], isError: isPostsError, isLoading: isPostsLoading } = useInterviewPosts(undefined, accessToken);
@@ -230,21 +245,18 @@ export function FounderPostApplicantsScreen() {
       <View className="flex-1 px-4 pt-3">
         <Header
           backTo={backTo}
-          title={post?.title ?? "내 공고"}
+          title="지원자 관리"
           right={
             post && canAccessPost ? (
-              <View className="flex-row items-center gap-2">
-                <StatusTag {...getPostStatusDisplay(post.status)} />
-                <Pressable
-                  accessibilityLabel="공고 메뉴 열기"
-                  accessibilityRole="button"
-                  hitSlop={12}
-                  className="h-10 w-9 items-center justify-center"
-                  onPress={() => setIsPostMenuOpen((isOpen) => !isOpen)}
-                >
-                  <Feather name="more-horizontal" size={22} color="#26312A" />
-                </Pressable>
-              </View>
+              <Pressable
+                accessibilityLabel="공고 메뉴 열기"
+                accessibilityRole="button"
+                hitSlop={12}
+                className="h-10 w-9 items-center justify-center"
+                onPress={() => setIsPostMenuOpen((isOpen) => !isOpen)}
+              >
+                <Feather name="more-horizontal" size={22} color="#26312A" />
+              </Pressable>
             ) : undefined
           }
         />
@@ -287,7 +299,10 @@ export function FounderPostApplicantsScreen() {
                 Alert.alert("수정할 수 없어요", "완료된 공고는 기록 보존을 위해 수정할 수 없어요.");
                 return;
               }
-              Alert.alert("수정 기능을 준비 중이에요", "공고 수정 화면을 연결할 예정이에요.");
+              router.push({
+                pathname: "/interviews/[postId]/edit",
+                params: { postId: post.id, returnTo: managementReturnTo },
+              });
             }}
             onOpenStatus={() => {
               setIsStatusModalOpen(true);
@@ -322,30 +337,24 @@ export function FounderPostApplicantsScreen() {
 
         {!isLoading && !isError && post && canAccessPost ? (
           <ScrollView contentContainerClassName="pb-24" showsVerticalScrollIndicator={false}>
-            <View className="mb-3 mt-2 flex-row rounded-full bg-hypo-surface p-1">
-              <ManagementTabButton
-                isActive={activeManagementTab === "applicants"}
-                label="지원자 목록"
-                onPress={() => setActiveManagementTab("applicants")}
-              />
-              <ManagementTabButton
-                isActive={activeManagementTab === "post"}
-                label="공고 정보"
-                onPress={() => setActiveManagementTab("post")}
-              />
-            </View>
-
-            {activeManagementTab === "applicants" ? (
-              <FounderPostApplicantsView
-                applications={postApplications}
-                chatRoomByApplicationId={chatRoomByApplicationId}
-                returnTo={managementReturnTo}
-              />
-            ) : (
-              <FounderPostInfoView
-                post={post}
-              />
-            )}
+            <FounderPostManagementContext
+              applications={postApplications}
+              post={post}
+              onPreview={() =>
+                router.push({
+                  pathname: "/interviews/[postId]",
+                  params: { postId: post.id, returnTo: managementReturnTo },
+                })
+              }
+            />
+            {!(post.recruitment_type === "survey" && post.entry_mode === "direct") && <FounderPostApplicantsView
+              activeTab={activeApplicantTab}
+              applications={postApplications}
+              chatRoomByApplicationId={chatRoomByApplicationId}
+              onTabChange={setActiveApplicantTab}
+              returnTo={managementReturnTo}
+            />}
+            {post.recruitment_type === "survey" && <SurveyOwnerParticipants key={post.id} postId={post.id} />}
           </ScrollView>
         ) : null}
       </View>
@@ -419,29 +428,6 @@ function SegmentButton({
       <View className={`min-w-[22px] items-center rounded-full px-[7px] py-[3px] ${isActive ? "bg-white/20" : "bg-hypo-bg"}`}>
         <Text className={`text-[11px] font-semibold ${isActive ? "text-white" : "text-hypo-muted"}`}>{count}</Text>
       </View>
-    </Pressable>
-  );
-}
-
-function ManagementTabButton({
-  isActive,
-  label,
-  onPress,
-}: {
-  isActive: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityState={{ selected: isActive }}
-      accessibilityRole="button"
-      className={`min-h-11 flex-1 flex-row items-center justify-center gap-[7px] rounded-full px-3 ${
-        isActive ? "bg-hypo-brand" : "bg-transparent"
-      }`}
-      onPress={onPress}
-    >
-      <Text className={`text-[13px] font-semibold ${isActive ? "text-white" : "text-hypo-muted"}`}>{label}</Text>
     </Pressable>
   );
 }
@@ -564,45 +550,12 @@ function FounderPostRow({
   );
 }
 
-function FounderPostInfoView({
-  post,
-}: {
-  post: InterviewPost;
-}) {
-  return (
-    <View>
-      <View>
-        <InfoRow label="서비스" value={post.service_summary} />
-        <InfoRow label="찾는 참여자" value={post.target_description} />
-        <InfoRow label="방식" value={interviewModeLabels[post.interview_mode]} />
-        <InfoRow label="모집 인원" value={formatRecruitCount(post.recruit_count)} />
-        <InfoRow label="보상" value={getPostingCompensationLabel(post)} />
-        <InfoRow label="소요 시간" value={`${post.duration_minutes}분`} />
-        <InfoRow label="가능 일정" value={formatScheduleOptions(post.schedule_options)} />
-        {post.interview_mode !== "online" ? (
-          <InfoRow label="장소" value={formatPostLocation(post)} />
-        ) : null}
-      </View>
-
-    </View>
-  );
-}
-
 function canFounderChangePostContent(status: InterviewPost["status"]) {
   return !["archived", "completed", "hidden", "removed"].includes(status);
 }
 
 function canFounderDeletePost(status: InterviewPost["status"]) {
   return !["archived", "completed", "hidden", "removed"].includes(status);
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View className="min-h-[54px] flex-row gap-4 border-b border-hypo-border py-3.5">
-      <Text className="w-[74px] text-[13px] font-extrabold leading-[20px] text-hypo-muted">{label}</Text>
-      <Text className="min-w-0 flex-1 text-[14px] font-black leading-[21px] text-hypo-text">{value}</Text>
-    </View>
-  );
 }
 
 function PostStatusModal({
@@ -666,20 +619,106 @@ function PostStatusModal({
   );
 }
 
-function FounderPostApplicantsView({
+function FounderPostManagementContext({
   applications,
-  chatRoomByApplicationId,
-  returnTo,
+  onPreview,
+  post,
 }: {
   applications: Application[];
-  chatRoomByApplicationId: Map<string, string>;
-  returnTo: string;
+  onPreview: () => void;
+  post: InterviewPost;
 }) {
   return (
+    <View className="mb-5 mt-3 border-b border-hypo-border pb-4">
+      <View className="flex-row items-center justify-between gap-3">
+        <View className="min-w-0 flex-1">
+          <Text numberOfLines={2} className="text-[17px] font-bold leading-6 text-hypo-text">{post.title}</Text>
+          <Text numberOfLines={1} className="mt-1 text-[13px] leading-5 text-hypo-text-secondary">
+            {`${getPostingTypeLabel(post)} · ${getPostingModeLabel(post)} · ${getPostingCompensationLabel(post)}`}
+          </Text>
+        </View>
+        <StatusTag {...getPostStatusDisplay(post.status)} />
+      </View>
+      <View className="mt-2 flex-row items-center justify-between">
+        <Text className="text-[13px] font-medium text-hypo-text-metadata">지원자 {applications.length}명</Text>
+        <Pressable
+          accessibilityLabel="공고 미리보기 열기"
+          accessibilityRole="button"
+          className="min-h-11 flex-row items-center gap-1.5 px-1"
+          onPress={onPreview}
+        >
+          <Text className="text-[13px] font-semibold text-hypo-brand">공고 미리보기</Text>
+          <Feather color="#0F7A4D" name="eye" size={16} />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function FounderPostApplicantsView({
+  activeTab,
+  applications,
+  chatRoomByApplicationId,
+  onTabChange,
+  returnTo,
+}: {
+  activeTab: ApplicantManagementTab;
+  applications: Application[];
+  chatRoomByApplicationId: Map<string, string>;
+  onTabChange: (tab: ApplicantManagementTab) => void;
+  returnTo: string;
+}) {
+  const applicants = applications.filter((application) => application.status === "applied");
+  const rejected = applications.filter((application) => application.status === "rejected");
+  const selected = applications.filter((application) => application.status === "selected");
+  const completed = applications.filter((application) => ["completed", "no_show", "canceled"].includes(application.status));
+  const applicationsByTab: Record<ApplicantManagementTab, Application[]> = {
+    applicants: [...applicants, ...rejected],
+    in_progress: selected,
+    completed,
+  };
+  const activeApplications = applicationsByTab[activeTab];
+  const emptyCopyByTab: Record<ApplicantManagementTab, { description: string; title: string }> = {
+    applicants: {
+      title: "지원자가 없어요.",
+      description: "새 지원자가 생기면 이곳에서 내용을 확인할 수 있어요.",
+    },
+    in_progress: {
+      title: "진행 중인 참여자가 없어요.",
+      description: "선정한 지원자는 이곳에서 채팅과 일정을 관리할 수 있어요.",
+    },
+    completed: {
+      title: "완료된 참여가 없어요.",
+      description: "인터뷰를 마친 지원자가 이곳에 모여요.",
+    },
+  };
+
+  return (
     <View>
-      {applications.length ? (
+      <View accessibilityRole="tablist" className="mb-5 flex-row gap-2">
+        <ApplicantManagementTabButton
+          count={applicants.length + rejected.length}
+          isActive={activeTab === "applicants"}
+          label="지원자 목록"
+          onPress={() => onTabChange("applicants")}
+        />
+        <ApplicantManagementTabButton
+          count={selected.length}
+          isActive={activeTab === "in_progress"}
+          label="진행 중"
+          onPress={() => onTabChange("in_progress")}
+        />
+        <ApplicantManagementTabButton
+          count={completed.length}
+          isActive={activeTab === "completed"}
+          label="완료"
+          onPress={() => onTabChange("completed")}
+        />
+      </View>
+
+      {activeApplications.length ? (
         <ListSection chrome="plain" surface="background">
-          {applications.map((application) => (
+          {activeApplications.map((application) => (
             <ApplicantChatRow
               key={application.id}
               application={application}
@@ -689,9 +728,35 @@ function FounderPostApplicantsView({
           ))}
         </ListSection>
       ) : (
-        <StateMessage title="아직 지원자가 없어요." description="지원자가 생기면 이곳에서 채팅으로 바로 이동할 수 있어요." />
+        <StateMessage {...emptyCopyByTab[activeTab]} />
       )}
     </View>
+  );
+}
+
+function ApplicantManagementTabButton({
+  count,
+  isActive,
+  label,
+  onPress,
+}: {
+  count: number;
+  isActive: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+      className={`min-h-11 flex-1 flex-row items-center justify-center gap-1 rounded-[10px] px-1 ${
+        isActive ? "bg-hypo-brand" : "bg-hypo-surface"
+      }`}
+      onPress={onPress}
+    >
+      <Text className={`text-[14px] font-semibold ${isActive ? "text-white" : "text-hypo-text-secondary"}`}>{label}</Text>
+      <Text className={`text-[12px] font-semibold ${isActive ? "text-white" : "text-hypo-text-metadata"}`}>{count}</Text>
+    </Pressable>
   );
 }
 
@@ -706,60 +771,64 @@ function ApplicantChatRow({
 }) {
   const respondentLabel = formatUserDisplayName(application.respondent);
   const applicantDetailReturnTo = returnTo;
+  const experience = application.answers.relevant_experience ?? application.answers.experience;
+  const availableTimes = application.available_times.slice(0, 2).join(" · ");
+  const canOpenChat = Boolean(roomId && canOpenApplicantChat(application.status));
+  const shouldShowStatus = application.status !== "applied";
 
   return (
-    <ListRow appearance="flat" className="py-3.5">
+    <ListRow
+      accessibilityHint="두 번 탭하여 지원 내용을 확인합니다"
+      accessibilityLabel={`${respondentLabel} 지원 정보`}
+      appearance="flat"
+      className="py-3.5"
+      onPress={() =>
+        router.push({
+          pathname: "/(tabs)/interviews/my-posts/[postId]/applicants/[applicationId]",
+          params: {
+            applicationId: application.id,
+            postId: application.interview_post_id,
+            returnTo: applicantDetailReturnTo,
+          },
+        })
+      }
+    >
       <View className="flex-row items-center gap-3">
-        <View className="h-10 w-10 items-center justify-center rounded-full bg-hypo-brandSoft">
-          <Feather name="user" size={18} color="#176B5D" />
-        </View>
+        <ApplicantAvatar application={application} size="small" />
         <View className="min-w-0 flex-1">
           <View className="flex-row items-center justify-between gap-2">
             <Text numberOfLines={1} className="min-w-0 flex-1 text-[15px] font-black leading-[22px] text-hypo-text">
               {respondentLabel}
             </Text>
-            <StatusPill status={application.status} />
+            {shouldShowStatus ? <StatusTag {...getApplicantManagementStatus(application.status)} /> : null}
           </View>
+          {experience ? (
+            <Text numberOfLines={1} className="mt-1 text-[13px] leading-5 text-hypo-text-secondary">
+              {experience}
+            </Text>
+          ) : null}
+          <Text numberOfLines={1} className="mt-1 text-[12px] leading-[18px] text-hypo-text-metadata">
+            {availableTimes ? `가능 시간 · ${availableTimes}` : "가능 시간을 입력하지 않았어요"}
+          </Text>
+        </View>
+        <View className="h-11 w-5 items-center justify-center">
+          <Feather color="#69736D" name="chevron-right" size={19} />
         </View>
       </View>
 
-      <View className="mt-2 flex-row justify-end gap-2 pl-[52px]">
+      {canOpenChat && roomId ? (
         <Pressable
+          accessibilityLabel={`${respondentLabel}님과 채팅 보기`}
           accessibilityRole="button"
-          className="min-h-11 justify-center rounded-full bg-hypo-surface px-[15px]"
-          onPress={() =>
-            router.push({
-              pathname: "/(tabs)/interviews/my-posts/[postId]/applicants/[applicationId]",
-              params: {
-                applicationId: application.id,
-                postId: application.interview_post_id,
-                returnTo: applicantDetailReturnTo,
-              },
-            })
-          }
-        >
-          <Text className="text-[13px] font-black text-hypo-text">지원 정보</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={!roomId}
-          className={`min-h-11 justify-center rounded-full px-[15px] ${roomId ? "bg-hypo-brand" : "bg-hypo-surface"}`}
-          onPress={() => {
-            if (!roomId) return;
-            router.push({
-              pathname: "/(tabs)/chat/[roomId]",
-              params: {
-                roomId,
-                returnTo,
-              },
-            });
+          className="mt-2 min-h-11 self-end justify-center px-1"
+          onPress={(event) => {
+            event.stopPropagation();
+            router.push({ pathname: "/(tabs)/chat/[roomId]", params: { roomId, returnTo } });
           }}
         >
-          <Text className={`text-[13px] font-black ${roomId ? "text-white" : "text-hypo-muted"}`}>
-            {roomId ? "채팅 보기" : "채팅 준비 중"}
-          </Text>
+          <Text className="text-[13px] font-semibold text-hypo-brand">채팅 보기</Text>
         </Pressable>
-      </View>
+      ) : null}
     </ListRow>
   );
 }
@@ -784,6 +853,7 @@ export function FounderApplicantDetailScreen() {
     isLoading: isApplicationsLoading,
   } = useApplications(accessToken);
   const { data: chatRooms = [], isError: isChatRoomsError, isLoading: isChatRoomsLoading } = useChatRooms(accessToken);
+  const updateApplicationStatus = useUpdateApplicationStatus(accessToken);
 
   const post = useMemo(
     () => posts.find((item) => item.id === postId) ?? null,
@@ -821,11 +891,7 @@ export function FounderApplicantDetailScreen() {
   return (
     <SafeAreaView className="flex-1 bg-hypo-bg">
       <View className="flex-1 px-4 pt-3">
-        <Header
-          backTo={backTo}
-          title="지원 정보"
-          right={application ? <StatusPill status={application.status} /> : undefined}
-        />
+        <Header backTo={backTo} title="지원 정보" />
 
         {isLoading ? <StateMessage title="지원자 정보를 불러오는 중입니다." loading /> : null}
         {isError ? (
@@ -843,37 +909,188 @@ export function FounderApplicantDetailScreen() {
 
         {!isLoading && !isError && post && application && canAccessApplication ? (
           <ScrollView contentContainerClassName="pb-24" showsVerticalScrollIndicator={false}>
+            <ApplicantIdentityHeader application={application} post={post} />
             <ApplicantSubmittedContent application={application} />
-
-            <View className="mt-4 flex-row gap-2">
-              <Pressable
-                accessibilityRole="button"
-                disabled={!chatRoom}
-                className={`min-h-[44px] flex-1 items-center justify-center rounded-full ${
-                  chatRoom ? "bg-hypo-brand" : "bg-hypo-surface"
-                }`}
-                style={{ opacity: chatRoom ? 1 : 0.5 }}
-                onPress={() => {
-                  if (!chatRoom) return;
-                  router.push({
-                    pathname: "/(tabs)/chat/[roomId]",
-                    params: {
-                      roomId: chatRoom.id,
-                      returnTo: `/(tabs)/interviews/my-posts/${post.id}/applicants/${application.id}`,
+            <ApplicantManagementActions
+              application={application}
+              chatRoomId={chatRoom?.id ?? null}
+              isSubmitting={updateApplicationStatus.isPending}
+              onOpenChat={() => {
+                if (!chatRoom) return;
+                router.push({
+                  pathname: "/(tabs)/chat/[roomId]",
+                  params: {
+                    roomId: chatRoom.id,
+                    returnTo: `/(tabs)/interviews/my-posts/${post.id}/applicants/${application.id}`,
+                  },
+                });
+              }}
+              onReject={() => {
+                Alert.alert("이 지원을 반려할까요?", "반려한 지원자는 다시 선정할 수 없어요.", [
+                  { style: "cancel", text: "취소" },
+                  {
+                    style: "destructive",
+                    text: "반려하기",
+                    onPress: () => {
+                      updateApplicationStatus.mutate(
+                        { applicationId: application.id, input: { status: "rejected" } },
+                        {
+                          onError: () => {
+                            Alert.alert("처리하지 못했어요.", "잠시 후 다시 시도해 주세요.");
+                          },
+                        },
+                      );
                     },
-                  });
-                }}
-              >
-                <Text className={`text-[13px] font-black ${chatRoom ? "text-white" : "text-hypo-muted"}`}>
-                  {chatRoom ? "채팅 보기" : "채팅 준비 중"}
-                </Text>
-              </Pressable>
-            </View>
+                  },
+                ]);
+              }}
+              onSelect={() => {
+                Alert.alert("이 지원자를 선정할까요?", "선정 후 채팅에서 일정과 진행 방법을 조율할 수 있어요.", [
+                  { style: "cancel", text: "취소" },
+                  {
+                    text: "선정하기",
+                    onPress: () => {
+                      updateApplicationStatus.mutate(
+                        { applicationId: application.id, input: { status: "selected" } },
+                        {
+                          onError: () => {
+                            Alert.alert("처리하지 못했어요.", "잠시 후 다시 시도해 주세요.");
+                          },
+                          onSuccess: () => {
+                            Alert.alert("선정했어요.", "채팅에서 일정과 진행 방법을 조율해 주세요.");
+                          },
+                        },
+                      );
+                    },
+                  },
+                ]);
+              }}
+            />
           </ScrollView>
         ) : null}
       </View>
     </SafeAreaView>
   );
+}
+
+function ApplicantManagementActions({
+  application,
+  chatRoomId,
+  isSubmitting,
+  onOpenChat,
+  onReject,
+  onSelect,
+}: {
+  application: Application;
+  chatRoomId: string | null;
+  isSubmitting: boolean;
+  onOpenChat: () => void;
+  onReject: () => void;
+  onSelect: () => void;
+}) {
+  const isAwaitingReview = application.status === "applied";
+  const canOpenChat = Boolean(chatRoomId && canOpenApplicantChat(application.status));
+
+  return (
+    <View className="mt-7 border-t border-hypo-border pt-5">
+      {isAwaitingReview ? (
+        <>
+          <Text className="text-[16px] font-bold text-hypo-text">지원자 관리</Text>
+          <Text className="mt-1 text-[13px] leading-5 text-hypo-text-secondary">
+            선정하면 이 지원자와 일정 조율을 시작할 수 있어요.
+          </Text>
+          <View className="mt-4 flex-row gap-2">
+            <Pressable
+              accessibilityRole="button"
+              disabled={isSubmitting}
+              className="min-h-[52px] flex-1 items-center justify-center rounded-[12px] border border-hypo-border bg-hypo-bg px-3"
+              style={{ opacity: isSubmitting ? 0.5 : 1 }}
+              onPress={onReject}
+            >
+              <Text className="text-[14px] font-semibold text-hypo-danger">반려하기</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={isSubmitting}
+              className="min-h-[52px] flex-1 items-center justify-center rounded-[12px] bg-hypo-brand px-3"
+              style={{ opacity: isSubmitting ? 0.5 : 1 }}
+              onPress={onSelect}
+            >
+              <Text className="text-[14px] font-semibold text-white">{isSubmitting ? "처리 중" : "선정하기"}</Text>
+            </Pressable>
+          </View>
+        </>
+      ) : null}
+
+      {canOpenChat ? (
+        <Pressable
+          accessibilityRole="button"
+          className={`${isAwaitingReview ? "mt-2" : ""} min-h-[52px] items-center justify-center rounded-[12px] bg-hypo-brand px-3`}
+          onPress={onOpenChat}
+        >
+          <Text className="text-[14px] font-semibold text-white">채팅 보기</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function canOpenApplicantChat(status: Application["status"]) {
+  return status === "selected" || status === "completed" || status === "no_show";
+}
+
+function ApplicantIdentityHeader({ application, post }: { application: Application; post: InterviewPost }) {
+  const respondentLabel = formatUserDisplayName(application.respondent);
+  const status = getApplicantManagementStatus(application.status);
+
+  return (
+    <View className="mt-5 border-b border-hypo-border pb-5">
+      <View className="flex-row items-center gap-3">
+        <ApplicantAvatar application={application} size="large" />
+        <View className="min-w-0 flex-1">
+          <View className="flex-row items-center justify-between gap-2">
+            <Text numberOfLines={1} className="min-w-0 flex-1 text-[20px] font-bold leading-7 text-hypo-text">
+              {respondentLabel}
+            </Text>
+            <StatusTag {...status} />
+          </View>
+          {application.respondent?.organization_name ? (
+            <Text numberOfLines={1} className="mt-1 text-[13px] leading-5 text-hypo-text-secondary">
+              {application.respondent.organization_name}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      <Text numberOfLines={1} className="mt-4 text-[13px] leading-5 text-hypo-text-metadata">
+        {post.title}
+      </Text>
+    </View>
+  );
+}
+
+function ApplicantAvatar({ application, size }: { application: Application; size: "small" | "large" }) {
+  const respondent = application.respondent;
+  const name = formatUserDisplayName(respondent);
+  return (
+    <UserAvatar
+      iconSize={size === "large" ? 24 : 20}
+      imageUrl={respondent?.profile_image_url}
+      name={name}
+      sizeClassName={size === "large" ? "h-12 w-12" : "h-10 w-10"}
+    />
+  );
+}
+
+function getApplicantManagementStatus(status: Application["status"]): {
+  label: string;
+  tone: "neutral" | "brand" | "danger";
+} {
+  if (status === "applied") return { label: "검토 대기", tone: "neutral" };
+  if (status === "selected") return { label: "진행 중", tone: "brand" };
+  if (status === "completed") return { label: "인터뷰 완료", tone: "neutral" };
+  if (status === "no_show") return { label: "불참", tone: "danger" };
+  if (status === "rejected") return { label: "반려", tone: "danger" };
+  return { label: "취소", tone: "neutral" };
 }
 
 function ApplicantSubmittedContent({ application }: { application: Application }) {
@@ -885,8 +1102,8 @@ function ApplicantSubmittedContent({ application }: { application: Application }
         <View className="gap-4">
           {answers.map(([key, value]) => (
             <View key={key} className="gap-1.5">
-              <Text className="text-xs font-black text-hypo-muted">{formatAnswerLabel(key)}</Text>
-              <Text className="text-[14px] font-bold leading-[22px] text-hypo-text">{value}</Text>
+              <Text className="text-[13px] font-semibold text-hypo-text-secondary">{formatAnswerLabel(key)}</Text>
+              <Text className="text-[16px] font-medium leading-[25px] text-hypo-text">{value}</Text>
             </View>
           ))}
         </View>
@@ -897,12 +1114,12 @@ function ApplicantSubmittedContent({ application }: { application: Application }
       )}
 
       <View className="mt-5 gap-2">
-        <Text className="text-xs font-black text-hypo-muted">가능 시간</Text>
+        <Text className="text-[13px] font-semibold text-hypo-text-secondary">가능 시간</Text>
         {application.available_times.length ? (
           <View className="flex-row flex-wrap gap-2">
             {application.available_times.map((time) => (
-              <View key={time} className="rounded-full bg-hypo-surface px-3 py-1.5">
-                <Text className="text-xs font-extrabold text-hypo-muted">{time}</Text>
+              <View key={time} className="rounded-full border border-hypo-border bg-hypo-surface px-3 py-1.5">
+                <Text className="text-xs font-semibold text-hypo-text-secondary">{time}</Text>
               </View>
             ))}
           </View>
@@ -1037,40 +1254,6 @@ function getAvailablePostStatusActions(status: InterviewPost["status"]): Array<{
   }
 
   return [];
-}
-
-function formatScheduleOptions(scheduleOptions: string[]) {
-  if (!scheduleOptions.length) {
-    return "협의 후 결정";
-  }
-
-  return scheduleOptions.join(" · ");
-}
-
-function formatPostLocation(post: InterviewPost) {
-  return post.location_place_name || post.location_address || post.location_text || post.location || "장소 협의";
-}
-
-function StatusPill({ status }: { status: Application["status"] }) {
-  const labelByStatus: Record<Application["status"], string> = {
-    applied: "신청",
-    selected: "선정",
-    rejected: "반려",
-    canceled: "취소",
-    no_show: "불참",
-    completed: "완료",
-  };
-
-  const toneByStatus: Record<Application["status"], "neutral" | "brand" | "danger"> = {
-    applied: "neutral",
-    selected: "brand",
-    rejected: "danger",
-    canceled: "neutral",
-    no_show: "danger",
-    completed: "neutral",
-  };
-
-  return <StatusTag label={labelByStatus[status]} tone={toneByStatus[status]} />;
 }
 
 function StatusTag({ label, tone = "neutral" }: { label: string; tone?: "neutral" | "brand" | "danger" }) {

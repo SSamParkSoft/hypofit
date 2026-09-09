@@ -1875,4 +1875,4 @@ Exit gate:
 - relevant web tests, lint, production build가 통과했다.
 - Vercel production deployment는 사용자가 요청한 경우에만 완료/검증됐다.
 - Figma sync가 수행됐거나 의도적으로 deferred됐다고 final report에 명시됐다.
-- `docs/active/README.md`, `AGENTS.md`, service reading order가 최신 상태다.
+- MainVault Active Plans `README.md`, `AGENTS.md`, service reading order가 최신 상태다.

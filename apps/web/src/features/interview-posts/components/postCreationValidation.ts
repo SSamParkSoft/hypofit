@@ -38,8 +38,8 @@ export function validatePostCreation(values: PostCreationFormValues): string | n
     return "사례비는 0원 이상의 숫자로 입력하세요.";
   }
 
-  if (!Number.isFinite(durationMinutes) || durationMinutes < 5) {
-    return "예상 소요 시간은 5분 이상으로 입력하세요.";
+  if (!Number.isFinite(durationMinutes) || durationMinutes < 10) {
+    return "예상 소요 시간은 10분 이상으로 입력하세요.";
   }
 
   if (

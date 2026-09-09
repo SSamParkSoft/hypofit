@@ -2,7 +2,7 @@
 
 Status: reference
 
-Last updated: 2026-05-29
+Last updated: 2026-09-06
 
 Related completed documents:
 
@@ -13,6 +13,24 @@ Related completed documents:
 - `docs/completed/product-design-redesign-plan.md`
 
 ## Purpose
+
+### Chat Tab Badge: Pending Phone QA
+
+Transferred 2026-09-06 from the
+[completed implementation plan](../completed/chat-tab-unread-badge-plan.md).
+The targeted Node fixture and mobile typecheck passed locally; the following
+checks have not been signed off on a device by this documentation review.
+
+- [ ] At 0 unread rooms, no badge or stray spacing remains.
+- [ ] At 1 and 99 unread rooms, display the exact count; at 100+, show `99+`.
+- [ ] Opening a room and marking it read updates the tab count correctly.
+- [ ] Foreground return refreshes counts without duplicate or stale badges.
+- [ ] Switching accounts or signing out clears the previous user's count.
+- [ ] VoiceOver announces chat and unread state without duplicate reading.
+- [ ] Small phone and larger text do not clip the badge, icon, or tab label.
+- [ ] Chat-thread navigation preserves the existing tab visibility behavior.
+
+Record device, app revision/build, date, and result before closing these checks.
 
 This is the active close-out QA checklist for UI work. It should be used
 alongside the current reference and store-readiness documents rather than
@@ -569,15 +587,51 @@ web build: passed
 Run before closing this checklist:
 
 ```bash
-apps/api/.venv/bin/python -m ruff check apps/api/app apps/api/tests
-apps/api/.venv/bin/python -m pytest apps/api/tests
-make test-api-integration
+./apps/api/gradlew -p apps/api test integrationTest checkstyleMain checkstyleTest
 COREPACK_HOME=/Users/sehyeon/hypofit/.corepack corepack pnpm --dir apps/web lint
 COREPACK_HOME=/Users/sehyeon/hypofit/.corepack corepack pnpm --dir apps/web test
 COREPACK_HOME=/Users/sehyeon/hypofit/.corepack corepack pnpm --dir apps/web build
 ```
 
 ## Close Criteria
+
+### September 9 Focused Human Checks
+
+Use a local/test API with the matching uncommitted backend changes first.
+Do not use a production maintenance switch for casual UI QA. No deployment
+or recruitment capability enablement is implied by the automated checks.
+
+- [ ] Admin: reserve a future maintenance with banner enabled; verify the
+  next service-status refresh exposes it before the maintenance begins.
+- [ ] Admin: disable the banner on another reservation; it stays hidden.
+- [ ] Admin: edit linked reservation title, message and times; open its same
+  notice and verify all changed values without a duplicate notice.
+- [ ] Mobile: enter owner edit; original type/entry are fixed, other values
+  are prefilled, progress is 1-5, and no bottom tabs appear.
+- [ ] Change title only, save and reopen: reward, schedule, deadline and
+  closed status stay unchanged. Survey private URL is not erased by blank UI.
+- [ ] Change cash+gift compensation, then explicit no reward; save and reopen
+  against the updated API to confirm persistence.
+- [ ] Leave while editing and return; then terminate/restart the app. Verify
+  the edit draft recovers without replacing a separate new-post draft.
+- [ ] Simulate a failed save: input remains and retry succeeds without a
+  duplicate creation. Confirm keyboard and inline error remain reachable.
+- [ ] Check small phone/large font at all five edit steps on iOS and Android.
+- [ ] Survey participant: open, declare submission, refresh; then separately
+  cancel a test participation. The cancelled record must not offer reopening.
+- [ ] Beta: before selection no chat; after selection chat is accessible with
+  no interview scheduling/attendance actions. End date alone means no completion.
+
+September 9 continuation: the following are now implemented locally and need
+visual/workflow acceptance, not initial design approval:
+
+- [ ] In owner management, confirm a submitted survey participant; verify
+  confirmation dialog, loading, refreshed completion status and retry on failure.
+- [ ] In desktop detail, test direct and selected entry, Google Forms return,
+  explicit submission, cancellation confirmation and terminal-state restrictions.
+- [ ] Enter a Korea deadline/beta period and save/reopen; confirm displayed
+  dates stay unchanged across UTC midnight. Existing untouched dates must not
+  change in storage when only the title is edited.
 
 This document can move to `docs/completed/` when:
 

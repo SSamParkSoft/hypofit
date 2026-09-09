@@ -75,10 +75,10 @@ describe("app routes", () => {
   });
 
   it.each([
-    ["/", "Hypofit | 인터뷰로 필요한 답을 찾으세요"],
-    ["/landing", "Hypofit | 인터뷰 참여자 모집과 운영"],
+    ["/", "Hypofit | 참여자 모집과 참여를 한곳에서"],
+    ["/landing", "Hypofit | 참여자 모집과 참여를 한곳에서"],
     ["/app", "홈 | Hypofit"],
-    ["/interviews/post-1", "인터뷰 상세 | Hypofit"],
+    ["/interviews/post-1", "공고 상세 | Hypofit"],
     ["/profile/account", "계정 정보 | Hypofit"],
     ["/profile/role", "계정 정보 | Hypofit"],
     ["/support", "고객지원 | Hypofit"],

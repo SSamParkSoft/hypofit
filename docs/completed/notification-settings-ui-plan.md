@@ -328,7 +328,7 @@ Completed on 2026-06-09:
 
 ```bash
 COREPACK_HOME=/Users/sehyeon/hypofit/.corepack corepack pnpm --dir apps/mobile typecheck
-git diff --check -- apps/mobile/src/screens/profile/NotificationSettingsScreen.tsx docs/completed/notification-settings-ui-plan.md docs/active/README.md docs/completed/README.md
+git diff --check -- apps/mobile/src/screens/profile/NotificationSettingsScreen.tsx docs/completed/notification-settings-ui-plan.md docs/completed/README.md
 ```
 
 ## Confusion Reduction Update

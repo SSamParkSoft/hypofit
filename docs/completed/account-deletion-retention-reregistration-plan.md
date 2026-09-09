@@ -709,7 +709,7 @@ Mitigation:
 
 Update these documents when implementation begins or finishes:
 
-- `docs/active/README.md`
+- MainVault Active Plans `README.md`
 - `docs/reference/legal-pages-implementation-history.md`
 - `docs/reference/google-play-first-launch-readiness-plan.md`
 - `docs/reference/google-play-data-safety-worksheet.md`

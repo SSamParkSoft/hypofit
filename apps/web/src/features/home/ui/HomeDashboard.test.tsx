@@ -117,12 +117,12 @@ describe("HomeDashboard", () => {
       }),
     ).toHaveLength(2);
     expect(screen.getByText("지원자 2명 보기")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: "최근 올라온 인터뷰" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "최근 올라온 공고" })).toBeInTheDocument();
     expect(screen.queryByText("AI 추천")).not.toBeInTheDocument();
     expect(screen.getAllByText(/등록$/).length).toBeGreaterThan(0);
     expect(screen.getAllByText("김도현 · 콘텐츠럭")).toHaveLength(2);
 
-    const dashboardGrid = container.querySelector('section[aria-label="오늘 이어갈 인터뷰"]');
+    const dashboardGrid = container.querySelector('section[aria-label="오늘 이어갈 공고"]');
     expect(dashboardGrid).toHaveClass("lg:grid-cols-12");
   });
 
@@ -160,9 +160,9 @@ describe("HomeDashboard", () => {
 
     render(<HomeDashboard accessToken="token" appUserId="user-1" canApply displayName="세현" />);
 
-    expect(screen.getByText("예정된 인터뷰가 없어요")).toBeInTheDocument();
-    expect(screen.getByText("새로 올라온 인터뷰가 없어요")).toBeInTheDocument();
-    expect(screen.getByText("추천할 인터뷰를 찾고 있어요")).toBeInTheDocument();
+    expect(screen.getByText("예정된 일정이 없어요")).toBeInTheDocument();
+    expect(screen.getByText("새로 올라온 공고가 없어요")).toBeInTheDocument();
+    expect(screen.getByText("추천 공고를 찾고 있어요")).toBeInTheDocument();
     expect(screen.queryByText("중고거래 약속 조율 경험 인터뷰")).not.toBeInTheDocument();
   });
 

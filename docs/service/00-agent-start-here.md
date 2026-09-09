@@ -2,38 +2,41 @@
 
 Status: service-onboarding
 
-Last updated: 2026-08-11
+Last updated: 2026-09-09
 
 ## What Hypofit Is
 
-Hypofit is an interview matching service for pre-founders and early-stage
-founders. A founder posts a paid customer-discovery interview opportunity, and
-real target customers apply after checking fit, location, schedule, interview
-mode, and reward.
+Hypofit helps teams, researchers, and organizers recruit participants through
+public postings. The core object is a posting; interview is one recruitment
+type. One account can recruit and participate without choosing a customer role.
+Permissions follow ownership and workflow membership.
 
-The MVP is not a survey platform, generic marketplace, or AI matching product.
-The core experiment is whether paid interview matching can reliably connect
-founders with real target customers and help both sides complete the interview.
+Interview is the released baseline. Survey and beta-test contracts and local
+client work exist, but their production creation is gated by the active release
+plans and server capabilities. Usability, research-experiment, focus-group and
+other-type designs are deferred, not available product features. Hypofit is not
+a generic marketplace or an AI matching/ranking product.
 
 AI-generated interview and applicant summaries are an approved active design
 only as source-grounded reading aids. They must not rank, score, select, or
 reject applicants. Read
-`docs/active/ai-interview-and-applicant-summary-plan.md` before changing this
+the MainVault `ai-interview-and-applicant-summary-plan.md` before changing this
 boundary or implementing summary generation.
 
 ## The Product Loop
 
 ```text
-founder creates interview post
-  -> respondent applies
-  -> founder reviews and selects or rejects
-  -> chat coordinates schedule and details
-  -> interview session is completed or marked as problem/no-show
-  -> reward and review signals can be recorded
+owner creates posting
+  -> participant takes the type-specific action
+  -> review, external participation, chat or scheduling only where required
+  -> the corresponding participation workflow reaches its outcome
 ```
 
-Every feature should support this loop or a store/release requirement around
-this loop.
+Interview uses application, selection, chat and session completion. Survey
+uses its explicit direct/review-required external-form workflow. Beta-test
+selection/chat must not expose interview-only session controls. Existing API
+names such as founder/respondent may remain for released-client compatibility;
+they do not restore role-based customer authorization.
 
 ## Where Code Lives
 
@@ -49,7 +52,7 @@ docs         Product, engineering, operations, and release documentation
 Current mobile tab shell:
 
 ```text
-홈 / 인터뷰 / 지도 / 채팅 / 프로필
+홈 / 공고 / 지도 / 채팅 / 프로필
 ```
 
 If older completed plans mention labels such as `찾기`, `내 신청`, `내 모집`,
@@ -58,8 +61,8 @@ them. The current app shell and service docs win.
 
 ## Most Important Rules
 
-- Select and sequence remaining cross-domain MVP work through
-  `docs/active/current-mvp-execution-roadmap.md`, then open the linked domain
+- Select and sequence remaining cross-domain MVP work through the MainVault
+  `current-mvp-execution-roadmap.md`, then open the linked domain
   plan for implementation detail.
 - Do not replace the architecture without an explicit request.
 - Backend work uses the canonical Spring implementation in `apps/api` and the
@@ -95,25 +98,25 @@ Lightsail deployment runbook first.
 
 Before materially changing chat workflow, session lifecycle, account deletion,
 or recruitment-type write rules, also read
-`docs/active/spring-mvc-maintainability-hardening-plan.md`. Keep the current
+the MainVault `spring-mvc-maintainability-hardening-plan.md`. Keep the current
 feature-first MVC shape and extract only observed responsibility hotspots.
 
 For AI-generated interview summaries, founder-only applicant summaries,
 provider integration, background summary work, summary persistence, prompt
 contracts, or related privacy/store declarations, read
-`docs/active/ai-interview-and-applicant-summary-plan.md`. AI output remains
+the MainVault `ai-interview-and-applicant-summary-plan.md`. AI output remains
 optional enrichment and must never become workflow authority.
 
 For removal of founder/respondent roles, ownership-based customer permissions,
 interview/survey/beta-test recruitment types, external-form participation, or
 licensed web-template adoption, read
-`docs/active/multi-format-participant-recruitment-and-web-template-adoption-plan.md`.
+the MainVault `multi-format-participant-recruitment-and-web-template-adoption-plan.md`.
 The plan does not authorize a native survey builder, generic task marketplace,
 or arbitrary link directory.
 
 For public `/` or `/landing` hero, section rhythm, product-story imagery,
 workflow, pricing, CTA, footer, or Brainwave/Figma-inspired visual adaptation,
-read `docs/active/brainwave-inspired-landing-visual-reconstruction-plan.md`.
+read the MainVault `brainwave-inspired-landing-visual-reconstruction-plan.md`.
 Keep its implementation separate from authenticated `/app` UI and do not copy
 the downloaded Figma-to-Vite export into the product codebase.
 
@@ -125,7 +128,7 @@ For Apple, Google, Kakao, or Naver login, social OAuth/OIDC callbacks,
 Supabase identity linking, social-only account behavior, provider contact-email
 handling, the dedicated account-deletion email OTP confirmation policy, or
 provider revocation, read
-`docs/active/cross-platform-social-login-authentication-plan.md`. It is the
+the MainVault `cross-platform-social-login-authentication-plan.md`. It is the
 single current authentication authority. Keep Supabase Auth as the session
 issuer, treat provider email as mutable contact data rather than a login key,
 and treat account-deletion email OTP as destructive-action confirmation rather

@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import { router, useLocalSearchParams } from "expo-router";
 import {
@@ -23,7 +21,6 @@ import type {
   SurveyParticipation,
   SurveyParticipationAction,
 } from "@hypofit/contracts";
-import { formatRecruitCount } from "@hypofit/contracts";
 import { useApplications } from "@/features/applications/useApplications";
 import { useCreateApplication } from "@/features/applications/useApplicationMutations";
 import { useChatRooms } from "@/features/chat/useChat";
@@ -49,11 +46,8 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { StateMessage } from "@/screens/home/HomeScreen";
 import type { CreateApplicationInput } from "@/shared/api/applications";
 import {
-  getPostingCompensationLabel,
-  getPostingDurationLabel,
-  getPostingModeLabel,
-  getPostingTypeLabel,
-} from "@/shared/format/postings";
+  PostingDetailOverview,
+} from "@/features/interview-posts/PostingDetailOverview";
 import {
   getSafeReturnTo,
   goBackOrReplaceReturnTo,
@@ -89,6 +83,7 @@ export function InterviewDetailScreen() {
     data: post,
     isError,
     isLoading,
+    refetch: refetchPost,
   } = useInterviewPost(postId, accessToken);
   const { data: applications = [] } = useApplications(accessToken);
   const { data: chatRooms = [] } = useChatRooms(accessToken);
@@ -145,7 +140,6 @@ export function InterviewDetailScreen() {
   const isSelectedParticipant = Boolean(
     shouldShowAppliedState && existingApplication?.status === "selected",
   );
-  const participationMethod = post ? getParticipationMethodContent(post) : null;
 
   const openApplicationForm = () => {
     setIsApplyFormOpen(true);
@@ -282,10 +276,22 @@ export function InterviewDetailScreen() {
           <StateMessage title="공고를 불러오는 중이에요." loading />
         ) : null}
         {isError ? (
-          <StateMessage
-            title="공고를 불러오지 못했어요."
-            description="잠시 후 다시 시도해 주세요."
-          />
+          <View className="items-center gap-3 px-4 py-12">
+            <StateMessage
+              title="공고를 불러오지 못했어요."
+              description="잠시 후 다시 시도해 주세요."
+            />
+            <Pressable
+              accessibilityLabel="공고 다시 불러오기"
+              accessibilityRole="button"
+              className="min-h-11 items-center justify-center px-4"
+              onPress={() => void refetchPost()}
+            >
+              <Text className="text-[14px] font-semibold text-hypo-brand">
+                다시 시도
+              </Text>
+            </Pressable>
+          </View>
         ) : null}
         {!isLoading && !isError && !post ? (
           <StateMessage
@@ -317,73 +323,32 @@ export function InterviewDetailScreen() {
               />
             ) : null}
 
-            <InterviewHero
+            {isSelectedParticipant && existingSession ? (
+              <ConfirmedSessionSection session={existingSession} />
+            ) : null}
+
+            {isSelectedParticipant && existingApplication ? (
+              <SubmittedApplicationSection application={existingApplication} />
+            ) : null}
+
+            <PostingDetailOverview
               hideOpenStatus={isSelectedParticipant}
+              isOwner={isOwnPost}
               post={post}
             />
 
             {shouldShowAppliedState &&
             existingApplication &&
+            !isSelectedParticipant &&
             existingSession ? (
               <ConfirmedSessionSection session={existingSession} />
             ) : null}
 
-            {shouldShowAppliedState && existingApplication ? (
+            {shouldShowAppliedState &&
+            existingApplication &&
+            !isSelectedParticipant ? (
               <SubmittedApplicationSection application={existingApplication} />
             ) : null}
-
-            <DetailSection title="공고 정보">
-              {isSurvey ? (
-                <>
-                  {post.participation_deadline_at ? (
-                    <DetailLine
-                      label="마감"
-                      value={formatParticipationDeadline(
-                        post.participation_deadline_at,
-                      )}
-                    />
-                  ) : null}
-                  <DetailLine label="방식" value="온라인 · 외부 설문" />
-                </>
-              ) : (
-                <>
-                  <DetailLine
-                    label={isInterview ? "일정" : "기간"}
-                    value={getPostingSchedule(post)}
-                  />
-                  <DetailLine label="방식" value={getPostingModeLabel(post)} />
-                  {isInterview && getDetailLocationLabel(post) ? (
-                    <DetailLine
-                      label="위치"
-                      value={getDetailLocationLabel(post) as string}
-                    />
-                  ) : null}
-                </>
-              )}
-              <DetailLine
-                label="모집 인원"
-                value={formatRecruitCount(post.recruit_count)}
-              />
-              {getPostingDurationLabel(post) ? (
-                <DetailLine
-                  label="예상 시간"
-                  value={getPostingDurationLabel(post) as string}
-                />
-              ) : null}
-              <DetailLine
-                label="보상"
-                value={getPostingCompensationLabel(post)}
-                highlighted
-              />
-            </DetailSection>
-
-            <DetailSection title="찾는 참여자">
-              <Text className="text-[15px] font-medium leading-[23px] text-hypo-muted">
-                {post.target_description}
-              </Text>
-            </DetailSection>
-
-            {!isOwnPost ? <FounderInfoSection post={post} /> : null}
 
             {isSurvey ? (
               <SurveyParticipationSection
@@ -406,15 +371,6 @@ export function InterviewDetailScreen() {
                   surveyParticipationMutations.withdraw.mutateAsync()
                 }
               />
-            ) : participationMethod ? (
-              <DetailSection title="참여 방법">
-                <Text className="text-[15px] font-semibold text-hypo-text">
-                  {participationMethod.title}
-                </Text>
-                <Text className="text-[13px] font-medium leading-[20px] text-hypo-muted">
-                  {participationMethod.description}
-                </Text>
-              </DetailSection>
             ) : null}
 
             {requiresApplication ? (
@@ -446,43 +402,6 @@ export function InterviewDetailScreen() {
         ) : null}
       </View>
     </SafeAreaView>
-  );
-}
-
-function InterviewHero({
-  hideOpenStatus = false,
-  post,
-}: {
-  hideOpenStatus?: boolean;
-  post: InterviewPost;
-}) {
-  return (
-    <View className="border-b border-hypo-border pb-5 pt-3">
-      <View className="flex-row flex-wrap items-center gap-x-2.5 gap-y-2">
-        <Text className="text-[13px] font-medium leading-[18px] text-hypo-brand">
-          {getPostingTypeLabel(post)}
-        </Text>
-        <Text className="-ml-1.5 text-[13px] leading-[18px] text-hypo-textSoft">
-          ·
-        </Text>
-        <Text className="-ml-1.5 text-[13px] font-medium leading-[18px] text-hypo-muted">
-          {getPostingModeLabel(post)}
-        </Text>
-        {hideOpenStatus && post.status === "open" ? null : (
-          <PostingStatusBadge status={post.status} />
-        )}
-      </View>
-
-      <Text className="mt-4 text-[26px] font-bold leading-[34px] text-hypo-text">
-        {post.title}
-      </Text>
-      <Text
-        lineBreakStrategyIOS="hangul-word"
-        className="mt-2 text-[15px] leading-[23px] text-hypo-muted"
-      >
-        {post.service_summary}
-      </Text>
-    </View>
   );
 }
 
@@ -547,22 +466,6 @@ function toBottomAction(
   };
 }
 
-function PostingStatusBadge({ status }: { status: InterviewPost["status"] }) {
-  const isOpen = status === "open";
-
-  return (
-    <View
-      className={`rounded-full px-2 py-0.5 ${isOpen ? "bg-hypo-brandSoft" : "bg-hypo-surfaceMuted"}`}
-    >
-      <Text
-        className={`text-[11px] font-medium leading-4 ${isOpen ? "text-hypo-brand" : "text-hypo-muted"}`}
-      >
-        {getPostingStatusLabel(status)}
-      </Text>
-    </View>
-  );
-}
-
 function DetailSection({
   children,
   title,
@@ -571,57 +474,9 @@ function DetailSection({
   title: string;
 }) {
   return (
-    <View className="border-b border-hypo-border py-5">
+    <View className="py-6">
       <Text className="text-[15px] font-semibold text-hypo-text">{title}</Text>
       <View className="mt-4 gap-3.5">{children}</View>
-    </View>
-  );
-}
-
-function FounderInfoSection({ post }: { post: InterviewPost }) {
-  const founder = post.founder;
-  const founderName = founder?.name?.trim() || "모집자";
-  const founderOrganization = founder?.organization_name?.trim() || null;
-
-  return (
-    <DetailSection title="모집자 정보">
-      <View className="flex-row items-start gap-3">
-        <FounderAvatar founder={founder} />
-        <View className="min-w-0 flex-1">
-          <Text
-            numberOfLines={1}
-            className="min-w-0 flex-1 text-[15px] font-semibold text-hypo-text"
-          >
-            {founderName}
-          </Text>
-          {founderOrganization ? (
-            <Text className="mt-1 text-[13px] leading-[19px] text-hypo-muted">
-              {founderOrganization}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-    </DetailSection>
-  );
-}
-
-function FounderAvatar({ founder }: { founder?: InterviewPost["founder"] }) {
-  if (founder?.profile_image_url) {
-    return (
-      <View className="h-11 w-11 overflow-hidden rounded-full border border-hypo-border bg-hypo-brandSoft">
-        <Image
-          accessibilityLabel={`${founder.name} 프로필 사진`}
-          className="h-full w-full"
-          resizeMode="cover"
-          source={{ uri: founder.profile_image_url }}
-        />
-      </View>
-    );
-  }
-
-  return (
-    <View className="h-11 w-11 items-center justify-center rounded-full border border-hypo-border bg-hypo-brandSoft">
-      <Feather color="#176B5D" name="user" size={18} />
     </View>
   );
 }
@@ -1011,25 +866,6 @@ function getApplicationDetailDisplay(
   };
 }
 
-function getParticipationMethodContent(post: InterviewPost) {
-  switch (post.recruitment_type ?? "interview") {
-    case "interview":
-      return {
-        description:
-          "공고에 적힌 조건을 기준으로 신청해요. 모집자가 신청을 확인한 뒤 필요한 경우 채팅에서 세부 사항을 정해요.",
-        title: "선정되면 채팅에서 조율해요",
-      };
-    case "beta_test":
-      return {
-        description:
-          "공고에 맞는 경험을 적어 신청해요. 선정되면 채팅에서 테스트 범위와 다음 단계를 안내받아요.",
-        title: "선정되면 채팅에서 안내해요",
-      };
-    default:
-      return null;
-  }
-}
-
 function SurveyParticipationSection({
   canParticipate,
   currentUserId,
@@ -1141,46 +977,6 @@ function SurveyParticipationSection({
       )}
     </DetailSection>
   );
-}
-
-function getPostingSchedule(post: InterviewPost) {
-  if (post.recruitment_type === "beta_test") {
-    if (post.beta_test_starts_at && post.beta_test_ends_at) {
-      return `${formatDate(post.beta_test_starts_at)} - ${formatDate(post.beta_test_ends_at)}`;
-    }
-    return post.beta_test_starts_at
-      ? `${formatDate(post.beta_test_starts_at)}부터`
-      : "모집자와 협의";
-  }
-
-  return post.schedule_options.length
-    ? post.schedule_options.join(" · ")
-    : "모집자와 협의";
-}
-
-function getPostingStatusLabel(status: InterviewPost["status"]) {
-  const labels: Record<InterviewPost["status"], string> = {
-    archived: "보관됨",
-    closed: "모집 종료",
-    completed: "완료",
-    draft: "임시 저장",
-    hidden: "비공개",
-    open: "모집 중",
-    removed: "삭제됨",
-  };
-
-  return labels[status];
-}
-
-function formatParticipationDeadline(value?: string | null) {
-  return value ? `${formatDate(value)}까지` : "마감일 미정";
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "long",
-    day: "numeric",
-  }).format(new Date(value));
 }
 
 function DetailTextArea({

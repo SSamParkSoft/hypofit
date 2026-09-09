@@ -9,9 +9,19 @@ export const surveyParticipationRoutes = {
   open: (postId: string) => `${surveyBasePath(postId)}/open`,
   submit: (postId: string) => `${surveyBasePath(postId)}/submit`,
   withdraw: (postId: string) => `${surveyBasePath(postId)}/withdraw`,
+  participants: (postId: string) => `${surveyBasePath(postId)}/participants`,
+  confirm: (postId: string) => `${surveyBasePath(postId)}/confirm`,
 } as const;
 
 export const surveyParticipationsApi = {
+  participants(postId: string, accessToken?: string | null) {
+    return apiRequest<SurveyParticipation[]>(surveyParticipationRoutes.participants(postId), { accessToken });
+  },
+  confirm(postId: string, participantId: string, accessToken?: string | null) {
+    return apiRequest<SurveyParticipation>(surveyParticipationRoutes.confirm(postId), {
+      accessToken, method: "POST", body: JSON.stringify({ participant_id: participantId }),
+    });
+  },
   current(postId: string, accessToken?: string | null) {
     return apiRequest<SurveyParticipation | null>(surveyParticipationRoutes.current(postId), {
       accessToken,

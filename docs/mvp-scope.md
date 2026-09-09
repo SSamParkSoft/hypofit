@@ -130,7 +130,7 @@ Still out of scope unless explicitly requested:
 - AI-based matching.
 - AI-generated applicant ranking, scoring, selection, or rejection. A
   source-grounded reading summary is allowed only under
-  `docs/active/ai-interview-and-applicant-summary-plan.md` and does not change
+  the MainVault `ai-interview-and-applicant-summary-plan.md` and does not change
   manual decision ownership.
 - Interview recording and transcription.
 - Complex admin dashboard beyond the current MVP operator needs.

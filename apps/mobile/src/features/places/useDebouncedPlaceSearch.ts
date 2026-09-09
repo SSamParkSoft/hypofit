@@ -11,7 +11,7 @@ interface UseDebouncedPlaceSearchParams {
   limit?: number;
   lng: number;
   query: string;
-  radiusM: number;
+  radiusM?: number;
 }
 
 export function useDebouncedPlaceSearch({

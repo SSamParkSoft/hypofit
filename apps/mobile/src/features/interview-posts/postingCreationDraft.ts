@@ -6,13 +6,17 @@ import type {
   LocationPrecision,
   LocationSource,
   ParticipationEntryMode,
+  PostingDurationUnit,
   PostingType,
+  PostingScheduleMode,
+  RecruitmentLimitMode,
 } from "@hypofit/contracts";
 import {
   durationToMinutes,
   requiresLocation,
   serializePostingCreationDraft,
 } from "./postingCreationPayload";
+import { normalizePostingCreationDraft } from "./postingCreationDraftMigration";
 
 export {
   durationToMinutes,
@@ -21,9 +25,10 @@ export {
 } from "./postingCreationPayload";
 
 export type CreationStep = 1 | 2 | 3 | 4 | 5;
-export type DurationUnit = "minutes" | "hours" | "days" | "weeks";
-export type RecruitmentLimitMode = "unlimited" | "limited";
-export type ScheduleMode = "fixed" | "recurring" | "negotiated" | "none";
+export type DurationUnit = PostingDurationUnit;
+export type { RecruitmentLimitMode } from "@hypofit/contracts";
+export type ScheduleMode = PostingScheduleMode;
+
 
 export interface PostingCreationDraft {
   schemaVersion: number;
@@ -63,9 +68,36 @@ export interface PostingCreationDraft {
 }
 
 const storageKey = "hypofit:posting-creation-draft:v1";
+const currentDraftSchemaVersion = 2;
+
+export interface PostingEditDraft {
+  baseline: PostingCreationDraft;
+  draft: PostingCreationDraft;
+}
+
+function editStorageKey(userId: string, postId: string) {
+  return `hypofit:posting-edit-draft:v1:${userId}:${postId}`;
+}
+
+export async function loadPostingEditDraft(userId: string, postId: string): Promise<PostingEditDraft | null> {
+  const raw = await AsyncStorage.getItem(editStorageKey(userId, postId));
+  if (!raw) return null;
+  const stored = JSON.parse(raw);
+  const baseline = normalizePostingCreationDraft(stored.baseline, initialPostingCreationDraft, Crypto.randomUUID);
+  const draft = normalizePostingCreationDraft(stored.draft, initialPostingCreationDraft, Crypto.randomUUID);
+  return baseline && draft ? { baseline, draft } : null;
+}
+
+export async function savePostingEditDraft(userId: string, postId: string, value: PostingEditDraft) {
+  await AsyncStorage.setItem(editStorageKey(userId, postId), JSON.stringify(value));
+}
+
+export async function clearPostingEditDraft(userId: string, postId: string) {
+  await AsyncStorage.removeItem(editStorageKey(userId, postId));
+}
 
 export const initialPostingCreationDraft: PostingCreationDraft = {
-  schemaVersion: 1,
+  schemaVersion: currentDraftSchemaVersion,
   clientSubmissionId: Crypto.randomUUID(),
   type: "interview",
   entryMode: "application_required",
@@ -117,7 +149,11 @@ export async function loadPostingCreationDraft(): Promise<PostingCreationDraft |
   if (!value) return null;
 
   try {
-    return normalizeDraft(JSON.parse(value));
+    return normalizePostingCreationDraft(
+      JSON.parse(value),
+      initialPostingCreationDraft,
+      Crypto.randomUUID,
+    );
   } catch {
     return null;
   }
@@ -126,7 +162,10 @@ export async function loadPostingCreationDraft(): Promise<PostingCreationDraft |
 export async function savePostingCreationDraft(
   draft: PostingCreationDraft,
 ): Promise<void> {
-  await AsyncStorage.setItem(storageKey, JSON.stringify(draft));
+  await AsyncStorage.setItem(
+    storageKey,
+    JSON.stringify({ ...draft, schemaVersion: currentDraftSchemaVersion }),
+  );
 }
 
 export async function clearPostingCreationDraft(): Promise<void> {
@@ -138,33 +177,12 @@ export function hasDraftContent(draft: PostingCreationDraft): boolean {
     draft.title.trim() ||
     draft.description.trim() ||
     draft.targetParticipant.trim() ||
-    draft.externalUrl.trim(),
+    draft.externalUrl.trim() ||
+    draft.scheduleNote.trim() ||
+    draft.environment.trim() ||
+    draft.workflowNote.trim() ||
+    draft.fixedSlots.length ||
+    draft.recurringWindows.length ||
+    draft.betaPlatforms.length,
   );
-}
-
-function normalizeDraft(value: unknown): PostingCreationDraft | null {
-  if (!value || typeof value !== "object") return null;
-  const candidate = value as Partial<PostingCreationDraft>;
-  if (!candidate.type || !candidate.entryMode) return null;
-
-  return {
-    ...initialPostingCreationDraft,
-    ...candidate,
-    schemaVersion: 1,
-    clientSubmissionId:
-      typeof candidate.clientSubmissionId === "string" && candidate.clientSubmissionId
-        ? candidate.clientSubmissionId
-        : Crypto.randomUUID(),
-    betaPlatforms: Array.isArray(candidate.betaPlatforms)
-      ? candidate.betaPlatforms
-      : [],
-    compensations:
-      Array.isArray(candidate.compensations) && candidate.compensations.length
-        ? candidate.compensations
-        : [{ type: "none" }],
-    fixedSlots: Array.isArray(candidate.fixedSlots) ? candidate.fixedSlots : [],
-    recurringWindows: Array.isArray(candidate.recurringWindows)
-      ? candidate.recurringWindows
-      : [],
-  };
 }

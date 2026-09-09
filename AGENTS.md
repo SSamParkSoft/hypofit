@@ -21,6 +21,15 @@ schema changes. Prefer simple, shippable implementation over premature
 platform abstractions. When in doubt, preserve the architecture decisions
 already documented in `docs/`.
 
+## Active Plans In MainVault
+
+Active Hypofit plans are personal local working documents. Their canonical
+location is:
+
+`/Users/sehyeon/Library/Mobile Documents/iCloud~md~obsidian/Documents/sehyeon/10 Projects/Hypofit/Active Plans/`
+
+Do not create a `docs/active` directory or duplicate these plan files in Git.
+
 ## Read First
 
 Before making non-trivial changes, read these documents:
@@ -28,7 +37,7 @@ Before making non-trivial changes, read these documents:
 - `README.md`
 - `docs/service/README.md` as the top-level service knowledge base.
 - `docs/service/00-agent-start-here.md` before deciding where to make changes.
-- `docs/active/current-mvp-execution-roadmap.md` before selecting or reordering
+- MainVault `current-mvp-execution-roadmap.md` before selecting or reordering
   remaining MVP work. It is the current cross-domain execution-order authority;
   use the linked domain plan for implementation details.
 - `docs/completed/spring-feature-mvc-simplification-plan.md` before moving Spring
@@ -36,7 +45,7 @@ Before making non-trivial changes, read these documents:
   changing transaction ownership, or simplifying backend abstractions. It
   records the implemented feature-first MVC baseline; preserve the existing API
   and schema unless an active plan explicitly changes them.
-- `docs/active/spring-mvc-maintainability-hardening-plan.md` before materially
+- MainVault `spring-mvc-maintainability-hardening-plan.md` before materially
   changing chat workflow, session lifecycle, account deletion, or
   recruitment-type write rules. It authorizes targeted responsibility
   extraction while preserving feature-first MVC, API/schema compatibility, and
@@ -44,13 +53,13 @@ Before making non-trivial changes, read these documents:
 - `docs/reference/lightsail-spring-deployment-runbook.md` before changing
   the Lightsail host, Spring container runtime, API/push process ownership,
   secrets, Nginx/TLS, DNS cutover, resource limits, or rollback procedure.
-- `docs/active/ai-interview-and-applicant-summary-plan.md` before adding or
+- MainVault `ai-interview-and-applicant-summary-plan.md` before adding or
   changing AI-generated interview summaries, founder-only applicant summaries,
   summary prompts or schemas, AI provider calls, summary workers, summary
   persistence, summary feature flags, or AI-related privacy/store disclosures.
   This document authorizes source-grounded summaries only, not AI matching,
   applicant ranking, scoring, selection, or rejection.
-- `docs/active/multi-format-participant-recruitment-and-web-template-adoption-plan.md`
+- MainVault `multi-format-participant-recruitment-and-web-template-adoption-plan.md`
   before removing founder/respondent roles, changing role-based customer
   authorization, adding interviews, surveys or beta-test recruitment types,
   supporting external forms, adopting third-party web UI templates or blocks,
@@ -62,20 +71,20 @@ Before making non-trivial changes, read these documents:
 - `docs/service/15-ai-assisted-design-workflow.md` before using AI-generated
   UI, Figma MCP, generated images, external UI references, AI critique, or
   prompt-based design exploration.
-- `docs/active/landing-page-and-store-creative-production-plan.md` while
+- MainVault `landing-page-and-store-creative-production-plan.md` while
   implementing the public landing page, producing App Store or Google Play
   screenshots, creating the Google Play feature graphic, preparing capture
   data, or building the HTML/CSS asset renderer.
-- `docs/active/brainwave-inspired-landing-visual-reconstruction-plan.md` while
+- MainVault `brainwave-inspired-landing-visual-reconstruction-plan.md` while
   changing the public `/` or `/landing` section structure, hero, product-story
   bands, workflow, capability/trust band, pricing presentation, public CTA,
   landing product imagery, or Brainwave/Figma-derived visual language. Use the
   source as a composition reference, not as code or assets to copy wholesale.
-- `docs/active/hypofit-brand-logo-icon-system-migration-plan.md` when changing
+- MainVault `hypofit-brand-logo-icon-system-migration-plan.md` when changing
   the Hypofit mark or wordmark, web brand assets, favicon/PWA icons, Open Graph
   artwork, Expo app/adaptive/themed/notification icons, native or runtime
   splash assets, store-upload icons, or icon caches.
-- `docs/active/desktop-web-service-ui-advancement-plan.md` while changing the
+- MainVault `desktop-web-service-ui-advancement-plan.md` while changing the
   authenticated customer web UI under `/app`, the desktop app shell, web
   list-detail layouts, responsive customer pages, web auth entry, map/chat
   workspaces, or shared web operational components. Treat the shipped mobile
@@ -103,7 +112,7 @@ Before making non-trivial changes, read these documents:
   web landing-to-login transition, `/app` auth bootstrap, web splash/loading
   behavior, responsive web login/signup UI, protected-route return paths,
   password-manager semantics, or web auth recovery states.
-- `docs/active/cross-platform-social-login-authentication-plan.md` when adding
+- MainVault `cross-platform-social-login-authentication-plan.md` when adding
   or changing Apple, Google, Kakao, or Naver login, OAuth/OIDC callbacks,
   native identity tokens, Supabase social providers, account identity linking,
   provider revocation, social-login onboarding, provider feature flags,
@@ -149,7 +158,13 @@ If your change affects user-facing UI, interaction flows, or responsive behavior
 
 ## Documentation Hierarchy
 
-- `docs/active/` is for current implementation plans only. A document should
+- Deferred usability-test, research-experiment, focus-group designs and the
+  other-type boundary policy live in `docs/reference/`. Do not treat them as
+  enabled product contracts or current execution commitments. Pending
+  other-type capability/draft checks belong to the active adaptive posting
+  creation plan. Consult MainVault `README.md` for current plan membership.
+
+- MainVault Active Plans is for current implementation plans only. A document should
   stay active only while it drives code, schema, API, deployment, or content
   work that still needs execution.
 - `docs/reference/` is for standards, design guidance, architecture decisions,
@@ -164,9 +179,9 @@ If your change affects user-facing UI, interaction flows, or responsive behavior
   concise enough for a new agent to read first, but current enough to prevent
   incorrect work.
 - When a document becomes mainly guidance instead of a live implementation task
-  list, move it from `docs/active/` to `docs/reference/` or
+  list, move it from MainVault Active Plans to `docs/reference/` or
   `docs/completed/` and update this file plus the relevant directory README.
-- Do not keep reference-only documents in `docs/active/` merely because agents
+- Do not keep reference-only documents in MainVault Active Plans merely because agents
   need to read them.
 
 ## Product Context
@@ -682,7 +697,7 @@ Defer unless explicitly requested:
 - AI matching.
 - AI-generated ranking, scoring, selection, or rejection. Source-grounded
   reading summaries may be implemented only under
-  `docs/active/ai-interview-and-applicant-summary-plan.md`.
+  MainVault `ai-interview-and-applicant-summary-plan.md`.
 - Interview recording/transcription.
 - Complex admin dashboard.
 - Compute-heavy media processing.

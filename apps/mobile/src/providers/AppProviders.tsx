@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "@/features/auth/AuthProvider";
+import { MaintenanceProvider } from "@/features/maintenance/MaintenanceProvider";
 import { PushNotificationManager } from "@/features/push/PushNotificationManager";
 import { addAppBreadcrumb } from "@/shared/diagnostics/sentry";
 import { useReactQueryAppFocus } from "@/shared/hooks/useReactQueryAppFocus";
@@ -20,8 +21,10 @@ export function AppProviders({ children }: AppProvidersProps) {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <PushNotificationManager />
-          {children}
+          <MaintenanceProvider>
+            <PushNotificationManager />
+            {children}
+          </MaintenanceProvider>
         </AuthProvider>
       </QueryClientProvider>
     </SafeAreaProvider>

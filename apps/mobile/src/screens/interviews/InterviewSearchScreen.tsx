@@ -268,10 +268,7 @@ export function InterviewSearchScreen() {
               hitSlop={12}
               className="h-10 shrink-0 flex-row items-center justify-center gap-1.5 rounded-[11px] border border-hypo-border/80 bg-hypo-surface px-3"
               onPress={() =>
-                router.push({
-                  pathname: "/(tabs)/interviews/my-interviews",
-                  params: { returnTo: "/(tabs)/interviews" },
-                })
+                router.push("/(tabs)/interviews/my-interviews")
               }
               style={({ pressed }) => ({
                 backgroundColor: pressed ? colors.surfaceMuted : colors.surface,

@@ -1,3 +1,5 @@
+import { notifyMaintenanceDetected } from "../maintenance/maintenanceSignal";
+
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export interface ApiFieldError {
@@ -371,6 +373,10 @@ export function isRetryableApiError(error: unknown) {
   return error instanceof ApiError && error.isRetryable;
 }
 
+function isMaintenanceError(error: ApiError) {
+  return error.status === 503 && error.code === "maintenance_in_progress";
+}
+
 export async function apiRequest<T>(path: string, init?: ApiRequestInit): Promise<T> {
   const { accessToken, headers, ...requestInit } = init ?? {};
   const method = (requestInit.method ?? "GET").toUpperCase();
@@ -417,13 +423,17 @@ export async function apiRequest<T>(path: string, init?: ApiRequestInit): Promis
   }
 
   if (!response.ok) {
-    throw buildApiError({
+    const apiError = buildApiError({
       body: responseBody.body,
       method,
       path,
       requestId: responseRequestId,
       response,
     });
+    if (isMaintenanceError(apiError)) {
+      notifyMaintenanceDetected();
+    }
+    throw apiError;
   }
 
   return responseBody.body as T;

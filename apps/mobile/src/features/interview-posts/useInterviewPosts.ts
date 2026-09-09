@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { UpdateInterviewPostInput } from "@hypofit/contracts";
 import { useAuth } from "@/features/auth/AuthProvider";
 import {
   interviewPostsApi,
@@ -56,6 +57,19 @@ export function useInterviewPost(postId?: string | null, accessToken?: string | 
   });
 }
 
+export function useInterviewPostCreationCapabilities(accessToken?: string | null) {
+  const { appUser, user } = useAuth();
+  const stableUserId = resolveAuthUserId(appUser?.id, user?.id);
+
+  return useQuery({
+    enabled: Boolean(accessToken && stableUserId),
+    queryKey: buildAuthQueryKey("interview-post-creation-capabilities", stableUserId),
+    queryFn: () => interviewPostsApi.getCreationCapabilities(accessToken),
+    retry: false,
+    staleTime: 30_000,
+  });
+}
+
 export function useUpdateInterviewPostLifecycle(accessToken?: string | null) {
   const queryClient = useQueryClient();
   const { appUser, user } = useAuth();
@@ -79,6 +93,21 @@ export function useUpdateInterviewPostLifecycle(accessToken?: string | null) {
 
       return interviewPostsApi.close(postId, accessToken);
     },
+    onSuccess: (post) => {
+      queryClient.setQueryData(interviewPostQueryKeys.item(stableUserId, post.id, true), post);
+      void queryClient.invalidateQueries({ queryKey: interviewPostQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: interviewPostQueryKeys.detail });
+    },
+  });
+}
+
+export function useUpdateInterviewPost(accessToken?: string | null) {
+  const queryClient = useQueryClient();
+  const { appUser, user } = useAuth();
+  const stableUserId = resolveAuthUserId(appUser?.id, user?.id);
+  return useMutation({
+    mutationFn: ({ postId, input }: { postId: string; input: UpdateInterviewPostInput }) =>
+      interviewPostsApi.update(postId, input, accessToken),
     onSuccess: (post) => {
       queryClient.setQueryData(interviewPostQueryKeys.item(stableUserId, post.id, true), post);
       void queryClient.invalidateQueries({ queryKey: interviewPostQueryKeys.all });

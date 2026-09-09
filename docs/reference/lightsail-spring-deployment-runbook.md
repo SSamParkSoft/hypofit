@@ -274,7 +274,7 @@ curl -fsS https://hypofit-api.bukae.co.kr/api/v1/service-status
 If verification fails, keep maintenance active while following the existing
 image rollback procedure. Do not complete maintenance into a raw `502` or an
 unverified API state. Full policy, client behavior, and future partial modes
-are in `docs/active/service-maintenance-and-degraded-operation-plan.md`.
+are in the MainVault `service-maintenance-and-degraded-operation-plan.md`.
 
 ## 9. Nginx And TLS
 

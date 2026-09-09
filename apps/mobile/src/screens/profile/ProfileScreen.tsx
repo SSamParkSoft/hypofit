@@ -1,11 +1,14 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ActionSheetIOS, Alert, Image, Platform, Pressable, Text, View } from "react-native";
+import { ActionSheetIOS, Alert, Platform, Pressable, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { getSupabaseClient } from "@/shared/api/supabase";
+import { getBottomTabBarHeight } from "@/shared/navigation/tabBarStyle";
 import { AppScreen } from "@/shared/ui/AppScreen";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 import { appVersion, companyName, compatibilityRole, formatOrganizationDisplay } from "./profileUtils";
 
 const profileImagePickerOptions: ImagePicker.ImagePickerOptions = {
@@ -17,11 +20,13 @@ const profileImagePickerOptions: ImagePicker.ImagePickerOptions = {
 
 export function ProfileScreen() {
   const params = useLocalSearchParams<{ toast?: string }>();
+  const insets = useSafeAreaInsets();
   const { appUser, updateCurrentUser, user } = useAuth();
   const [isUploadingProfileImage, setIsUploadingProfileImage] = useState(false);
   const [visibleToast, setVisibleToast] = useState<"feedback_submitted" | null>(null);
   const displayName = appUser?.name ?? user?.email?.split("@")[0] ?? "사용자";
   const organizationDisplay = formatOrganizationDisplay(appUser?.organization_type, appUser?.organization_name);
+  const footerBottomReserve = getBottomTabBarHeight(insets.bottom) + 20;
 
   useEffect(() => {
     if (params.toast !== "feedback_submitted") {
@@ -130,14 +135,13 @@ export function ProfileScreen() {
 
   return (
     <AppScreen
-      bottomPaddingClassName="pb-24"
-      contentClassName="flex-1"
+      bottomPaddingClassName="pb-5"
       safeAreaEdges={["top", "left", "right"]}
-      scrollContentContainerStyle={{ flexGrow: 1 }}
+      scrollContentContainerStyle={{ paddingBottom: footerBottomReserve }}
       showHeader={false}
       title="프로필"
     >
-      <View className="flex-1 gap-5">
+      <View className="gap-5">
         <View className="px-1 pb-1 pt-2">
           <View className="flex-row items-start gap-3.5">
             <Pressable
@@ -148,7 +152,6 @@ export function ProfileScreen() {
               onPress={handleProfileImagePress}
             >
               <ProfileAvatar
-                iconSize={27}
                 isUploading={isUploadingProfileImage}
                 sizeClassName="h-[64px] w-[64px]"
                 user={appUser}
@@ -231,7 +234,7 @@ export function ProfileScreen() {
         </View>
 
         {user ? (
-      <View className="items-center px-2 pt-1">
+          <View className="items-center px-2 pt-1">
             <View className="items-center">
               <Text className="text-[11px] font-bold text-[#8A9387]">Hypofit v{appVersion}</Text>
               <Text className="mt-0.5 text-[11px] font-bold text-[#8A9387]">© 2026 {companyName}</Text>
@@ -291,33 +294,17 @@ function MenuRow({
 }
 
 function ProfileAvatar({
-  iconSize,
   isUploading,
   sizeClassName,
   user,
 }: {
-  iconSize: number;
   isUploading: boolean;
   sizeClassName: string;
   user?: { profile_image_url?: string | null; name?: string | null } | null;
 }) {
-  if (user?.profile_image_url) {
-    return (
-      <View className={`${sizeClassName} overflow-hidden rounded-full border border-hypo-border bg-hypo-brandSoft`}>
-        <Image
-          accessibilityLabel={`${user.name ?? "사용자"} 프로필 사진`}
-          className="h-full w-full"
-          source={{ uri: user.profile_image_url }}
-          resizeMode="cover"
-        />
-        {isUploading ? <View className="absolute inset-0 bg-white/45" /> : null}
-      </View>
-    );
-  }
-
   return (
-    <View className={`${sizeClassName} items-center justify-center overflow-hidden rounded-full border border-hypo-border bg-hypo-brandSoft`}>
-      <Feather color="#176B5D" name="user" size={iconSize} />
+    <View>
+      <UserAvatar iconSize={27} imageUrl={user?.profile_image_url} name={user?.name} sizeClassName={sizeClassName} />
       {isUploading ? <View className="absolute inset-0 bg-white/45" /> : null}
     </View>
   );

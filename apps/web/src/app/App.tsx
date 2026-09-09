@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AuthBootstrapGate } from "../features/auth/AuthBootstrapGate";
 import { AuthScreen } from "../features/auth/AuthScreen";
+import { MaintenanceScreen } from "../features/maintenance/MaintenanceScreen";
+import { useMaintenance } from "../features/maintenance/MaintenanceProvider";
 import { buildRequestedPath } from "../features/auth/authEntryState";
 import { useAuth } from "../features/auth/useAuth";
 import {
@@ -69,6 +71,7 @@ export function App() {
     isLoading,
     user,
   } = useAuth();
+  const maintenance = useMaintenance();
   const [currentPath, setCurrentPath] = useState(getCurrentPath);
   const [isOnline, setIsOnline] = useState(getIsOnline);
   const [usesDesktopProfileLayout, setUsesDesktopProfileLayout] = useState(
@@ -87,6 +90,7 @@ export function App() {
   const blocksMobileWebProductAccess =
     isMobileWebViewport &&
     (routeAccess === "auth-entry" || routeAccess === "protected");
+  const isAdminRoute = currentPath === "/admin" || currentPath.startsWith("/admin/");
 
   useNavigationCoordinator({
     isAuthenticated,
@@ -168,6 +172,10 @@ export function App() {
 
   if (blocksMobileWebProductAccess) {
     return null;
+  }
+
+  if (maintenance.isActive && !isAdminRoute && routeAccess !== "public") {
+    return <MaintenanceScreen />;
   }
 
   if (routeAccess === "public") {

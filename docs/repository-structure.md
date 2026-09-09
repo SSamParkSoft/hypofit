@@ -208,7 +208,7 @@ Documentation hierarchy:
 - `docs/service/`: service-level source of truth for product philosophy, user
   workflows, feature map, domain model, app surfaces, API/backend map, design
   principles, operations, compliance, and glossary. Read this first.
-- `docs/active/`: current implementation plans only.
+- MainVault Active Plans: current implementation plans only.
 - `docs/reference/`: standards, runbooks, review-readiness references, design
   guidance, and policy/architecture background.
 - `docs/completed/`: finished implementation plans and historical notes.

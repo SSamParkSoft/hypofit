@@ -28,7 +28,7 @@ Related routes:
 
 Related documents:
 
-- `docs/active/desktop-web-service-ui-advancement-plan.md`
+- MainVault `desktop-web-service-ui-advancement-plan.md`
 - `docs/completed/responsive-web-auth-entry-experience-plan.md`
 - `docs/completed/web-navigation-motion-system-plan.md`
 - `docs/service/09-design-and-copy-principles.md`

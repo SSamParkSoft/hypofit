@@ -15,6 +15,14 @@ export type InterviewPostStatus =
 export type RecruitmentType = PostingType;
 export type SurveyExternalProvider = "google_forms";
 export type ParticipationEntryMode = "application_required" | "direct";
+export type PostingDurationUnit = "minutes" | "hours" | "days" | "weeks";
+export type PostingScheduleMode = "fixed" | "recurring" | "negotiated" | "none";
+export type RecruitmentLimitMode = "limited" | "unlimited";
+
+export interface InterviewPostCreationCapabilities {
+  enabled_recruitment_types: PostingType[];
+  direct_participation_recruitment_types: PostingType[];
+}
 export type SurveyParticipationStatus =
   | "opened"
   | "submitted"
@@ -50,6 +58,14 @@ export interface InterviewPost {
   recruitment_type?: RecruitmentType;
   /** Canonical compensation model. Legacy clients may only receive reward_amount. */
   compensations?: Compensation[];
+  /** Canonical duration fields. duration_minutes remains for released-client compatibility. */
+  duration_value?: number | null;
+  duration_unit?: PostingDurationUnit | null;
+  schedule_mode?: PostingScheduleMode | null;
+  schedule_fixed_slots?: string[];
+  schedule_recurring_windows?: string[];
+  schedule_note?: string | null;
+  recruitment_limit_mode?: RecruitmentLimitMode | null;
   external_provider?: SurveyExternalProvider | null;
   external_url?: string | null;
   /** Indicates that an external action can be opened without exposing its URL. */
@@ -59,10 +75,13 @@ export interface InterviewPost {
   beta_test_platforms?: string[] | null;
   beta_test_starts_at?: string | null;
   beta_test_ends_at?: string | null;
+  beta_test_environment?: string | null;
+  beta_test_workflow_note?: string | null;
   entry_mode?: ParticipationEntryMode;
   title: string;
   service_summary: string;
   target_description: string;
+  participant_requirements?: string[];
   reward_amount: number;
   duration_minutes: number;
   recruit_count: number;
@@ -98,6 +117,13 @@ export interface CreateInterviewPostInput {
   client_submission_id?: string;
   recruitment_type?: RecruitmentType;
   compensations?: Compensation[];
+  duration_value?: number | null;
+  duration_unit?: PostingDurationUnit | null;
+  schedule_mode?: PostingScheduleMode | null;
+  schedule_fixed_slots?: string[];
+  schedule_recurring_windows?: string[];
+  schedule_note?: string | null;
+  recruitment_limit_mode?: RecruitmentLimitMode | null;
   external_provider?: SurveyExternalProvider | null;
   external_url?: string | null;
   participation_deadline_at?: string | null;
@@ -105,10 +131,13 @@ export interface CreateInterviewPostInput {
   beta_test_platforms?: string[] | null;
   beta_test_starts_at?: string | null;
   beta_test_ends_at?: string | null;
+  beta_test_environment?: string | null;
+  beta_test_workflow_note?: string | null;
   entry_mode?: ParticipationEntryMode;
   title: string;
   service_summary: string;
   target_description: string;
+  participant_requirements?: string[];
   reward_amount: number;
   duration_minutes: number;
   recruit_count?: number;
@@ -148,7 +177,7 @@ export interface SurveyParticipation {
   participant?: UserSummary | null;
 }
 
-/** A participant-facing survey response also includes the approved external form URL. */
+/** Open grants a URL. Submit replays may mask it; withdrawal returns an empty string. */
 export interface SurveyParticipationAction extends SurveyParticipation {
   external_url: string;
 }

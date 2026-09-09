@@ -1,10 +1,10 @@
-import { Alert, Image, Modal, Pressable, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Alert, Modal, Pressable, Text, View } from "react-native";
 import type { ChatRoom, UserSummary } from "@hypofit/contracts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useBlockUser, useBlockedUsers, useUnblockUser } from "@/features/blocks/useBlocks";
 import { ApiError } from "@/shared/api/client";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 
 interface CounterpartProfileModalProps {
   currentUserId?: string;
@@ -96,7 +96,7 @@ export function CounterpartProfileModal({
           <View className="mb-5 self-center h-1 w-10 rounded-full bg-hypo-border" />
 
           <View className="items-center">
-            <Avatar sizeClassName="h-[74px] w-[74px]" textClassName="text-[20px]" user={counterpart} />
+            <Avatar iconSize={30} sizeClassName="h-[74px] w-[74px]" user={counterpart} />
             <Text numberOfLines={1} className="mt-3 max-w-full text-xl font-black text-hypo-text">
               {name}
             </Text>
@@ -135,30 +135,15 @@ export function CounterpartProfileModal({
 }
 
 export function Avatar({
+  iconSize,
   sizeClassName,
-  textClassName,
   user,
 }: {
+  iconSize: number;
   sizeClassName: string;
-  textClassName: string;
   user?: UserSummary | null;
 }) {
-  if (user?.profile_image_url) {
-    return (
-      <Image
-        accessibilityLabel={`${user.name} 프로필 사진`}
-        className={`${sizeClassName} overflow-hidden rounded-full border border-hypo-border bg-hypo-brandSoft`}
-        source={{ uri: user.profile_image_url }}
-        resizeMode="cover"
-      />
-    );
-  }
-
-  return (
-    <View className={`${sizeClassName} items-center justify-center overflow-hidden rounded-full border border-hypo-border bg-hypo-brandSoft`}>
-      <Feather color="#176B5D" name="user" size={textClassName.includes("20") ? 30 : 22} />
-    </View>
-  );
+  return <UserAvatar iconSize={iconSize} imageUrl={user?.profile_image_url} name={user?.name} sizeClassName={sizeClassName} />;
 }
 
 export function getCounterpart(room: ChatRoom, currentUserId?: string): UserSummary | null | undefined {
@@ -188,13 +173,6 @@ function ActionButton({
       </Text>
     </Pressable>
   );
-}
-
-function getAvatarInitials(name?: string | null) {
-  const compact = (name ?? "H").replace(/\s+/g, "");
-  const chars = Array.from(compact);
-  if (chars.length === 0) return "H";
-  return chars.slice(0, 2).join("");
 }
 
 function getFallbackBio(counterpart: UserSummary | null | undefined, room: ChatRoom) {

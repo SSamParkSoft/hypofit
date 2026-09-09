@@ -31,6 +31,8 @@ describe("AccountDeletionPage", () => {
   });
 
   it("requests public deletion by email and moves focus to the OTP step", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2030-09-09T00:00:00Z"));
     const user = userEvent.setup();
     accountDeletionMocks.createPublic.mockResolvedValue(
       buildRequest({

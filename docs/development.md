@@ -146,7 +146,7 @@ make test-api-integration
 - 저장소 모듈 경계: `docs/repository-structure.md`
 - 배포: `docs/deployment.md`
 - 모바일 로컬 빌드: `docs/reference/mobile-local-build-runbook.md`
-- 현재 구현 작업: `docs/active/README.md`
+- 현재 구현 작업: MainVault Active Plans `README.md`
 - 기여와 PR: `CONTRIBUTING.md`
 
 ## 개발 중 주의 사항

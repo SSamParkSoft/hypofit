@@ -9,6 +9,8 @@ import type { TextProps } from "react-native";
 import { Text, TextInput } from "react-native";
 import { enableScreens } from "react-native-screens";
 import { AppProviders } from "@/providers/AppProviders";
+import { MaintenanceScreen } from "@/features/maintenance/MaintenanceScreen";
+import { useMaintenance } from "@/features/maintenance/MaintenanceProvider";
 import { addAppBreadcrumb, wrapWithSentry } from "@/shared/diagnostics/sentry";
 
 // Keep disabled until the react-native-screens release-build startup crash
@@ -49,18 +51,30 @@ function RootLayout() {
   return (
     <AppProviders>
       <StatusBar style="dark" backgroundColor="#F6F7F8" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="interviews" />
-        <Stack.Screen name="support" />
-        <Stack.Screen name="notice" />
-        <Stack.Screen name="notifications" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+      <RootContent />
     </AppProviders>
+  );
+}
+
+function RootContent() {
+  const { isActive } = useMaintenance();
+
+  if (isActive) {
+    return <MaintenanceScreen />;
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="auth" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="interviews" />
+      <Stack.Screen name="support" />
+      <Stack.Screen name="notice" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="+not-found" />
+    </Stack>
   );
 }
 

@@ -11,7 +11,7 @@ current Expo React Native mobile app.
 
 This is the release checklist for native-store submission work. It is not an
 active implementation backlog; move concrete code or schema work into
-`docs/active/` only when a specific implementation task is reopened.
+MainVault Active Plans only when a specific implementation task is reopened.
 
 Current practical conclusion:
 

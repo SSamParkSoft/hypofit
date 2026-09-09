@@ -654,7 +654,7 @@ function Header({
         disabled={!onProfile}
         onPress={onProfile}
       >
-        <Avatar sizeClassName="h-9 w-9" textClassName="text-[13px]" user={counterpart} />
+        <Avatar iconSize={19} sizeClassName="h-9 w-9" user={counterpart} />
         <View className="min-w-0 flex-1">
           <Text numberOfLines={1} className="text-[18px] leading-[24px] text-hypo-text" style={{ fontFamily: "HypofitSansBold" }}>
             {title}

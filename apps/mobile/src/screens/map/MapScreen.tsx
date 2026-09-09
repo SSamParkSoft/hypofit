@@ -9,18 +9,16 @@ import {
   ScrollView,
   Text,
   View,
-  type StyleProp,
-  type ViewStyle,
   useWindowDimensions,
   Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { router } from "expo-router";
-import MapView, { Marker, type Point, type Region } from "react-native-maps";
+import MapView, { Marker, type Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { InterviewMode, InterviewPost } from "@hypofit/contracts";
-import { formatRecruitCount, formatReward, interviewModeLabels } from "@hypofit/contracts";
+import { interviewModeLabels } from "@hypofit/contracts";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useInterviewPostViews, useMarkInterviewPostViewed } from "@/features/interview-posts/useInterviewPostViews";
 import { useInterviewPosts } from "@/features/interview-posts/useInterviewPosts";
@@ -29,7 +27,6 @@ import { StateMessage } from "@/screens/home/HomeScreen";
 import type { PlaceSearchResult } from "@/shared/api/places";
 import {
   getPostingCompensationLabel,
-  getPostingDurationLabel,
   getPostingModeLabel,
   getPostingTypeLabel,
 } from "@/shared/format/postings";
@@ -59,9 +56,8 @@ const defaultRegion: Region = {
 
 const minimumMapRadiusM = 800;
 const maximumMapRadiusM = 20000;
-const mapRegionDebounceMs = 450;
+const minimumSearchAreaMoveM = 250;
 const currentLocationTimeoutMs = 7_000;
-const markerPreviewWidthPx = 238;
 const markerPressMapTapGuardMs = 350;
 const sheetTapThresholdPx = 6;
 
@@ -94,14 +90,13 @@ export function MapScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = getBottomTabBarHeight(insets.bottom);
   const { accessToken, appUser } = useAuth();
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { height: windowHeight } = useWindowDimensions();
   const [region, setRegion] = useState(defaultRegion);
   const [queryRegion, setQueryRegion] = useState(defaultRegion);
   const [locationState, setLocationState] = useState<LocationState>("checking");
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [selectedMarkerGroupId, setSelectedMarkerGroupId] = useState<string | null>(null);
-  const [markerPreviewPoint, setMarkerPreviewPoint] = useState<Point | null>(null);
-  const [isListMode, setIsListMode] = useState(false);
+  const [isSearchAreaDirty, setIsSearchAreaDirty] = useState(false);
   const [sheetLevel, setSheetLevel] = useState<MapSheetLevel>("min");
   const [containerHeight, setContainerHeight] = useState(0);
   const [stableMapPosts, setStableMapPosts] = useState<InterviewPostWithCoordinates[]>([]);
@@ -119,14 +114,16 @@ export function MapScreen() {
   const dragStartHeightRef = useRef(0);
   const didDragRef = useRef(false);
   const ignoreMapPressUntilRef = useRef(0);
+  const suppressNextSearchAreaDirtyRef = useRef(false);
   const animatedSheetHeight = useRef(new Animated.Value(getMapSheetHeights(windowHeight).min)).current;
   const queryRadiusM = useMemo(() => getRegionSearchRadiusM(queryRegion), [queryRegion]);
 
-  const { data: posts = [], isError, isLoading } = useInterviewPosts({
+  const { data: posts = [], isError, isFetching, isLoading, refetch: refetchPosts } = useInterviewPosts({
     status: "open",
     ...(mapModeFilter === "all" ? {} : { mode: mapModeFilter }),
     lat: queryRegion.latitude,
     lng: queryRegion.longitude,
+    limit: 100,
     radiusM: queryRadiusM,
     sort: "distance",
   });
@@ -137,7 +134,6 @@ export function MapScreen() {
     query: mapSearchQuery,
     lat: queryRegion.latitude,
     lng: queryRegion.longitude,
-    radiusM: queryRadiusM,
     limit: 5,
   });
   const placeResults = placeSearch.results;
@@ -156,10 +152,8 @@ export function MapScreen() {
       ...previous,
       ...nextRegion,
     }));
-    setQueryRegion((previous) => ({
-      ...previous,
-      ...nextRegion,
-    }));
+    setQueryRegion((previous) => ({ ...previous, ...nextRegion }));
+    setIsSearchAreaDirty(false);
     setLocationState("granted");
     shouldRetryLocationOnActiveRef.current = false;
     addAppBreadcrumb("map_location_resolved", {
@@ -342,16 +336,6 @@ export function MapScreen() {
     };
   }, [requestCurrentLocation]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setQueryRegion(region);
-    }, mapRegionDebounceMs);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [region]);
-
   const sheetHeights = useMemo(
     () => getMapSheetHeights(containerHeight > 0 ? containerHeight : windowHeight),
     [containerHeight, windowHeight],
@@ -382,17 +366,6 @@ export function MapScreen() {
     [markerItems, selectedMarkerGroupId],
   );
   const sheetPosts = selectedMarkerGroup ? selectedMarkerGroup.posts : displayMapPosts;
-  const markerPreviewPosition = useMemo(() => {
-    if (!markerPreviewPoint) {
-      return null;
-    }
-
-    return {
-      left: Math.max(12, Math.min(markerPreviewPoint.x - markerPreviewWidthPx / 2, windowWidth - markerPreviewWidthPx - 12)),
-      top: Math.max(insets.top + 72, markerPreviewPoint.y - 104),
-    };
-  }, [insets.top, markerPreviewPoint, windowWidth]);
-
   useEffect(() => {
     if (!isLoading && !isError) {
       setStableMapPosts(mapPosts);
@@ -406,7 +379,6 @@ export function MapScreen() {
 
     if (selectedPostId && !displayMapPosts.some((post) => post.id === selectedPostId)) {
       setSelectedPostId(null);
-      setMarkerPreviewPoint(null);
     }
 
     if (selectedMarkerGroupId && !markerItems.some((item) => item.type === "group" && item.id === selectedMarkerGroupId)) {
@@ -424,13 +396,11 @@ export function MapScreen() {
   }, [animatedSheetHeight, sheetHeights, sheetLevel]);
 
   const resetMapSelection = useCallback(() => {
-    setIsListMode(false);
     setIsPlaceDropdownOpen(false);
     setSelectedPlace(null);
     setSelectedPlaceId(null);
     setSelectedMarkerGroupId(null);
     setSelectedPostId(null);
-    setMarkerPreviewPoint(null);
     setSheetLevel("min");
     sheetScrollRef.current?.scrollTo({ animated: true, y: 0 });
   }, []);
@@ -445,7 +415,6 @@ export function MapScreen() {
     setIsPlaceDropdownOpen(false);
     setSelectedMarkerGroupId(null);
     setSelectedPostId(null);
-    setMarkerPreviewPoint(null);
     setSheetLevel("min");
     sheetScrollRef.current?.scrollTo({ animated: true, y: 0 });
   }, []);
@@ -455,12 +424,16 @@ export function MapScreen() {
       return;
     }
 
-    if (!selectedMarkerGroupId && !selectedPostId && !markerPreviewPoint && !isPlaceDropdownOpen) {
+    if (!selectedMarkerGroupId && !selectedPostId && !isPlaceDropdownOpen) {
+      if (sheetLevel !== "min") {
+        setSheetLevel("min");
+        sheetScrollRef.current?.scrollTo({ animated: true, y: 0 });
+      }
       return;
     }
 
     clearMapSelectionToNearby();
-  }, [clearMapSelectionToNearby, isPlaceDropdownOpen, markerPreviewPoint, selectedMarkerGroupId, selectedPostId]);
+  }, [clearMapSelectionToNearby, isPlaceDropdownOpen, selectedMarkerGroupId, selectedPostId, sheetLevel]);
 
   const sheetPanResponder = useMemo(
     () =>
@@ -504,75 +477,43 @@ export function MapScreen() {
     [animatedSheetHeight, sheetHeights, sheetLevel],
   );
 
-  const updateMarkerPreviewPoint = useCallback(async (post: InterviewPost) => {
+  const focusPostInUsableMapArea = useCallback((post: InterviewPost) => {
     if (!hasMapCoordinates(post)) {
-      setMarkerPreviewPoint(null);
       return;
     }
 
-    try {
-      const point = await mapRef.current?.pointForCoordinate({
-        latitude: post.location_latitude,
-        longitude: post.location_longitude,
-      });
+    const visibleMapHeight = Math.max(1, containerHeight - tabBarHeight);
+    const visibleSheetHeight = sheetLevel === "min" ? sheetHeights.mid : sheetHeights[sheetLevel];
+    const bottomInsetRatio = visibleSheetHeight / visibleMapHeight;
+    const nextRegion = {
+      ...region,
+      latitude: post.location_latitude - region.latitudeDelta * Math.min(0.28, bottomInsetRatio * 0.34),
+      longitude: post.location_longitude,
+    };
 
-      if (isMountedRef.current && point) {
-        setMarkerPreviewPoint(point);
-      }
-    } catch {
-      if (isMountedRef.current) {
-        setMarkerPreviewPoint(null);
-      }
-    }
-  }, []);
+    suppressNextSearchAreaDirtyRef.current = true;
+    setRegion(nextRegion);
+    mapRef.current?.animateToRegion(nextRegion, 220);
+  }, [containerHeight, region, sheetHeights, sheetLevel, tabBarHeight]);
 
-  const selectPost = useCallback((post: InterviewPost, options: { expandSheet?: boolean } = {}) => {
+  const selectPost = useCallback((post: InterviewPost, options: { expandSheet?: boolean; focusMap?: boolean } = {}) => {
     setIsPlaceDropdownOpen(false);
     setSelectedMarkerGroupId(null);
     setSelectedPostId(post.id);
     sheetScrollRef.current?.scrollTo({ animated: true, y: 0 });
 
-    void updateMarkerPreviewPoint(post);
-
     if (options.expandSheet !== false) {
       setSheetLevel((currentLevel) => (currentLevel === "min" ? "mid" : currentLevel));
     }
 
-    if (accessToken && !viewedPostIds.has(post.id)) {
-      markViewed.mutate({ postId: post.id, source: "map" });
-    }
-  }, [accessToken, markViewed, updateMarkerPreviewPoint, viewedPostIds]);
-
-  const focusPostFromList = useCallback((post: InterviewPost) => {
-    setIsListMode(false);
-    setIsPlaceDropdownOpen(false);
-    setSelectedMarkerGroupId(null);
-    setSelectedPostId(post.id);
-    setSheetLevel("min");
-    sheetScrollRef.current?.scrollTo({ animated: false, y: 0 });
-
-    if (hasMapCoordinates(post)) {
-      const nextRegion = {
-        ...region,
-        latitude: post.location_latitude,
-        longitude: post.location_longitude,
-      };
-
-      setRegion(nextRegion);
-      mapRef.current?.animateToRegion(nextRegion, 260);
-      setTimeout(() => {
-        if (isMountedRef.current) {
-          void updateMarkerPreviewPoint(post);
-        }
-      }, 280);
-    } else {
-      void updateMarkerPreviewPoint(post);
+    if (options.focusMap !== false) {
+      focusPostInUsableMapArea(post);
     }
 
     if (accessToken && !viewedPostIds.has(post.id)) {
       markViewed.mutate({ postId: post.id, source: "map" });
     }
-  }, [accessToken, markViewed, region, updateMarkerPreviewPoint, viewedPostIds]);
+  }, [accessToken, focusPostInUsableMapArea, markViewed, viewedPostIds]);
 
   const selectMarkerGroup = useCallback((groupId: string) => {
     suppressMapPressFromMarker();
@@ -585,12 +526,10 @@ export function MapScreen() {
       return;
     }
 
-    setIsListMode(false);
     setIsPlaceDropdownOpen(false);
     setSelectedPostId(null);
-    setMarkerPreviewPoint(null);
     setSelectedMarkerGroupId(group.id);
-    setSheetLevel("mid");
+    setSheetLevel(group.posts.length <= 3 ? "compact" : "mid");
     sheetScrollRef.current?.scrollTo({ animated: true, y: 0 });
   }, [markerItems, suppressMapPressFromMarker]);
 
@@ -599,17 +538,18 @@ export function MapScreen() {
 
     const post = displayMapPosts.find((candidate) => candidate.id === postId);
     if (post) {
-      selectPost(post, { expandSheet: false });
+      selectPost(post);
     }
   }, [displayMapPosts, selectPost, suppressMapPressFromMarker]);
 
   const handleRegionChangeComplete = useCallback((nextRegion: Region) => {
     setRegion(nextRegion);
-
-    if (selectedPost) {
-      void updateMarkerPreviewPoint(selectedPost);
+    if (suppressNextSearchAreaDirtyRef.current) {
+      suppressNextSearchAreaDirtyRef.current = false;
+      return;
     }
-  }, [selectedPost, updateMarkerPreviewPoint]);
+    setIsSearchAreaDirty(hasMeaningfulRegionChange(nextRegion, queryRegion));
+  }, [queryRegion]);
 
   const submitMapSearch = () => {
     Keyboard.dismiss();
@@ -639,27 +579,35 @@ export function MapScreen() {
     setSelectedPlaceId(place.id);
     setIsPlaceDropdownOpen(false);
     setMapSearchError(null);
-    setIsListMode(false);
     setSelectedPostId(null);
     setSelectedMarkerGroupId(null);
-    setMarkerPreviewPoint(null);
     setSheetLevel("min");
-    setRegion((previous) => ({
-      ...previous,
+    const nextRegion = {
+      ...region,
       latitude: place.latitude,
       longitude: place.longitude,
-      latitudeDelta: Math.min(previous.latitudeDelta, 0.035),
-      longitudeDelta: Math.min(previous.longitudeDelta, 0.035),
-    }));
+      latitudeDelta: Math.min(region.latitudeDelta, 0.035),
+      longitudeDelta: Math.min(region.longitudeDelta, 0.035),
+    };
+    setRegion(nextRegion);
+    setQueryRegion(nextRegion);
+    setIsSearchAreaDirty(false);
   };
+
+  const searchThisArea = useCallback(() => {
+    Keyboard.dismiss();
+    setIsPlaceDropdownOpen(false);
+    setSelectedMarkerGroupId(null);
+    setSelectedPostId(null);
+    setSheetLevel("min");
+    setQueryRegion(region);
+    setIsSearchAreaDirty(false);
+  }, [region]);
 
   const mapBannerCopy = getMapBannerCopy(locationState, isError, stableMapPosts.length > 0);
   const showBlockingState = displayMapPosts.length === 0;
-  const shouldShowListButton = displayMapPosts.length > 0 && !selectedPost && !selectedMarkerGroup && sheetLevel !== "max";
-  const sheetTitle = selectedMarkerGroup ? "이 위치의 공고" : "근처 공고";
-  const sheetSubtitle = selectedMarkerGroup
-    ? `${selectedMarkerGroup.posts.length}개 · ${getMarkerGroupPlaceLabel(selectedMarkerGroup)}`
-    : `${displayMapPosts.length}개 · 마커를 누르면 자세히 볼 수 있어요`;
+  const sheetTitle = selectedMarkerGroup ? getMarkerGroupSheetTitle(selectedMarkerGroup) : "근처 공고";
+  const sheetCount = selectedMarkerGroup ? selectedMarkerGroup.posts.length : displayMapPosts.length;
 
   return (
     <View className="flex-1 bg-[#edf1ec]">
@@ -682,8 +630,7 @@ export function MapScreen() {
                   id={item.id}
                   latitude={item.latitude}
                   longitude={item.longitude}
-                  selected={item.id === selectedMarkerGroupId}
-                  title={getMarkerGroupPlaceLabel(item)}
+                  selected={item.id === selectedMarkerGroupId || item.posts.some((post) => post.id === selectedPostId)}
                   onSelect={selectMarkerGroup}
                 />
               ) : (
@@ -692,9 +639,8 @@ export function MapScreen() {
                   id={item.post.id}
                   latitude={item.latitude}
                   longitude={item.longitude}
-                  rewardAmount={item.post.reward_amount}
+                  compensationLabel={getMapMarkerCompensationLabel(item.post)}
                   selected={item.post.id === selectedPostId}
-                  title={item.post.location_place_name ?? item.post.title}
                   viewed={viewedPostIds.has(item.post.id)}
                   onSelect={selectPostById}
                 />
@@ -704,36 +650,30 @@ export function MapScreen() {
               <NativeSearchPlaceMarker
                 latitude={selectedPlace.latitude}
                 longitude={selectedPlace.longitude}
-                title={selectedPlace.name}
               />
             ) : null}
           </MapView>
 
-          {selectedPost && markerPreviewPosition ? (
-            <MarkerPreviewCard
-              currentUserId={appUser?.id}
-              post={selectedPost}
-              style={markerPreviewPosition}
-              onApply={() =>
-                router.push({
-                  pathname: "/interviews/[postId]",
-                  params: { apply: "1", postId: selectedPost.id, returnTo: "/(tabs)/map" },
-                })
-              }
-              onClose={() => {
-                setSelectedPostId(null);
-                setMarkerPreviewPoint(null);
-              }}
-              onDetail={() =>
-                router.push({
-                  pathname: "/interviews/[postId]",
-                  params: { postId: selectedPost.id, returnTo: "/(tabs)/map" },
-                })
-              }
-            />
-          ) : null}
-
-          <View className="absolute left-3 right-3 gap-2" pointerEvents="none" style={{ top: insets.top + 112 }}>
+          <View className="absolute left-3 right-3 items-center gap-2" pointerEvents="box-none" style={{ top: insets.top + 122 }}>
+            {isSearchAreaDirty ? (
+              <Pressable
+                accessibilityLabel="이 지역에서 공고 검색"
+                accessibilityRole="button"
+                className="min-h-10 flex-row items-center gap-1.5 rounded-full border border-hypo-border bg-hypo-surface px-3.5"
+                onPress={searchThisArea}
+                style={({ pressed }) => ({
+                  elevation: 2,
+                  opacity: pressed ? 0.82 : 1,
+                  shadowColor: "#18211C",
+                  shadowOpacity: 0.08,
+                  shadowRadius: 4,
+                  shadowOffset: { width: 0, height: 2 },
+                })}
+              >
+                <Feather color="#0F7A4D" name="search" size={15} />
+                <Text className="text-xs font-semibold text-hypo-brand">이 지역에서 검색</Text>
+              </Pressable>
+            ) : null}
             {mapBannerCopy ? <MapBanner title={mapBannerCopy} /> : null}
           </View>
 
@@ -773,8 +713,6 @@ export function MapScreen() {
               setMapModeFilter(nextFilter);
               setSelectedPostId(null);
               setSelectedMarkerGroupId(null);
-              setMarkerPreviewPoint(null);
-              setIsListMode(false);
               setSheetLevel("min");
             }}
             onSubmit={submitMapSearch}
@@ -782,44 +720,7 @@ export function MapScreen() {
         </View>
       </View>
 
-      {isListMode ? (
-        <MapListOverlay
-          insetsBottom={insets.bottom}
-          insetsTop={insets.top}
-          isError={isError}
-          isLoading={isLoading}
-          posts={displayMapPosts}
-          selectedPostId={selectedPostId}
-          viewedPostIds={viewedPostIds}
-          onClose={() => setIsListMode(false)}
-          onPostPress={focusPostFromList}
-        />
-      ) : null}
-
-      {shouldShowListButton && !isListMode ? (
-        <Animated.View
-          pointerEvents="box-none"
-          style={{
-            bottom: Animated.add(animatedSheetHeight, tabBarHeight + 8),
-          }}
-          className="absolute left-3 z-40"
-        >
-          <Pressable
-            accessibilityLabel="공고 목록 보기"
-            accessibilityRole="button"
-            hitSlop={4}
-            className="h-10 flex-row items-center gap-1.5 rounded-full border border-hypo-border bg-hypo-surface/95 px-3 shadow-lg"
-            onPress={() => setIsListMode(true)}
-            style={({ pressed }) => ({ opacity: pressed ? 0.82 : 1 })}
-          >
-            <Feather color="#1D2522" name="list" size={15} />
-            <Text className="text-xs font-semibold text-hypo-text">목록</Text>
-          </Pressable>
-        </Animated.View>
-      ) : null}
-
-      {!isListMode ? (
-        <Animated.View
+      <Animated.View
           style={{
             bottom: tabBarHeight,
             height: animatedSheetHeight,
@@ -831,24 +732,32 @@ export function MapScreen() {
             <View className="h-1.5 w-11 rounded-full bg-hypo-border" />
           </View>
 
-          <View className="flex-row items-start justify-between gap-3 px-4 pb-3">
+          <View className="flex-row items-center justify-between gap-3 px-4 pb-3">
             <View className="min-w-0 flex-1">
               <Text className="text-[15px] font-black text-hypo-text">{sheetTitle}</Text>
-              <Text className="mt-0.5 text-xs font-bold text-hypo-muted">
-                {sheetSubtitle}
-              </Text>
             </View>
+            <Text className="text-xs font-semibold text-hypo-muted">{sheetCount}개</Text>
           </View>
 
           <View className="min-h-0 flex-1">
             {showBlockingState ? (
               <View className="flex-1 justify-center px-4 pb-6 pt-2">
-                {isLoading ? (
+                {isLoading || isFetching ? (
                   <StateMessage title="공고를 불러오는 중이에요." loading />
                 ) : isError ? (
-                  <StateMessage title="공고를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." />
+                  <View className="items-center gap-3">
+                    <StateMessage title="공고를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." />
+                    <Pressable
+                      accessibilityRole="button"
+                      className="min-h-11 justify-center rounded-lg bg-hypo-brand px-4"
+                      onPress={() => void refetchPosts()}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.82 : 1 })}
+                    >
+                      <Text className="text-[13px] font-semibold text-white">다시 시도</Text>
+                    </Pressable>
+                  </View>
                 ) : (
-                  <StateMessage title="이 지역에 표시할 공고가 없어요." />
+                  <StateMessage title="이 지역에는 아직 공고가 없어요." />
                 )}
               </View>
             ) : null}
@@ -873,7 +782,6 @@ export function MapScreen() {
                     }
                     onClose={() => {
                       setSelectedPostId(null);
-                      setMarkerPreviewPoint(null);
                     }}
                     onDetail={() =>
                       router.push({
@@ -897,195 +805,33 @@ export function MapScreen() {
             ) : null}
           </View>
         </Animated.View>
-      ) : null}
-    </View>
-  );
-}
 
-function MapListOverlay({
-  insetsBottom,
-  insetsTop,
-  isError,
-  isLoading,
-  onClose,
-  onPostPress,
-  posts,
-  selectedPostId,
-  viewedPostIds,
-}: {
-  insetsBottom: number;
-  insetsTop: number;
-  isError: boolean;
-  isLoading: boolean;
-  onClose: () => void;
-  onPostPress: (post: InterviewPost) => void;
-  posts: InterviewPost[];
-  selectedPostId: string | null;
-  viewedPostIds: Set<string>;
-}) {
-  const hasPosts = posts.length > 0;
-
-  return (
-    <View
-      className="absolute inset-0 z-50 bg-hypo-bg"
-      style={{
-        paddingBottom: Math.max(insetsBottom, 10),
-        paddingTop: insetsTop,
-      }}
-    >
-      <View className="border-b border-hypo-border bg-hypo-surface px-4 pb-3 pt-2">
-        <View className="min-h-11 flex-row items-center gap-2">
-          <Pressable
-            accessibilityLabel="뒤로가기"
-            accessibilityRole="button"
-            hitSlop={12}
-            className="h-10 w-10 items-center justify-center"
-            onPress={onClose}
-            style={({ pressed }) => ({ opacity: pressed ? 0.78 : 1 })}
-          >
-            <Text className="text-[34px] font-semibold leading-9 text-hypo-text">‹</Text>
-          </Pressable>
-          <View className="min-w-0 flex-1">
-            <Text className="text-[18px] font-bold text-hypo-text">목록</Text>
-            <Text className="mt-0.5 text-xs font-medium text-hypo-muted">
-              지도에서 찾은 공고 {posts.length}개
-            </Text>
-          </View>
-          <View className="w-10" />
-        </View>
-      </View>
-
-      {isLoading ? (
-        <View className="flex-1 justify-center px-4">
-          <StateMessage title="공고를 불러오는 중이에요." loading />
-        </View>
-      ) : null}
-
-      {!isLoading && isError ? (
-        <View className="flex-1 justify-center px-4">
-          <StateMessage title="공고를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." />
-        </View>
-      ) : null}
-
-      {!isLoading && !isError && !hasPosts ? (
-        <View className="flex-1 justify-center px-4">
-          <StateMessage title="이 지역에 표시할 공고가 없어요." />
-        </View>
-      ) : null}
-
-      {!isLoading && !isError && hasPosts ? (
-        <ScrollView
-          contentContainerClassName="px-4 pb-5 pt-3"
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View className="bg-hypo-surface">
-            {posts.map((post) => (
-              <MapListRow
-                key={`map-list-overlay-${post.id}`}
-                isSelected={post.id === selectedPostId}
-                isViewed={viewedPostIds.has(post.id)}
-                post={post}
-                onPress={() => onPostPress(post)}
-              />
-            ))}
-          </View>
-        </ScrollView>
-      ) : null}
-    </View>
-  );
-}
-
-function MarkerPreviewCard({
-  currentUserId,
-  onApply,
-  onClose,
-  onDetail,
-  post,
-  style,
-}: {
-  currentUserId?: string | null;
-  onApply: () => void;
-  onClose: () => void;
-  onDetail: () => void;
-  post: InterviewPost;
-  style: StyleProp<ViewStyle>;
-}) {
-  const isOwnPost = Boolean(currentUserId && post.founder_id === currentUserId);
-  const isSurvey = post.recruitment_type === "survey";
-
-  return (
-    <View
-      className="absolute z-20 rounded-[18px] border border-hypo-border bg-hypo-surface px-3 py-3 shadow-lg"
-      pointerEvents="box-none"
-      style={[{ width: markerPreviewWidthPx }, style]}
-    >
-      <View className="flex-row items-start gap-2">
-        <Pressable className="min-w-0 flex-1" onPress={onDetail} style={({ pressed }) => ({ opacity: pressed ? 0.78 : 1 })}>
-          <Text numberOfLines={1} className="text-[11px] font-semibold text-hypo-brand">
-            {getPostingCompensationLabel(post)}
-          </Text>
-          <Text numberOfLines={2} className="mt-1 text-[13px] font-black leading-5 text-hypo-text">
-            {post.title}
-          </Text>
-          <Text numberOfLines={1} className="mt-1 text-[11px] font-bold text-hypo-muted">
-            {getPostLocationLabel(post)}
-          </Text>
-        </Pressable>
-
-        <Pressable accessibilityLabel="닫기" accessibilityRole="button" hitSlop={10} onPress={onClose}>
-          <Feather color="#7D877A" name="x" size={16} />
-        </Pressable>
-      </View>
-
-      <View className="mt-3 flex-row gap-2">
-        <Pressable
-          accessibilityRole="button"
-          className="min-h-11 flex-1 items-center justify-center rounded-full border border-hypo-border bg-hypo-bg"
-          onPress={onDetail}
-          style={({ pressed }) => ({ opacity: pressed ? 0.78 : 1 })}
-        >
-          <Text className="text-[11px] font-black text-hypo-text">상세 보기</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          className={`min-h-11 flex-1 items-center justify-center rounded-full ${isOwnPost ? "bg-hypo-surface" : "bg-hypo-brand"}`}
-          onPress={isOwnPost ? () => router.push({ pathname: "/(tabs)/interviews/my-interviews", params: { returnTo: "/(tabs)/map" } }) : isSurvey ? onDetail : onApply}
-          style={({ pressed }) => ({ opacity: pressed ? 0.78 : 1 })}
-        >
-          <Text className={`text-[11px] font-black ${isOwnPost ? "text-hypo-muted" : "text-white"}`}>
-            {isOwnPost ? "내 공고" : isSurvey ? "설문 보기" : "신청하기"}
-          </Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
 
 const NativePostMarker = memo(function NativePostMarker({
+  compensationLabel,
   id,
   latitude,
   longitude,
   onSelect,
-  rewardAmount,
   selected,
-  title,
   viewed,
 }: {
+  compensationLabel: string;
   id: string;
   latitude: number;
   longitude: number;
   onSelect: (postId: string) => void;
-  rewardAmount: number;
   selected: boolean;
-  title: string;
   viewed: boolean;
 }) {
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
   const markerTone = selected ? "selected" : viewed ? "viewed" : "default";
-  const markerFill = selected ? "#176B5D" : viewed ? "#F8FAF7" : "#F4A51C";
-  const markerBorder = selected ? "#0F5C4F" : viewed ? "#D9E2D8" : "#D48C07";
-  const markerText = selected ? "#FFFFFF" : viewed ? "#69716C" : "#172018";
+  const markerFill = selected ? "#0F7A4D" : "#FFFFFF";
+  const markerBorder = selected ? "#0F7A4D" : "#DCE4DF";
+  const markerText = selected ? "#FFFFFF" : "#0B5C3A";
 
   const handlePress = useCallback(() => {
     onSelect(id);
@@ -1101,7 +847,7 @@ const NativePostMarker = memo(function NativePostMarker({
     return () => {
       clearTimeout(timer);
     };
-  }, [markerTone, rewardAmount]);
+  }, [compensationLabel, markerTone]);
 
   return (
     <Marker
@@ -1109,25 +855,30 @@ const NativePostMarker = memo(function NativePostMarker({
       centerOffset={{ x: 0, y: -30 }}
       identifier={id}
       coordinate={{ latitude, longitude }}
-      description={formatReward(rewardAmount)}
-      title={title}
       tracksViewChanges={tracksViewChanges}
+      zIndex={selected ? 20 : 1}
       onPress={handlePress}
     >
-      <View className="items-center">
+      <View className="items-center p-1.5">
         <View
-          className="h-8 min-w-[54px] items-center justify-center rounded-full px-2.5 shadow-lg"
+          className="min-h-8 min-w-[54px] items-center justify-center rounded-full px-2.5"
           style={{
             backgroundColor: markerFill,
             borderColor: markerBorder,
             borderWidth: 1,
+            elevation: selected ? 3 : 1,
+            shadowColor: "#18211C",
+            shadowOpacity: selected ? 0.14 : 0.08,
+            shadowRadius: selected ? 5 : 3,
+            shadowOffset: { width: 0, height: 2 },
+            transform: [{ scale: selected ? 1.08 : 1 }],
           }}
         >
           <Text
             className="text-[11px] font-black leading-4"
             style={{ color: markerText }}
           >
-            {formatMarkerReward(rewardAmount)}
+            {compensationLabel}
           </Text>
         </View>
         <View
@@ -1143,7 +894,6 @@ const NativePostMarker = memo(function NativePostMarker({
             width: 0,
           }}
         />
-        {selected ? <View className="mt-1 h-1.5 w-1.5 rounded-full bg-[#176B5D]" /> : null}
       </View>
     </Marker>
   );
@@ -1156,7 +906,6 @@ const NativePostGroupMarker = memo(function NativePostGroupMarker({
   longitude,
   onSelect,
   selected,
-  title,
 }: {
   count: number;
   id: string;
@@ -1164,12 +913,11 @@ const NativePostGroupMarker = memo(function NativePostGroupMarker({
   longitude: number;
   onSelect: (groupId: string) => void;
   selected: boolean;
-  title: string;
 }) {
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
-  const markerFill = selected ? "#176B5D" : "#F8FAF7";
-  const markerBorder = selected ? "#0F5C4F" : "#176B5D";
-  const markerText = selected ? "#FFFFFF" : "#176B5D";
+  const markerFill = selected ? "#0F7A4D" : "#FFFFFF";
+  const markerBorder = selected ? "#0F7A4D" : "#DCE4DF";
+  const markerText = selected ? "#FFFFFF" : "#0B5C3A";
 
   const handlePress = useCallback(() => {
     onSelect(id);
@@ -1192,23 +940,28 @@ const NativePostGroupMarker = memo(function NativePostGroupMarker({
       anchor={{ x: 0.5, y: 1 }}
       centerOffset={{ x: 0, y: -16 }}
       coordinate={{ latitude, longitude }}
-      description={`${count}개 공고`}
       identifier={id}
-      title={title}
       tracksViewChanges={tracksViewChanges}
+      zIndex={selected ? 20 : 1}
       onPress={handlePress}
     >
-      <View className="items-center">
+      <View className="items-center p-1.5">
         <View
-          className="h-9 min-w-[52px] items-center justify-center rounded-full px-3 shadow-lg"
+          className="h-9 min-w-[52px] items-center justify-center rounded-full px-3"
           style={{
             backgroundColor: markerFill,
             borderColor: markerBorder,
             borderWidth: 1.5,
+            elevation: selected ? 3 : 1,
+            shadowColor: "#18211C",
+            shadowOpacity: selected ? 0.14 : 0.08,
+            shadowRadius: selected ? 5 : 3,
+            shadowOffset: { width: 0, height: 2 },
+            transform: [{ scale: selected ? 1.05 : 1 }],
           }}
         >
           <Text className="text-[12px] font-black leading-4" style={{ color: markerText, fontFamily: "HypofitSansBold" }}>
-            +{count}
+            {count}
           </Text>
         </View>
         <View
@@ -1224,7 +977,6 @@ const NativePostGroupMarker = memo(function NativePostGroupMarker({
             width: 0,
           }}
         />
-        {selected ? <View className="mt-1 h-1.5 w-1.5 rounded-full bg-[#176B5D]" /> : null}
       </View>
     </Marker>
   );
@@ -1233,19 +985,15 @@ const NativePostGroupMarker = memo(function NativePostGroupMarker({
 const NativeSearchPlaceMarker = memo(function NativeSearchPlaceMarker({
   latitude,
   longitude,
-  title,
 }: {
   latitude: number;
   longitude: number;
-  title: string;
 }) {
   return (
     <Marker
       anchor={{ x: 0.5, y: 0.5 }}
       coordinate={{ latitude, longitude }}
-      description="검색한 위치"
       identifier={`search-place-${latitude}-${longitude}`}
-      title={title}
       tracksViewChanges={false}
     >
       <View className="h-9 w-9 items-center justify-center rounded-full border border-white bg-hypo-brand/15 shadow-lg">
@@ -1311,67 +1059,69 @@ function MapSearchOverlay({
     <View className="absolute left-4 right-4 z-30 gap-2" style={{ top: topInset + 8 }}>
       <SearchField
         blurOnSubmit
-        containerClassName="h-12 rounded-[14px] border-hypo-border/80 bg-hypo-surface/95 shadow-lg"
+        containerClassName="h-[52px] rounded-[14px] border-hypo-border bg-hypo-surface/95"
         iconColor="#69716C"
         placeholder="지역, 역, 학교 검색"
         returnKeyType="search"
-        rightAccessory={
-          <Pressable
-            accessibilityLabel="내 주변 보기"
-            accessibilityRole="button"
-            disabled={isCurrentLocationBusy}
-            hitSlop={8}
-            className="h-9 w-9 items-center justify-center rounded-full"
-            onPress={onCurrentLocationPress}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? "#E7F1EE" : "transparent",
-              opacity: isCurrentLocationBusy ? 0.48 : 1,
-            })}
-          >
-            <Feather color="#176B5D" name="crosshair" size={17} />
-          </Pressable>
-        }
         value={query}
         onChangeText={onQueryChange}
         onFocus={onFocus}
         onSubmitEditing={onSubmit}
       />
 
-      <ScrollView
-        horizontal
-        contentContainerClassName="gap-1.5 pr-4"
-        showsHorizontalScrollIndicator={false}
-      >
-        {mapModeFilters.map((filter) => {
-          const isActive = filter.value === activeFilter;
+      <View className="flex-row items-center gap-2">
+        <ScrollView
+          horizontal
+          className="min-w-0 flex-1"
+          contentContainerClassName="gap-1.5"
+          showsHorizontalScrollIndicator={false}
+        >
+          {mapModeFilters.map((filter) => {
+            const isActive = filter.value === activeFilter;
 
-          return (
-            <Pressable
-              key={filter.value}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isActive }}
-              className={`min-h-11 justify-center rounded-full border px-3 ${
-                isActive
-                  ? "border-hypo-brand bg-hypo-brand"
-                  : "border-hypo-border/80 bg-hypo-surface/95"
-              }`}
-              onPress={() => onFilterChange(filter.value)}
-              style={({ pressed }) => ({ opacity: pressed ? 0.82 : 1 })}
-            >
-              <Text
-                className={`text-[11px] font-black ${
-                  isActive ? "text-white" : "text-hypo-muted"
+            return (
+              <Pressable
+                key={filter.value}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
+                className={`min-h-11 justify-center rounded-full border px-3 ${
+                  isActive
+                    ? "border-hypo-brand bg-hypo-brand"
+                    : "border-hypo-border bg-hypo-surface/95"
                 }`}
+                onPress={() => onFilterChange(filter.value)}
+                style={({ pressed }) => ({ opacity: pressed ? 0.82 : 1 })}
               >
-                {filter.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+                <Text className={`text-[12px] font-semibold ${isActive ? "text-white" : "text-hypo-text"}`}>
+                  {filter.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <Pressable
+          accessibilityLabel="내 주변 보기"
+          accessibilityRole="button"
+          disabled={isCurrentLocationBusy}
+          hitSlop={6}
+          className="h-11 w-11 items-center justify-center rounded-full border border-hypo-border bg-hypo-surface/95"
+          onPress={onCurrentLocationPress}
+          style={({ pressed }) => ({
+            elevation: 1,
+            opacity: isCurrentLocationBusy ? 0.48 : pressed ? 0.76 : 1,
+            shadowColor: "#18211C",
+            shadowOpacity: 0.06,
+            shadowRadius: 3,
+            shadowOffset: { width: 0, height: 1 },
+          })}
+        >
+          <Feather color="#0F7A4D" name="crosshair" size={18} />
+        </Pressable>
+      </View>
 
       {shouldShowDropdown ? (
-        <View className="overflow-hidden rounded-[14px] border border-hypo-border/80 bg-hypo-surface/95 shadow-lg">
+        <View className="overflow-hidden rounded-[14px] border border-hypo-border bg-hypo-surface/95">
           {searchError ? (
             <PlaceSuggestionStatus
               icon="alert-circle"
@@ -1490,48 +1240,38 @@ function SelectedMapPostCard({
   post: InterviewPost;
 }) {
   const distanceLabel = formatMapDistance(post.distance_meters, "거리 확인 전");
-  const durationLabel = getPostingDurationLabel(post);
   const isOwnPost = Boolean(currentUserId && post.founder_id === currentUserId);
   const isSurvey = post.recruitment_type === "survey";
 
   return (
-    <View className="rounded-[18px] border border-hypo-border bg-hypo-bg p-3">
-      <View className="flex-row items-start justify-between gap-3">
-        <View className="min-w-0 flex-1">
-          <View className="flex-row flex-wrap items-center gap-1.5">
-            <Text className="text-[11px] font-medium text-hypo-brand">{`${getPostingTypeLabel(post)} · ${getPostingModeLabel(post)}`}</Text>
-            <View className="rounded-full bg-hypo-surface px-2.5 py-0.5">
-              <Text className="text-[10px] font-black text-hypo-muted">{distanceLabel}</Text>
-            </View>
-          </View>
-
-          <Text numberOfLines={2} className="mt-2 text-[16px] font-semibold leading-6 text-hypo-text">
-            {post.title}
-          </Text>
-        </View>
-
-        <Pressable accessibilityLabel="닫기" accessibilityRole="button" hitSlop={12} onPress={onClose}>
-          <Text className="text-[26px] font-black leading-6 text-hypo-muted">×</Text>
+    <View className="rounded-[16px] border border-hypo-border bg-hypo-bg p-3.5">
+      <View className="flex-row items-center gap-2">
+        <Text numberOfLines={1} className="min-w-0 flex-1 text-[12px] font-semibold text-hypo-brand">
+          {`${getPostingTypeLabel(post)} · ${getPostingModeLabel(post)}`}
+        </Text>
+        <Text numberOfLines={1} className="text-[14px] font-bold text-hypo-text">
+          {getPostingCompensationLabel(post)}
+        </Text>
+        <Pressable
+          accessibilityLabel="공고 선택 해제"
+          accessibilityRole="button"
+          className="h-9 w-9 items-center justify-center"
+          hitSlop={8}
+          onPress={onClose}
+        >
+          <Feather color="#87918B" name="x" size={18} />
         </Pressable>
       </View>
 
-      <Text numberOfLines={2} className="mt-2 text-xs font-bold leading-5 text-hypo-muted">
-        {post.service_summary}
+      <Text numberOfLines={2} className="mt-2 text-[16px] font-semibold leading-6 text-hypo-text">
+        {post.title}
       </Text>
 
-      <View className="mt-3 rounded-[14px] bg-hypo-surface px-3 py-2.5">
-        <Text className="text-[12px] font-semibold text-hypo-text">찾는 참여자</Text>
-        <Text numberOfLines={2} className="mt-1 text-[13px] leading-5 text-hypo-muted">
-          {post.target_description}
+      <View className="mt-2 flex-row items-center gap-1.5">
+        <Feather color="#87918B" name="map-pin" size={14} />
+        <Text numberOfLines={1} className="min-w-0 flex-1 text-[13px] leading-5 text-hypo-muted">
+          {getPostLocationLabel(post)} · {distanceLabel}
         </Text>
-      </View>
-
-      <View className="mt-3 gap-1.5">
-        <PreviewMeta label="위치" value={getPostLocationLabel(post)} />
-        <PreviewMeta label="모집 인원" value={formatRecruitCount(post.recruit_count)} />
-        <PreviewMeta label="일정" value={post.schedule_options[0] ?? "시간 협의"} />
-        {durationLabel ? <PreviewMeta label="예상 시간" value={durationLabel} /> : null}
-        <PreviewMeta label="보상" value={getPostingCompensationLabel(post)} highlighted />
       </View>
 
       <View className="mt-3 flex-row gap-2">
@@ -1542,28 +1282,9 @@ function SelectedMapPostCard({
           variant={isOwnPost ? "secondary" : "primary"}
           onPress={isOwnPost ? () => router.push({ pathname: "/(tabs)/interviews/my-interviews", params: { returnTo: "/(tabs)/map" } }) : isSurvey ? onDetail : onApply}
         >
-          {isOwnPost ? "내 공고" : isSurvey ? "설문 보기" : "신청하기"}
+          {isOwnPost ? "공고 관리" : isSurvey ? "설문 보기" : "신청하기"}
         </PrimaryButton>
       </View>
-    </View>
-  );
-}
-
-function PreviewMeta({
-  highlighted,
-  label,
-  value,
-}: {
-  highlighted?: boolean;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View className="flex-row items-center gap-2">
-      <Text className="w-14 text-xs font-black text-[#7D877A]">{label}</Text>
-      <Text numberOfLines={1} className={`min-w-0 flex-1 text-xs font-extrabold ${highlighted ? "text-[#087C43]" : "text-hypo-text"}`}>
-        {value}
-      </Text>
     </View>
   );
 }
@@ -1589,20 +1310,19 @@ function MapListRow({
           <View className="flex-row items-start gap-1.5">
             <View className="min-w-0 flex-1 gap-1">
               <Text className="text-[11px] font-medium text-hypo-brand">{`${getPostingTypeLabel(post)} · ${getPostingModeLabel(post)}`}</Text>
-              <Text numberOfLines={1} className={`min-w-0 text-[16px] font-semibold leading-5 ${isViewed && !isSelected ? "text-hypo-muted" : "text-hypo-text"}`}>
-              {post.title}
+              <Text numberOfLines={1} className="min-w-0 text-[16px] font-semibold leading-5 text-hypo-text">
+                {post.title}
               </Text>
             </View>
           </View>
-          <Text numberOfLines={1} className={`mt-1 text-xs font-bold leading-5 ${isViewed && !isSelected ? "text-[#8D958B]" : "text-hypo-muted"}`}>
-            {locationLabel}
+          <Text numberOfLines={1} className="mt-1 text-xs font-medium leading-5 text-hypo-muted">
+            {distanceLabel ? `${locationLabel} · ${distanceLabel}` : locationLabel}
           </Text>
         </View>
         <View className="items-end">
-          <Text className={`text-[13px] font-semibold ${isViewed && !isSelected ? "text-hypo-text-soft" : "text-hypo-brand"}`}>
+          <Text className="text-[13px] font-bold text-hypo-text">
             {getPostingCompensationLabel(post)}
           </Text>
-          {distanceLabel ? <Text className="mt-1 text-[10px] font-black text-hypo-muted">{distanceLabel}</Text> : null}
         </View>
       </View>
     </ListRow>
@@ -1715,14 +1435,11 @@ function getCoordinateGroupKey(latitude: number, longitude: number) {
   return `${latitude.toFixed(6)}:${longitude.toFixed(6)}`;
 }
 
-function getMarkerGroupPlaceLabel(group: Extract<MapMarkerItem, { type: "group" }>) {
+function getMarkerGroupSheetTitle(group: Extract<MapMarkerItem, { type: "group" }>) {
   const [firstPost] = group.posts;
+  const placeName = firstPost?.location_place_name ?? firstPost?.location_text ?? firstPost?.location;
 
-  if (!firstPost) {
-    return "같은 위치";
-  }
-
-  return getPostLocationLabel(firstPost);
+  return placeName?.trim() || "이 위치의 공고";
 }
 
 function getRegionSearchRadiusM(region: Region) {
@@ -1745,18 +1462,32 @@ function toRadians(value: number) {
   return (value * Math.PI) / 180;
 }
 
-function formatMarkerReward(amount: number) {
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return "보상";
-  }
+function getMapMarkerCompensationLabel(post: InterviewPost) {
+  const label = getPostingCompensationLabel(post);
 
-  if (amount >= 10000) {
-    const value = amount / 10000;
-    const label = Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1).replace(/\.0$/, "");
-    return `${label}만`;
-  }
+  return label.length > 11 ? `${label.slice(0, 10)}…` : label;
+}
 
-  return `${Math.max(1, Math.round(amount / 1000))}천`;
+function hasMeaningfulRegionChange(next: Region, lastSearched: Region) {
+  const centerDistanceM = getCoordinateDistanceM(
+    next.latitude,
+    next.longitude,
+    lastSearched.latitude,
+    lastSearched.longitude,
+  );
+  const minimumCenterDistanceM = Math.max(minimumSearchAreaMoveM, getRegionSearchRadiusM(lastSearched) * 0.2);
+  const zoomChanged =
+    Math.abs(next.latitudeDelta - lastSearched.latitudeDelta) / Math.max(lastSearched.latitudeDelta, 0.0001) > 0.18 ||
+    Math.abs(next.longitudeDelta - lastSearched.longitudeDelta) / Math.max(lastSearched.longitudeDelta, 0.0001) > 0.18;
+
+  return centerDistanceM >= minimumCenterDistanceM || zoomChanged;
+}
+
+function getCoordinateDistanceM(latitudeA: number, longitudeA: number, latitudeB: number, longitudeB: number) {
+  const latitudeMeters = (latitudeA - latitudeB) * 111_320;
+  const longitudeMeters = (longitudeA - longitudeB) * 111_320 * Math.cos(toRadians((latitudeA + latitudeB) / 2));
+
+  return Math.sqrt(latitudeMeters ** 2 + longitudeMeters ** 2);
 }
 
 function hasMapCoordinates(

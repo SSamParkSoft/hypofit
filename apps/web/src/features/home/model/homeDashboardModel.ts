@@ -1,7 +1,6 @@
 import {
   formatCompensationSummary,
   formatUserDisplayName,
-  interviewModeLabels,
   normalizeCompensations,
 } from "@hypofit/contracts";
 

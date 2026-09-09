@@ -1024,7 +1024,7 @@ normalization을 재사용한다. web-only error taxonomy를 따로 만들지 �
 - `docs/service/09-design-and-copy-principles.md`
 - `docs/service/14-design-system-and-screen-patterns.md`
 - `docs/service/15-ai-assisted-design-workflow.md`
-- `docs/active/desktop-web-service-ui-advancement-plan.md`
+- MainVault `desktop-web-service-ui-advancement-plan.md`
 - `docs/reference/error-observability-contract.md`
 - `docs/completed/mobile-auth-failure-observability-hardening-plan.md`
 - `docs/completed/email-otp-verification-transition-plan.md`

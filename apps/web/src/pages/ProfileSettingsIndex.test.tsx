@@ -81,9 +81,9 @@ describe("ProfileSettingsIndex", () => {
       "/profile/account",
     );
     expect(
-      screen.getByRole("link", { name: /신청한 인터뷰/ }),
+      screen.getByRole("link", { name: /내 참여/ }),
     ).toHaveTextContent("1");
-    expect(screen.getByRole("link", { name: /내 모집글/ })).toHaveTextContent(
+    expect(screen.getByRole("link", { name: /내 공고/ })).toHaveTextContent(
       "1",
     );
     expect(screen.getByRole("link", { name: /채팅/ })).toHaveTextContent("2");

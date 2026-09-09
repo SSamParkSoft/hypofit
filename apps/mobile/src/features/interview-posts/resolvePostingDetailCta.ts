@@ -86,6 +86,9 @@ function resolveSurveyAction(
   accessToken: string | null | undefined,
   participation?: SurveyParticipation | null,
 ): PostingDetailCta | null {
+  if (participation?.status === "withdrawn") {
+    return { action: "open-survey", disabled: true, label: "참여 취소" };
+  }
   if (participation?.status === "confirmed") {
     return { action: "open-survey", disabled: true, label: "참여 완료" };
   }

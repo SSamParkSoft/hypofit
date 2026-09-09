@@ -1,4 +1,5 @@
 import { CalendarDays, Target } from "lucide-react";
+import { SurveyParticipationPanel } from "./SurveyParticipationPanel";
 
 import { ApplicationForm, useApplicationFormController } from "../../applications/ui";
 import type { CreateApplicationInput } from "../../../shared/api/applications";
@@ -55,7 +56,7 @@ export function OpportunityExpandedDetail({
         </div>
       </div>
 
-      <div className="grid gap-2 border-t border-hypo-border pt-4">
+      {post.recruitment_type !== "survey" && <div className="grid gap-2 border-t border-hypo-border pt-4">
         <h4 className="inline-flex items-center gap-1.5 text-xs font-semibold text-hypo-text">
           <CalendarDays className="text-hypo-brand" size={14} />
           가능 시간
@@ -71,9 +72,11 @@ export function OpportunityExpandedDetail({
         ) : (
           <p className="text-sm leading-6 text-hypo-text-muted">신청 후 모집자와 일정을 조율해요.</p>
         )}
-      </div>
+      </div>}
 
-      {hasApplied && appliedStatusMode === "minimal" ? (
+      {post.recruitment_type === "survey" && (post.entry_mode === "direct" || existingApplication?.status === "selected") ? (
+        <SurveyParticipationPanel key={post.id} post={post} />
+      ) : hasApplied && appliedStatusMode === "minimal" ? (
         <div className="rounded-hypo-lg border border-hypo-border bg-hypo-bg px-4 py-3 text-sm font-semibold text-hypo-text">
           신청을 보냈어요
         </div>

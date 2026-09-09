@@ -68,6 +68,7 @@ describe("useSocialAuthEntry", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     window.sessionStorage.clear();
   });
 
@@ -168,5 +169,27 @@ describe("useSocialAuthEntry", () => {
       provider: "google",
       returnTo: "/app",
     });
+  });
+
+  it("uses direct Supabase OAuth only when the local QA flag is enabled", async () => {
+    vi.stubEnv("VITE_LOCAL_DIRECT_SUPABASE_AUTH", "true");
+    const { result } = renderHook(() => useSocialAuthEntry(), {
+      wrapper: createWrapper(),
+    });
+
+    await act(async () => {
+      await result.current.startSocialAuth("google", "sign_in");
+    });
+
+    expect(mocks.createSocialAuthAttempt).not.toHaveBeenCalled();
+    expect(mocks.signInWithOAuth).toHaveBeenCalledWith({
+      options: {
+        queryParams: { prompt: "select_account" },
+        redirectTo: `${window.location.origin}/auth`,
+        skipBrowserRedirect: true,
+      },
+      provider: "google",
+    });
+    expect(window.sessionStorage.getItem(SOCIAL_AUTH_STORAGE_KEY)).toBeNull();
   });
 });

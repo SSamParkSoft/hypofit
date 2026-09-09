@@ -4,7 +4,7 @@ Status: completed
 
 Last updated: 2026-06-15
 
-Moved from `docs/active/` to `docs/completed/` on 2026-06-15 because the
+Moved from the former repository active-plan folder to `docs/completed/` on 2026-06-15 because the
 implementation work is complete enough for history/reference use. Remaining
 items such as simulator visual QA, future edit-screen work, and Figma sync are
 tracked through release QA or future feature-specific plans instead of keeping
