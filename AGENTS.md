@@ -19,7 +19,7 @@ Hypofit is an MVP-stage React web and Expo React Native mobile product. The
 canonical Java 21 Spring Boot API runs on Amazon Lightsail and Flyway owns
 schema changes. Prefer simple, shippable implementation over premature
 platform abstractions. When in doubt, preserve the architecture decisions
-already documented in `docs/`.
+already documented in MainVault.
 
 ## Active Plans In MainVault
 
@@ -29,6 +29,18 @@ location is:
 `/Users/sehyeon/Library/Mobile Documents/iCloud~md~obsidian/Documents/sehyeon/10 Projects/Hypofit/Active Plans/`
 
 Do not create a `docs/active` directory or duplicate these plan files in Git.
+
+## Repository Docs In MainVault
+
+All internal Hypofit Markdown documentation is stored locally at:
+
+`/Users/sehyeon/Library/Mobile Documents/iCloud~md~obsidian/Documents/sehyeon/10 Projects/Hypofit/Repository Docs/`
+
+Every leading `docs/...` reference below maps to the same relative path under
+this MainVault folder. For example, read `docs/service/README.md` as
+`MainVault Repository Docs/service/README.md`. The repository `docs/` folder
+contains only public README and store asset files; do not recreate internal
+Markdown documentation there or duplicate Vault content in Git.
 
 ## Read First
 
@@ -241,7 +253,7 @@ hypofit/
   packages/
     contracts/
   infra/
-  docs/
+  docs/                 public README and store assets only
   AGENTS.md
   README.md
 ```
