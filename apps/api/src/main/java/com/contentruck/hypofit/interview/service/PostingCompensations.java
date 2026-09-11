@@ -29,11 +29,11 @@ public final class PostingCompensations {
                 throw invalid("보상 종류를 확인해 주세요.");
             }
             if ("cash".equals(compensation.type())
-                    && (compensation.amount() == null || compensation.amount() < 0)) {
+                    && (compensation.amount() == null || compensation.amount() <= 0)) {
                 throw invalid("현금 보상 금액을 확인해 주세요.");
             }
             if ("points".equals(compensation.type())
-                    && (compensation.points() == null || compensation.points() < 0)) {
+                    && (compensation.points() == null || compensation.points() <= 0)) {
                 throw invalid("포인트 보상 값을 확인해 주세요.");
             }
             if (!"cash".equals(compensation.type())

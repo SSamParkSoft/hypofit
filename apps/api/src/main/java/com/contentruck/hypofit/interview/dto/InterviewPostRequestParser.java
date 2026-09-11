@@ -15,10 +15,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 public final class InterviewPostRequestParser {
 
     private static final Set<String> CREATE_STATUSES = Set.of("draft", "open");
+    private static final Pattern POSTING_TEXT = Pattern.compile("[A-Za-z0-9가-힣]");
     private static final Set<String> UPDATE_STATUSES = Set.of("draft", "open");
     private static final Set<String> RECRUITMENT_TYPES = Set.of(
             "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
@@ -248,7 +250,7 @@ public final class InterviewPostRequestParser {
     private static Integer optionalRawInteger(JsonNode object, String field, List<FieldError> errors) {
         JsonNode value = object.get(field);
         if (value == null || value.isNull()) return null;
-        if (!value.canConvertToInt()) {
+        if (!value.isIntegralNumber() || !value.canConvertToInt()) {
             errors.add(new FieldError("compensations", "입력값을 확인해 주세요."));
             return null;
         }
@@ -507,14 +509,14 @@ public final class InterviewPostRequestParser {
     }
 
     private static boolean containsMeaningfulPostingText(String value) {
-        return value != null && value.matches(".*[A-Za-z0-9가-힣].*");
+        return value != null && POSTING_TEXT.matcher(value).find();
     }
 
     private static String meaningfulPostingTextMessage(String field) {
         return switch (field) {
-            case "title" -> "제목을 의미 있게 입력해 주세요.";
-            case "service_summary" -> "공고 설명을 의미 있게 입력해 주세요.";
-            case "target_description" -> "찾는 참여자를 의미 있게 입력해 주세요.";
+            case "title" -> "제목에 초성이나 특수문자만 입력할 수 없어요.";
+            case "service_summary" -> "공고 설명에 초성이나 특수문자만 입력할 수 없어요.";
+            case "target_description" -> "찾는 참여자에 초성이나 특수문자만 입력할 수 없어요.";
             default -> "입력값을 확인해 주세요.";
         };
     }

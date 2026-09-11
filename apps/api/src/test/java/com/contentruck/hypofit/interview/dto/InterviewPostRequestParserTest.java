@@ -16,6 +16,35 @@ class InterviewPostRequestParserTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @ParameterizedTest
+    @ValueSource(strings = {"service_summary", "target_description"})
+    void multilinePostingTextIsAcceptedForCreateAndUpdate(String field) throws Exception {
+        String text = "일정 관리 경험이 있는 분을 모집해요.\n최근 사용 경험을 알려 주세요.";
+        var created = InterviewPostRequestParser.parseCreate(validCreateBody().put(field, text));
+        var updated = InterviewPostRequestParser.parseUpdate(objectMapper.createObjectNode().put(field, text));
+        if (field.equals("service_summary")) {
+            assertThat(created.serviceSummary()).isEqualTo(text);
+            assertThat(updated.serviceSummary()).isEqualTo(text);
+        } else {
+            assertThat(created.targetDescription()).isEqualTo(text);
+            assertThat(updated.targetDescription()).isEqualTo(text);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"1.5", "2147483648", "\"1000\"", "true"})
+    void compensationAmountAndPointsMustBeIntegersForCreateAndUpdate(String value) throws Exception {
+        for (String field : java.util.List.of("amount", "points")) {
+            var rewards = objectMapper.readTree("[{\"type\":\"cash\",\"" + field + "\":" + value + "}]");
+            var create = validCreateBody().set("compensations", rewards);
+            var update = objectMapper.createObjectNode().set("compensations", rewards);
+            assertThatThrownBy(() -> InterviewPostRequestParser.parseCreate(create))
+                    .isInstanceOf(HypofitValidationException.class);
+            assertThatThrownBy(() -> InterviewPostRequestParser.parseUpdate(update))
+                    .isInstanceOf(HypofitValidationException.class);
+        }
+    }
+
+    @ParameterizedTest
     @ValueSource(ints = {-1, 0, 5, 9, 525601})
     void createAndUpdateRejectDurationOutsideLegacyContract(int minutes) throws Exception {
         var body = validCreateBody().put("duration_minutes", minutes);
@@ -245,7 +274,7 @@ class InterviewPostRequestParserTest {
 
         assertThat(exception.getFieldErrors())
                 .extracting(error -> error.field() + ":" + error.message())
-                .contains("title:제목을 의미 있게 입력해 주세요.");
+                .contains("title:제목에 초성이나 특수문자만 입력할 수 없어요.");
     }
 
     @Test
