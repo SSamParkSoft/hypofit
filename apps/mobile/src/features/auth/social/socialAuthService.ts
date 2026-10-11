@@ -12,7 +12,7 @@ import type {
 } from "@hypofit/contracts";
 import type { Href } from "expo-router";
 import { ApiError, NetworkError } from "@/shared/api/client";
-import { socialAuthApi } from "@/shared/api/socialAuth";
+import { socialAuthApi } from "@/features/auth/social/socialAuthApi";
 import { addAppBreadcrumb, captureAppError } from "@/shared/diagnostics/sentry";
 import { getSafeReturnTo } from "@/shared/navigation/backNavigation";
 import { getSupabaseClient } from "@/shared/api/supabase";
@@ -277,7 +277,7 @@ export function getSocialAuthDiagnosticCode(error: unknown) {
 export function resolveSocialAuthRoute(response: SocialAuthCompleteResponse): Href | null {
   switch (response.next_step) {
     case "signed_in":
-      return getSafeReturnTo(response.return_path) ?? "/(tabs)/home";
+      return getSafeReturnTo(response.return_path) ?? "/(tabs)/interviews";
     case "role_onboarding_required":
     case "legal_consent_required":
     case "profile_completion_required": {

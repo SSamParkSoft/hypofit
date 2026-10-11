@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { TextInput, View } from "react-native";
 import type { TextInputProps, TextStyle } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { colors } from "@/shared/theme/tokens";
 
 interface SearchFieldProps extends TextInputProps {
   containerClassName?: string;
@@ -21,8 +22,8 @@ const inputStyle: TextStyle = {
 
 export function SearchField({
   containerClassName = "",
-  iconColor = "#657069",
-  placeholderTextColor = "#87918B",
+  iconColor = colors.textMuted,
+  placeholderTextColor = colors.textSoft,
   rightAccessory,
   style,
   ...props

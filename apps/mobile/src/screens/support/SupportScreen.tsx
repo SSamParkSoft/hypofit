@@ -5,11 +5,13 @@ import { useLocalSearchParams } from "expo-router";
 import type { SupportTicket, SupportTicketCategory } from "@hypofit/contracts";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useDeleteSupportTicket, useSupportTickets } from "@/features/support/useSupportTicket";
-import { StateMessage } from "@/screens/home/HomeScreen";
+import { StateMessage } from "@/shared/ui/StateMessage";
 import { getSafeReturnTo, goBackOrReplaceReturnTo } from "@/shared/navigation/backNavigation";
 import { AppScreen } from "@/shared/ui/AppScreen";
+import { GlassHeaderButton } from "@/shared/ui/GlassHeaderButton";
+import { FunctionalGlassBackground } from "@/shared/ui/FunctionalGlassBackground";
 import { ListRow, ListSection } from "@/shared/ui/ListSurface";
-import { PrimaryButton } from "@/shared/ui/PrimaryButton";
+import { GlassActionButton } from "@/shared/ui/GlassActionButton";
 import { SupportForm } from "./SupportForm";
 
 const categoryLabels: Record<SupportTicketCategory, string> = {
@@ -113,6 +115,7 @@ export function SupportScreen() {
     <AppScreen
       backTo={backTo}
       title="문의하기"
+      glassHeaderControls
       description="접수한 문의를 확인하고 새 문의를 남길 수 있어요."
       onBack={() => goBackOrReplaceReturnTo(explicitBackTo, "/(tabs)/profile")}
       right={
@@ -135,7 +138,7 @@ export function SupportScreen() {
       ) : displayTickets.length === 0 ? (
         <View className="gap-4">
           <StateMessage title="아직 문의한 내역이 없어요." description="계정, 공고, 신청 문제를 남기면 확인 후 답변드릴게요." />
-          <PrimaryButton onPress={() => setIsWriting(true)}>문의 남기기</PrimaryButton>
+          <GlassActionButton onPress={() => setIsWriting(true)}>문의 남기기</GlassActionButton>
         </View>
       ) : (
         <ListSection chrome="plain" surface="background">
@@ -229,18 +232,7 @@ const demoResolvedInquiryTicket: SupportTicket = {
 };
 
 function AddButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityLabel="문의 남기기"
-      accessibilityRole="button"
-      hitSlop={10}
-      className="h-10 w-10 items-center justify-center"
-      onPress={onPress}
-      style={({ pressed }) => ({ opacity: pressed ? 0.72 : 1 })}
-    >
-      <Feather color="#1D2522" name="plus" size={23} />
-    </Pressable>
-  );
+  return <GlassHeaderButton accessibilityLabel="문의 남기기" icon="plus" onPress={onPress} />;
 }
 
 function InquiryRow({
@@ -272,14 +264,14 @@ function InquiryRow({
           <StatusBadge status={ticket.status} />
         </View>
         <View className="gap-1 pl-px pr-1">
-          <Text numberOfLines={1} className="text-[15px] font-black leading-[21px] text-hypo-text">
+          <Text numberOfLines={1} className="text-[15px] font-semibold leading-[21px] text-hypo-text">
             {title}
           </Text>
           <View className="flex-row items-end gap-2">
-            <Text numberOfLines={2} className="min-w-0 flex-1 text-[13px] font-bold leading-[20px] text-hypo-muted">
+            <Text numberOfLines={2} className="min-w-0 flex-1 text-[13px] font-normal leading-[20px] text-hypo-muted">
               {ticket.body}
             </Text>
-            <Text className="shrink-0 text-[12px] font-bold leading-4 text-hypo-muted">
+            <Text className="shrink-0 text-[12px] font-medium leading-4 text-hypo-muted">
               {formatDateTime(ticket.created_at)}
             </Text>
           </View>
@@ -295,7 +287,8 @@ function InquiryRow({
           <Feather color="#66706B" name="more-horizontal" size={20} />
         </Pressable>
         {isMenuOpen ? (
-          <View className="absolute right-0 top-8 z-10 min-w-[128px] overflow-hidden rounded-[14px] border border-hypo-border bg-hypo-surface shadow-lg">
+          <View className="absolute right-0 top-8 z-10 min-w-[128px] overflow-hidden rounded-[14px] shadow-sm shadow-black/5">
+            <FunctionalGlassBackground radius={14} />
             <MenuAction disabled={!canEdit} label={canEdit ? "수정" : "수정 불가"} onPress={onEdit} />
             <MenuAction destructive disabled={!canEdit} label={canEdit ? "삭제" : "삭제 불가"} onPress={onDelete} />
           </View>
@@ -312,10 +305,10 @@ function InquiryDetail({ ticket }: { ticket: SupportTicket }) {
     <View className="mt-1 gap-3 rounded-[14px] bg-hypo-surface px-3.5 py-3">
       {replies.length ? (
         <View className="gap-2">
-          <Text className="text-[11px] font-black text-[#8A9387]">운영팀 답변</Text>
+      <Text className="text-[11px] font-semibold text-[#8A9387]">운영팀 답변</Text>
           {replies.map((reply) => (
             <View key={reply.id} className="gap-1 rounded-[12px] bg-hypo-brandSoft px-3 py-2.5">
-              <Text className="text-[13px] font-bold leading-5 text-hypo-text">{reply.message}</Text>
+              <Text className="text-[13px] font-normal leading-5 text-hypo-text">{reply.message}</Text>
               <Text className="text-right text-[11px] font-bold leading-4 text-hypo-muted">
                 {formatDateTime(reply.created_at)}
               </Text>

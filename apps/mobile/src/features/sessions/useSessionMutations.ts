@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { CreateInterviewReviewInput, DisputeRewardInput } from "@hypofit/contracts";
 import { invalidateChatWorkflowQueries } from "@/features/chat/useChat";
-import { sessionsApi, type CreateSessionInput, type MarkNoShowInput } from "@/shared/api/sessions";
+import { sessionsApi, type CreateSessionInput, type MarkNoShowInput } from "@/features/sessions/sessionsApi";
 
 function invalidateWorkflowState(
   queryClient: ReturnType<typeof useQueryClient>,

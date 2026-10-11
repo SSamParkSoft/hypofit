@@ -6,7 +6,7 @@ import {
   type MarkChatRoomReadInput,
   type SendChatMessageInput,
   type UpdateChatRoomSettingsInput,
-} from "@/shared/api/chat";
+} from "@/features/chat/chatApi";
 import { buildAuthQueryKey, resolveAuthUserId } from "@/shared/query/authQuery";
 
 interface ChatRoomsOptions {
@@ -41,7 +41,7 @@ export function useChatRooms(accessToken?: string | null, options?: ChatRoomsOpt
   return useQuery({
     enabled: Boolean(accessToken && stableUserId),
     queryKey: chatQueryKeys.roomList(stableUserId),
-    queryFn: () => chatApi.listRooms(accessToken),
+    queryFn: ({ signal }) => chatApi.listRooms(accessToken, signal),
     refetchInterval: options?.pollingEnabled ? pollingIntervalMs : false,
     refetchIntervalInBackground: false,
     retry: false,
@@ -56,7 +56,7 @@ export function useChatRoom(roomId?: string | null, accessToken?: string | null)
   return useQuery({
     enabled: Boolean(accessToken && roomId && stableUserId),
     queryKey: chatQueryKeys.roomDetail(stableUserId, roomId),
-    queryFn: () => chatApi.getRoom(roomId as string, accessToken),
+    queryFn: ({ signal }) => chatApi.getRoom(roomId as string, accessToken, signal),
     retry: false,
     staleTime: 15_000,
   });
@@ -69,7 +69,7 @@ export function useChatWorkflow(roomId?: string | null, accessToken?: string | n
   return useQuery({
     enabled: Boolean(accessToken && roomId && stableUserId),
     queryKey: chatQueryKeys.workflowDetail(stableUserId, roomId),
-    queryFn: () => chatApi.getWorkflow(roomId as string, accessToken),
+    queryFn: ({ signal }) => chatApi.getWorkflow(roomId as string, accessToken, signal),
     retry: false,
     staleTime: 5_000,
   });
@@ -104,7 +104,7 @@ export function useChatMessages(roomId?: string | null, accessToken?: string | n
   return useQuery({
     enabled: Boolean(accessToken && roomId && stableUserId),
     queryKey: chatQueryKeys.messageList(stableUserId, roomId),
-    queryFn: () => chatApi.listMessages(roomId as string, accessToken),
+    queryFn: ({ signal }) => chatApi.listMessages(roomId as string, accessToken, signal),
     refetchInterval: options?.pollingEnabled ? pollingIntervalMs : false,
     refetchIntervalInBackground: false,
     retry: false,

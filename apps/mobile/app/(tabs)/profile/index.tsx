@@ -1,1 +1,1 @@
-export { ProfileScreen as default } from "@/screens/profile/ProfileScreen";
+export { MoreScreen as default } from "@/screens/more/MoreScreen";

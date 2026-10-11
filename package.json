@@ -24,6 +24,10 @@
     "ios:mobile": "pnpm --dir apps/mobile ios",
     "android:mobile": "pnpm --dir apps/mobile android",
     "typecheck:mobile": "pnpm --dir apps/mobile typecheck",
-    "build:mobile:ios:local": "corepack pnpm --dir apps/mobile build:ios:local"
+    "build:mobile:ios:dev": "corepack pnpm --dir apps/mobile build:ios:dev",
+    "build:mobile:android:dev": "corepack pnpm --dir apps/mobile build:android:dev",
+    "build:mobile:environment": "corepack pnpm --dir apps/mobile build:environment",
+    "build:mobile:ios:local": "corepack pnpm --dir apps/mobile build:ios:local",
+    "build:mobile:android:local": "corepack pnpm --dir apps/mobile build:android:local"
   }
 }

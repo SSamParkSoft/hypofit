@@ -1,1 +1,1 @@
-export { SignUpRoleScreen as default } from "@/screens/auth/SignUpRoleScreen";
+export { ConsentScreen as default } from "@/screens/auth/ConsentScreen";

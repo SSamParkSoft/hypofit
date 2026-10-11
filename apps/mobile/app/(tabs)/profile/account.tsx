@@ -1,1 +1,1 @@
-export { AccountInfoScreen as default } from "@/screens/profile/AccountInfoScreen";
+export { AccountInfoScreen as default } from "@/screens/account/AccountInfoScreen";

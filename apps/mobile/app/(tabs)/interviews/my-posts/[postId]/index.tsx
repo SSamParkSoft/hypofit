@@ -1,1 +1,1 @@
-export { FounderPostApplicantsScreen as default } from "@/screens/interviews/MyInterviewsScreen";
+export { PostingApplicantsScreen as default } from "@/screens/postings/PostingApplicantsScreen";

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { addAppBreadcrumb, captureAppError, getAppDiagnostics } from "@/shared/diagnostics/sentry";
 
@@ -11,7 +12,6 @@ export function SplashScreen() {
   const auth = useAuth();
   const router = useRouter();
   const [canLeaveSplash, setCanLeaveSplash] = useState(false);
-  const progress = useRef(new Animated.Value(0.08)).current;
   const didReportWatchdogRef = useRef(false);
   const authStateRef = useRef(auth);
 
@@ -26,45 +26,18 @@ export function SplashScreen() {
   }, []);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(progress, {
-          duration: 820,
-          easing: Easing.out(Easing.cubic),
-          toValue: 0.78,
-          useNativeDriver: false,
-        }),
-        Animated.timing(progress, {
-          duration: 520,
-          easing: Easing.inOut(Easing.cubic),
-          toValue: 0.9,
-          useNativeDriver: false,
-        }),
-      ]),
-      { iterations: 1 },
-    ).start();
-  }, [progress]);
-
-  useEffect(() => {
     if (auth.isLoading || auth.isSyncing || !canLeaveSplash) return;
 
     const nextRoute = auth.requiresRoleOnboarding
       ? "/(auth)/sign-up-role"
       : auth.appUser
-        ? "/(tabs)/home"
+        ? "/(tabs)/interviews"
         : "/(auth)/login";
     addAppBreadcrumb("splash_ready_to_leave", {
       has_app_user: Boolean(auth.appUser),
       has_session: Boolean(auth.session),
       nextRoute,
     });
-
-    Animated.timing(progress, {
-      duration: 280,
-      easing: Easing.out(Easing.cubic),
-      toValue: 1,
-      useNativeDriver: false,
-    }).start();
 
     addAppBreadcrumb("splash_redirect", { nextRoute });
     router.replace(nextRoute);
@@ -75,7 +48,6 @@ export function SplashScreen() {
     auth.requiresRoleOnboarding,
     auth.session,
     canLeaveSplash,
-    progress,
     router,
   ]);
 
@@ -90,7 +62,7 @@ export function SplashScreen() {
       const candidateRoute = currentAuth.requiresRoleOnboarding
         ? "/(auth)/sign-up-role"
         : currentAuth.appUser
-          ? "/(tabs)/home"
+          ? "/(tabs)/interviews"
           : "/(auth)/login";
       const diagnostics = getAppDiagnostics();
 
@@ -124,30 +96,12 @@ export function SplashScreen() {
     return () => clearTimeout(timer);
   }, [router]);
 
-  const progressWidth = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0%", "100%"],
-  });
-
   return (
-    <View className="flex-1 items-center justify-center bg-hypo-brand px-6 py-8">
-      <View className="w-full max-w-[320px] items-center">
-        <Image
-          accessibilityIgnoresInvertColors
-          accessibilityLabel="Hypofit"
-          className="h-44 w-44"
-          resizeMode="contain"
-          source={require("../../../assets/hypofit-mark-inverse.png")}
-        />
-        <Text className="mt-5 text-[38px] font-black leading-[46px] text-white">Hypofit</Text>
-        <Text className="mt-2 text-center text-sm font-bold text-white/75">고객 검증을 더 빠르게</Text>
-        <View className="mt-8 h-1.5 w-28 overflow-hidden rounded-full bg-white/20">
-          <Animated.View
-            className="h-full rounded-full bg-white"
-            style={{ width: progressWidth }}
-          />
-        </View>
-      </View>
+    <View className="flex-1 items-center justify-center" style={{ backgroundColor: "#58C96B" }}>
+      <StatusBar style="dark" />
+      <Text className="text-[38px] text-hypo-brand-strong" style={{ fontFamily: "HypofitSansBold" }}>
+        Hypofit
+      </Text>
     </View>
   );
 }

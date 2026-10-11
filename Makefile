@@ -1,42 +1,57 @@
-.PHONY: dev-web dev-mobile dev-api test-web test-mobile test-api test-api-integration lint-web lint-mobile lint-api build-web build-api contract-api health-api
+.PHONY: dev-web dev-mobile dev-api test-web test-mobile test-api test-api-integration lint-web lint-mobile lint-api build-web build-api build-mobile-ios-dev build-mobile-android-dev build-mobile-ios-local build-mobile-android-local build-mobile-environment contract-api health-api
 
 API_SCRIPTS := apps/api/scripts
 
 dev-web:
-	cd apps/web && npm run dev
+	corepack pnpm --dir apps/web dev
 
 dev-mobile:
-	cd apps/mobile && npm run start
+	corepack pnpm --dir apps/mobile start
 
 dev-api:
 	$(API_SCRIPTS)/run_gradle_task.sh bootRun
 
 test-web:
-	cd apps/web && npm run test
+	corepack pnpm --dir apps/web test
 
 test-mobile:
-	cd apps/mobile && npm run typecheck
+	corepack pnpm --dir apps/mobile test
 
 test-api:
-	$(API_SCRIPTS)/run_gradle_task.sh test
+	@$(error API E2E suite is not configured yet; do not run the historical test task as a substitute)
 
 test-api-integration:
 	$(API_SCRIPTS)/run_gradle_task.sh integrationTest
 
 lint-web:
-	cd apps/web && npm run lint
+	corepack pnpm --dir apps/web lint
 
 lint-mobile:
-	cd apps/mobile && npm run typecheck
+	corepack pnpm --dir apps/mobile lint
 
 lint-api:
-	$(API_SCRIPTS)/run_gradle_task.sh check
+	$(API_SCRIPTS)/run_gradle_task.sh checkstyleMain
 
 build-web:
-	cd apps/web && npm run build
+	corepack pnpm --dir apps/web build
+
+build-mobile-ios-dev:
+	corepack pnpm --dir apps/mobile build:ios:dev
+
+build-mobile-android-dev:
+	corepack pnpm --dir apps/mobile build:android:dev
+
+build-mobile-ios-local:
+	corepack pnpm --dir apps/mobile build:ios:local
+
+build-mobile-android-local:
+	corepack pnpm --dir apps/mobile build:android:local
+
+build-mobile-environment:
+	corepack pnpm --dir apps/mobile build:environment
 
 build-api:
-	$(API_SCRIPTS)/run_gradle_task.sh build
+	$(API_SCRIPTS)/run_gradle_task.sh bootJar
 
 contract-api:
 	OPENAPI_URL="$(OPENAPI_URL)" \

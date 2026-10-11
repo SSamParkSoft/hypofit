@@ -18,6 +18,7 @@ export function LegalDocumentScreen({ type }: { type: "terms" | "privacy" }) {
       backTo={backTo}
       title={title}
       contentClassName="gap-6"
+      glassHeaderControls
       onBack={() => goBackOrReplaceReturnTo(explicitBackTo, "/(tabs)/profile")}
     >
       <View className="gap-3">

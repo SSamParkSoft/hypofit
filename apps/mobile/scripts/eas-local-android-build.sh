@@ -8,7 +8,6 @@ repo_root="$(cd "${mobile_dir}/../.." && pwd)"
 profile="${EAS_PROFILE:-production}"
 output="${EAS_LOCAL_ANDROID_OUTPUT:-${mobile_dir}/hypofit-local.aab}"
 corepack_home="${COREPACK_HOME:-${repo_root}/.corepack}"
-android_version_code_floor="${HYPOFIT_ANDROID_VERSION_CODE_FLOOR:-1}"
 export EXPO_PUBLIC_WEB_BASE_URL="${EXPO_PUBLIC_WEB_BASE_URL:-https://hypofit.bukae.co.kr}"
 
 is_positive_integer() {
@@ -22,13 +21,14 @@ is_positive_integer() {
   esac
 }
 
-if ! is_positive_integer "${android_version_code_floor}"; then
-  echo "HYPOFIT_ANDROID_VERSION_CODE_FLOOR must be a positive integer." >&2
+android_version_code="${HYPOFIT_ANDROID_VERSION_CODE:-}"
+if ! is_positive_integer "$android_version_code" || [ "${#android_version_code}" -gt 10 ] || [ "$android_version_code" -gt 2100000000 ]; then
+  echo "Set HYPOFIT_ANDROID_VERSION_CODE explicitly to 1..2100000000 after checking the last Play Console upload." >&2
   exit 1
 fi
 
-if [ -n "${HYPOFIT_ANDROID_VERSION_CODE:-}" ] && ! is_positive_integer "${HYPOFIT_ANDROID_VERSION_CODE}"; then
-  echo "HYPOFIT_ANDROID_VERSION_CODE must be a positive integer." >&2
+if [ -n "${HYPOFIT_APP_VERSION:-}" ] && [[ ! "$HYPOFIT_APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "HYPOFIT_APP_VERSION must use major.minor.patch." >&2
   exit 1
 fi
 
@@ -37,20 +37,15 @@ if [ "${HYPOFIT_EAS_ENV_WRAPPED:-}" != "1" ] && [ "${HYPOFIT_SKIP_EAS_ENV_EXEC:-
   if [ -n "${HYPOFIT_ANDROID_VERSION_CODE:-}" ]; then
     android_version_code_assignment="HYPOFIT_ANDROID_VERSION_CODE='${HYPOFIT_ANDROID_VERSION_CODE}' "
   fi
+  app_version_assignment=""
+  if [ -n "${HYPOFIT_APP_VERSION:-}" ]; then
+    app_version_assignment="HYPOFIT_APP_VERSION='${HYPOFIT_APP_VERSION}' "
+  fi
 
   cd "${mobile_dir}"
-  exec npx -y eas-cli env:exec "${profile}" \
-    "${android_version_code_assignment}HYPOFIT_EAS_ENV_WRAPPED=1 EAS_BUILD_PLATFORM=android COREPACK_HOME='${corepack_home}' EAS_PROFILE='${profile}' EAS_LOCAL_ANDROID_OUTPUT='${output}' HYPOFIT_ANDROID_VERSION_CODE_FLOOR='${android_version_code_floor}' bash '${repo_root}/apps/mobile/scripts/eas-local-android-build.sh'" \
+  exec bash "${script_dir}/eas-cli.sh" env:exec "${profile}" \
+    "${android_version_code_assignment}${app_version_assignment}HYPOFIT_EAS_ENV_WRAPPED=1 EAS_BUILD_PLATFORM=android COREPACK_HOME='${corepack_home}' EAS_PROFILE='${profile}' EAS_LOCAL_ANDROID_OUTPUT='${output}' bash '${repo_root}/apps/mobile/scripts/eas-local-android-build.sh'" \
     --non-interactive
-fi
-
-if [ -z "${HYPOFIT_ANDROID_VERSION_CODE:-}" ]; then
-  export HYPOFIT_ANDROID_VERSION_CODE="${android_version_code_floor}"
-fi
-
-if ! is_positive_integer "${HYPOFIT_ANDROID_VERSION_CODE}"; then
-  echo "HYPOFIT_ANDROID_VERSION_CODE must be a positive integer." >&2
-  exit 1
 fi
 
 missing_env=()
@@ -73,7 +68,7 @@ if [ "${#missing_env[@]}" -gt 0 ]; then
 
 Run through EAS env:exec so production EXPO_PUBLIC_* values are inlined:
   cd ${mobile_dir}
-  npx -y eas-cli env:exec ${profile} "HYPOFIT_EAS_ENV_WRAPPED=1 bash ${repo_root}/apps/mobile/scripts/eas-local-android-build.sh" --non-interactive
+  HYPOFIT_ANDROID_VERSION_CODE=<next-confirmed-number> pnpm build:android:local
 
 GOOGLE_SERVICES_JSON must point to a local google-services.json file outside git.
 EOF
@@ -89,10 +84,11 @@ export COREPACK_HOME="${corepack_home}"
 export EAS_BUILD_PLATFORM="${EAS_BUILD_PLATFORM:-android}"
 
 cd "${repo_root}"
+bash "${script_dir}/build-environment.sh"
 corepack pnpm --dir apps/mobile typecheck
 
 cd "${mobile_dir}"
-npx -y eas-cli build \
+bash "${script_dir}/eas-cli.sh" build \
   --platform android \
   --profile "${profile}" \
   --local \

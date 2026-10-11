@@ -4,7 +4,7 @@ import {
   notificationsApi,
   type ListNotificationsParams,
   type NotificationRecord,
-} from "@/shared/api/notifications";
+} from "@/features/notifications/notificationsApi";
 import { buildAuthQueryKey, resolveAuthUserId } from "@/shared/query/authQuery";
 
 const notificationQueryKeys = {
@@ -26,7 +26,7 @@ export function useNotifications(accessToken?: string | null, params?: ListNotif
   return useQuery({
     enabled: Boolean(accessToken && stableUserId),
     queryKey: notificationQueryKeys.list(stableUserId, params),
-    queryFn: () => notificationsApi.list(accessToken, params),
+    queryFn: ({ signal }) => notificationsApi.list(accessToken, params, signal),
     retry: false,
     staleTime: 15_000,
   });

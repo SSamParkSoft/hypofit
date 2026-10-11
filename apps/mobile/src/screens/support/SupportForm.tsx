@@ -10,10 +10,12 @@ import type {
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useCreateSupportTicket, useUpdateSupportTicket } from "@/features/support/useSupportTicket";
 import { getSafeReturnTo, goBackOrReplaceReturnTo } from "@/shared/navigation/backNavigation";
-import { AppScreen, SectionCard } from "@/shared/ui/AppScreen";
-import { PrimaryButton } from "@/shared/ui/PrimaryButton";
+import { AppScreen } from "@/shared/ui/AppScreen";
+import { GlassActionButton } from "@/shared/ui/GlassActionButton";
 import { TextField } from "@/shared/ui/TextField";
-import { supportEmail } from "@/screens/profile/profileUtils";
+import { mobileEnv } from "@/shared/api/env";
+
+const supportEmail = mobileEnv.supportEmail;
 
 const inquiryCategories: Array<{ label: string; value: SupportTicketCategory }> = [
   { label: "계정", value: "account" },
@@ -176,85 +178,89 @@ export function SupportForm({ backTo, initialTicket, mode, onCancel, onSubmitted
       keyboardAvoiding
       title={copy.title}
       description={copy.description}
+      glassHeaderControls
       onBack={handleBack}
     >
-      <SectionCard>
-        <View className="gap-4 p-4">
-          {contextLabel ? (
-            <View className="rounded-[14px] bg-hypo-brandSoft px-3 py-2.5">
-              <Text numberOfLines={2} className="text-xs font-black leading-5 text-hypo-brand">
-                {contextLabel}
-              </Text>
-            </View>
-          ) : null}
-
-          {!isFeedback ? (
-            <>
-              <View className="gap-2">
-                <Text className="text-[13px] font-bold text-hypo-text">유형</Text>
-                <View className="flex-row flex-wrap gap-1.5">
-                  {categories.map((item) => {
-                    const selected = item.value === category;
-                    return (
-                      <Pressable
-                        key={item.value}
-                        accessibilityState={{ selected }}
-                        className={`min-h-11 items-center justify-center rounded-full border px-3 py-2 ${selected ? "border-hypo-brand bg-hypo-brandSoft" : "border-hypo-border bg-hypo-surface"}`}
-                        onPress={() => setCategory(item.value)}
-                      >
-                        <Text className={`text-xs font-black ${selected ? "text-hypo-brand" : "text-hypo-muted"}`}>
-                          {item.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-
-              <TextField label="제목" maxLength={140} placeholder="선택 입력" value={subject} onChangeText={setSubject} />
-            </>
-          ) : null}
-          <View className="gap-2">
-            <Text className="text-[13px] font-bold text-hypo-text">{copy.bodyLabel}</Text>
-            <TextInput
-              accessibilityLabel={copy.bodyLabel}
-              multiline
-              maxLength={2000}
-              placeholder={copy.bodyPlaceholder}
-              placeholderTextColor="#A3ABA0"
-              value={body}
-              onChangeText={setBody}
-              className="min-h-[132px] rounded-[14px] border border-hypo-border bg-hypo-surface px-4 py-3 text-base leading-6 text-hypo-text"
-              textAlignVertical="top"
-            />
-          </View>
-          {shouldShowContactEmail ? (
-            <TextField label="답변 받을 이메일" keyboardType="email-address" value={contactEmail} onChangeText={setContactEmail} />
-          ) : null}
-
-          {message || error ? (
-            <Text className={`rounded-[14px] px-3 py-2 text-xs font-black leading-5 ${error ? "bg-hypo-dangerSoft text-hypo-danger" : "bg-hypo-brandSoft text-hypo-brand"}`}>
-              {error ?? message}
+      <View className="gap-5 pb-5">
+        {contextLabel ? (
+          <View className="rounded-[14px] bg-hypo-brandSoft px-3 py-2.5">
+            <Text numberOfLines={2} className="text-xs font-black leading-5 text-hypo-brandStrong">
+              {contextLabel}
             </Text>
-          ) : null}
+          </View>
+        ) : null}
 
-          <View className="flex-row items-center justify-end gap-3">
-            <Pressable
-              accessibilityRole="button"
-              disabled={createTicket.isPending || updateTicket.isPending}
-              className="min-h-[48px] min-w-[92px] items-center justify-center rounded-[14px] border border-hypo-border bg-hypo-surface px-4"
-              onPress={onCancel ?? (() => routerBackTo(resolvedBackTo))}
-            >
-              <Text className="text-[14px] font-black text-hypo-muted">취소</Text>
-            </Pressable>
-            <View className="min-w-[120px]">
-              <PrimaryButton disabled={createTicket.isPending || updateTicket.isPending} onPress={() => void submit()}>
-                {createTicket.isPending || updateTicket.isPending ? "저장 중" : isEditing ? "저장하기" : "제출하기"}
-              </PrimaryButton>
+        {!isFeedback ? (
+          <>
+            <View className="gap-2">
+              <Text className="text-[13px] font-semibold text-hypo-text">유형</Text>
+              <View className="flex-row flex-wrap gap-1.5">
+                {categories.map((item) => {
+                  const selected = item.value === category;
+                  return (
+                    <Pressable
+                      key={item.value}
+                      accessibilityState={{ selected }}
+                      accessibilityRole="button"
+                      className={`min-h-11 items-center justify-center rounded-[12px] border px-3 py-2 ${selected ? "border-hypo-brandStrong/30 bg-hypo-brandSoft" : "border-hypo-border bg-hypo-surface"}`}
+                      onPress={() => setCategory(item.value)}
+                    >
+                      <Text className={`text-xs font-semibold ${selected ? "text-hypo-brandStrong" : "text-hypo-muted"}`}>
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
+
+            <TextField label="제목" maxLength={140} placeholder="선택 입력" value={subject} onChangeText={setSubject} />
+          </>
+        ) : null}
+        <View className="gap-2">
+          <Text className="text-[13px] font-semibold text-hypo-text">{copy.bodyLabel}</Text>
+          <TextInput
+            accessibilityLabel={copy.bodyLabel}
+            multiline
+            maxLength={2000}
+            placeholder={copy.bodyPlaceholder}
+            placeholderTextColor="#A3ABA0"
+            value={body}
+            onChangeText={setBody}
+            className="min-h-[132px] rounded-[14px] border border-hypo-border bg-hypo-surface px-4 py-3 text-base leading-6 text-hypo-text"
+            textAlignVertical="top"
+          />
+        </View>
+        {shouldShowContactEmail ? (
+          <TextField label="답변 받을 이메일" keyboardType="email-address" value={contactEmail} onChangeText={setContactEmail} />
+        ) : null}
+
+        {message || error ? (
+          <Text accessibilityRole="alert" className={`rounded-[14px] px-3 py-2 text-xs font-semibold leading-5 ${error ? "bg-hypo-dangerSoft text-hypo-danger" : "bg-hypo-brandSoft text-hypo-brandStrong"}`}>
+            {error ?? message}
+          </Text>
+        ) : null}
+
+        <View className="flex-row items-center justify-end gap-3">
+          <GlassActionButton
+            disabled={createTicket.isPending || updateTicket.isPending}
+            className="min-w-[92px]"
+            onPress={onCancel ?? (() => routerBackTo(resolvedBackTo))}
+            tone="secondary"
+          >
+            취소
+          </GlassActionButton>
+          <View className="min-w-[120px]">
+            <GlassActionButton
+              busy={createTicket.isPending || updateTicket.isPending}
+              disabled={createTicket.isPending || updateTicket.isPending}
+              onPress={() => void submit()}
+            >
+              {createTicket.isPending || updateTicket.isPending ? "저장 중" : isEditing ? "저장하기" : "제출하기"}
+            </GlassActionButton>
           </View>
         </View>
-      </SectionCard>
+      </View>
     </AppScreen>
   );
 }

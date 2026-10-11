@@ -21,6 +21,24 @@ schema changes. Prefer simple, shippable implementation over premature
 platform abstractions. When in doubt, preserve the architecture decisions
 already documented in MainVault.
 
+## Design Skill Scope
+
+- Use `ui-ux-pro-max` for targeted design research,
+  `web-design-guidelines` for web UI reviews, and `expo-design-system` for
+  mobile token/component consistency. Do not activate every design skill for
+  every UI task; marketing, banner, and slide skills are not app-screen defaults.
+- Repository rules and approved designs override generic skill suggestions.
+  Preserve Calm Emerald Native, Spoqa Han Sans Neo, Lucide, NativeWind v4,
+  Tailwind 3.4.x on mobile, and the managed Expo dependency set. Do not introduce
+  another theme, icon library, UI framework, or SDK upgrade because a skill
+  recommends one. Avoid new screen-level `StyleSheet.create` blocks.
+- Use the pinned local Vercel guidelines. Do not submit external skill feedback
+  or project context unless the user explicitly requests it.
+- Skill source commits and local adaptations are recorded in
+  `.agents/skills/sources.json`. UI UX Pro Max runtime tests and upstream
+  repository-maintenance tests have different scopes; do not fabricate missing
+  maintainer tools or silently suppress test failures.
+
 ## Active Plans In MainVault
 
 Active Hypofit plans are personal local working documents. Their canonical
@@ -29,6 +47,11 @@ location is:
 `/Users/sehyeon/Library/Mobile Documents/iCloud~md~obsidian/Documents/sehyeon/10 Projects/Hypofit/Active Plans/`
 
 Do not create a `docs/active` directory or duplicate these plan files in Git.
+
+Read MainVault `posting-images-storage-and-ui-plan.md` before changing posting
+photo selection, uploads, Supabase `posting-images` Storage, image processing,
+image attachment/deletion, signed image URLs or posting image UI. Preserve its
+default-off rollout gate and distinguish local implementation from Storage/DB E2E.
 
 ## Repository Docs In MainVault
 
@@ -166,15 +189,23 @@ Before making non-trivial changes, read these documents:
   readiness rollback, Nginx/TLS setup, or Lightsail disk operations.
 
 If your change affects architecture, deployment, authentication, database schema, or MVP scope, update the relevant document in the same change.
-If your change affects user-facing UI, interaction flows, or responsive behavior, update the relevant active work document when one exists, or explicitly note that reference-only guidance did not need a backlog update.
+For every Hypofit implementation change, update the directly relevant MainVault document in the same task so other sessions can recover the current behavior, decision, verification result, and remaining QA. Do not rewrite historical checkpoints or duplicate internal notes in Git. Check the current Vault file before editing because another session may be updating it.
+If your change affects user-facing UI, interaction flows, or responsive behavior, update the relevant active work document when one exists. Keep current service/reference guidance aligned when its stated current behavior changes.
 
 ## Documentation Hierarchy
 
-- Deferred usability-test, research-experiment, focus-group designs and the
-  other-type boundary policy live in `docs/reference/`. Do not treat them as
-  enabled product contracts or current execution commitments. Pending
-  other-type capability/draft checks belong to the active adaptive posting
-  creation plan. Consult MainVault `README.md` for current plan membership.
+- Research recruitment is the only additional category authorized on
+  2026-09-11. Read MainVault `research-experiment-recruitment-plan.md` before
+  changing it. Reuse creation/application/selected chat, not interview sessions
+  or a new experiment-management system. Its creation flag defaults off.
+- Usability tests and other-type recruitment are excluded from the current
+  product and release plan. Their reference documents preserve decision history,
+  not executable backlogs. Do not expose them or delete legacy enum/draft data.
+  Consult MainVault `README.md` for current plan membership.
+- Focus-group / FGI recruitment was removed from the product scope on
+  2026-09-11. Do not retain or recreate an implementation/release plan for it.
+  Existing `focus_group` enum values and unsupported-draft guards are
+  compatibility evidence, not authorization to implement or expose the type.
 
 - MainVault Active Plans is for current implementation plans only. A document should
   stay active only while it drives code, schema, API, deployment, or content
@@ -202,7 +233,7 @@ Hypofit helps teams, researchers, and organizers recruit participants through
 public postings.
 
 The core object is a posting. An interview is one posting type alongside
-surveys, beta tests, usability tests, and research experiments. Keep each
+surveys, beta tests, and research experiments. Keep each
 type's participation workflow explicit; do not force application, selection,
 chat, or scheduling onto every posting.
 
@@ -270,7 +301,7 @@ make dev-mobile
 make dev-api
 make test-web
 make test-mobile
-make test-api
+make test-api             # reserved for API E2E; currently fails until configured
 make lint-web
 make lint-mobile
 make lint-api
@@ -281,6 +312,9 @@ Until those commands exist, use the package-local commands in `apps/web`,
 `apps/mobile`, and `apps/api`, and document any new command you introduce.
 
 Agents should prefer targeted validation for changed areas before running full project-wide checks.
+For API work, follow the API-specific E2E policy under Testing and Verification;
+the existence of `make test-api` does not make the mixed unit-test suite a
+default validation step.
 
 ## Web Frontend Rules
 
@@ -336,6 +370,19 @@ Expected conventions:
   native keyboard handling, and native map/image/push integrations where needed.
 - Share API contracts, domain enums, and pure formatting/read-model helpers
   through `packages/contracts`.
+- Use Posting names for general mobile implementation modules. Keep released
+  `interviews`/`profile` route URLs and legacy contract fields when compatibility
+  requires them; do not rename URLs or wire DTOs as incidental source cleanup.
+- Keep posting screens under `src/screens/postings`, More under
+  `src/screens/more`, and account/settings screens under their named folders.
+  Screen-private UI and interaction hooks stay beside the owning screen.
+- Features own domain API clients, query/mutation hooks and domain presentation.
+  `src/shared/api` owns common transport, environment, release metadata and
+  Supabase infrastructure, not feature endpoints. Features must not import
+  screens, and shared must not import features or screens.
+- Name UI/screen components in PascalCase, hooks with `use`, and pure helper
+  modules in descriptive camelCase. Prefer cohesive responsibility-based files
+  over generic `utils`/`model` catch-alls or one-file-per-small-function splits.
 - Do not share DOM/Tailwind UI components directly with React Native.
 - Use NativeWind v4 with Tailwind CSS 3.x as the default mobile styling
   system.
@@ -344,10 +391,15 @@ Expected conventions:
   `react-native-gesture-handler`, `react-native-safe-area-context`,
   `react-native-screens`, Expo packages, or Expo Router to arbitrary latest
   versions outside an explicit Expo SDK upgrade.
+- The approved mobile upgrade targets SDK 57 / RN 0.86 with New Architecture,
+  SDK-managed Reanimated 4 and Worklets, NativeWind 4.2.7, and Tailwind 3.4.
+  Read `SDK 57 And New Architecture, 2026-09-22` in MainVault
+  `mobile-calm-emerald-native-redesign-plan.md` for validation and rollout status.
+  Use a matching development build. NativeWind 5 and Tailwind 4 are excluded.
 - While `apps/mobile` uses NativeWind v4, keep mobile `tailwindcss` on the
   3.4.x line even though `apps/web` uses Tailwind CSS 4.x. Treat this as an
   intentional per-app split, not drift to "fix" with `pnpm update --latest`.
-- Do not migrate `apps/mobile` to NativeWind v5, Tailwind CSS 4, Reanimated 4,
+- Do not migrate `apps/mobile` to NativeWind v5, Tailwind CSS 4,
   or a newer React Native major/minor unless the active Expo SDK upgrade plan
   explicitly includes that migration.
 - Keep React type packages scoped to their apps: React 18 types in `apps/web`,
@@ -384,6 +436,17 @@ Expected conventions:
   it is still needed for immediate re-upload or crash-symbol matching. Do not
   keep uploaded `.ipa`, `.aab`, `.xcarchive`, or similar release artifacts in the
   repository as long-term files.
+- Keep Metro start separate from native compilation: `build:mobile:ios:dev`
+  rebuilds/installs on an already booted simulator; `build:mobile:android:dev`
+  regenerates Android config and compiles without starting another Metro.
+- Use the pinned `apps/mobile/scripts/eas-cli.sh` / mobile `pnpm eas` command
+  for EAS operations. `eas.json` is the exact CLI version authority.
+- Local release scripts require an explicit `HYPOFIT_IOS_BUILD_NUMBER` or
+  `HYPOFIT_ANDROID_VERSION_CODE`, checked against the platform console before
+  building. Never infer an upload number from local archives or default to 1.
+- Read `docs/reference/mobile-local-build-runbook.md` for these commands and
+  the build-environment report. Frontend CI is static type/lint validation,
+  not native build, E2E or store acceptance.
 
 UI implementation rules:
 
@@ -424,7 +487,7 @@ UI implementation rules:
 
 ### Navigation And Lists
 
-- Keep mobile bottom navigation as `홈 / 공고 / 지도 / 채팅 / 프로필`.
+- Keep mobile bottom navigation as `공고 / 지도 / 채팅 / 더보기`.
 - Keep selected tabs subtle. Avoid prominent pill backgrounds.
 - Put search in the `공고` discovery screen, not in a separate tab.
 - A posting row must make type, title, reward, format, time/period, and place
@@ -724,8 +787,39 @@ When code exists, changes should include appropriate checks:
 - Web frontend: typecheck, lint, unit/component tests, and Vite/PWA build for affected work.
 - Mobile frontend: typecheck and Expo simulator/device or EAS build validation
   for affected work.
-- Backend: unit/API tests, Testcontainers migration checks, and Spring startup validation.
+- Backend: focused end-to-end API scenarios for the changed workflow, plus
+  compilation or static checks when needed. Do not equate compilation with E2E.
 - Deployment: local readiness and canonical HTTPS API checks when deployment behavior changes.
+
+### Current rapid-development verification stage (2026-10-02)
+
+- The user intentionally defers detailed behavioral testing until rapid feature
+  development is finished. Do not expand test tooling or run broad suites as a
+  routine part of current implementation work.
+- Use narrowly relevant static checks such as mobile TypeScript validation when
+  needed, and report them separately from functional tests and device QA.
+- Record deferred regression/device/E2E scenarios in the relevant MainVault
+  plan. This is a staged testing decision, not completed QA or release approval.
+- When API testing resumes, the E2E-only policy below still applies.
+
+### API E2E-only testing policy
+
+- For new or changed API behavior, write and run only the smallest relevant
+  end-to-end scenarios. Exercise the real HTTP endpoint, Spring request and
+  security path, application workflow, and database persistence or response.
+- Do not add or routinely run isolated unit tests or mocked controller/service
+  tests for API development. Do not run broad test suites repeatedly after
+  small edits; run the focused E2E check once the change is ready to verify.
+- `make test-api` deliberately fails until a real API E2E suite is configured.
+  The historical `make test-api-integration` target contains tests that do not
+  cover a full end-to-end flow; do not use it as an E2E substitute. Default
+  Gradle `build`, API lint, and deployment verification do not run tests.
+- The user explicitly requested removal of the existing API unit/mock tests
+  on 2026-09-28. Preserve the remaining historical integration tests and
+  other sessions' changes unless a further cleanup is requested.
+- If the relevant E2E path cannot run, report that limitation explicitly.
+  Compilation, static analysis, a passing unit test, and a deployed health
+  response must not be reported as E2E verification.
 
 Expected health endpoints after API scaffolding:
 
@@ -773,6 +867,39 @@ Rules:
 - Do not remove user changes you did not make.
 - Do not commit or push unless explicitly asked.
 - If generated files are added, document how to regenerate them.
+
+### Shared Mac / Windows Development
+
+- Before cloning, updating, or starting a Windows/WSL development runner, read
+  MainVault `windows-desktop-remote-development-plan.md` in Active Plans.
+- Mac is the source-editing authority; GitHub transfers approved committed code;
+  Windows WSL is a runtime-only checkout. Do not edit tracked source on the runner.
+  Git does not transfer uncommitted changes or Codex conversation context.
+- If the desktop is off or unreachable, continue development and supported
+  local runtimes on Mac; remote availability is not a prerequisite. Reuse an
+  existing owned Mac server before starting another. Record the active runtime
+  host and connection settings in the Vault plan. Connection failure does not
+  prove remote processes stopped. When the desktop returns, stay on Mac until
+  a coordinated, verified cutover; do not auto-switch or create duplicate runners.
+- Coordinate concurrent sessions before overlapping edits. Use task branches and
+  worktrees for independent overlapping work; never switch branches underneath
+  another session in a shared dirty checkout.
+- Assign one session to update/restart each shared runner. Other sessions must
+  coordinate with that owner rather than independently pulling or restarting it.
+- Use an explicitly agreed development branch and commit. Require a clean runner
+  checkout, fetch, and fast-forward-only updates. Stop on dirty/diverged state;
+  do not force-reset, clean, auto-stash, or silently merge to make an update pass.
+- Stop the owned server before changing its source/dependencies, then restart and
+  verify commit SHA, process/cwd, ports, and actual connectivity. Do not start a
+  duplicate Metro or stop unrelated services during a cutover.
+- Keep secrets, private keys, local env files, Vault, dependencies, and build
+  artifacts out of source transfer. Keep iOS native builds/Simulator on Mac.
+- Source transfer does not authorize production deployment or DB migrations.
+  Check workflow triggers before pushing; API changes on `main` can trigger the
+  deployment workflow. The existing explicit commit/push authorization still applies.
+- Record runner ownership, branch/SHA, runtime location, ports, verification, and
+  remaining QA in the Vault plan without secrets. Do not claim every active
+  session has automatically reloaded the updated rules.
 
 ## Documentation Workflow
 

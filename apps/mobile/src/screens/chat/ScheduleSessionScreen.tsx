@@ -6,9 +6,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useChatRoom } from "@/features/chat/useChat";
 import { useCreateSession } from "@/features/sessions/useSessionMutations";
-import { StateMessage } from "@/screens/home/HomeScreen";
+import { StateMessage } from "@/shared/ui/StateMessage";
 import { getSafeReturnTo, goBackOrReplaceFallback } from "@/shared/navigation/backNavigation";
 import { PrimaryButton } from "@/shared/ui/PrimaryButton";
+import { buildScheduledAt } from "./scheduleSessionValidation";
 
 type MeetingType = "offline" | "online";
 
@@ -272,19 +273,6 @@ function getInitialValues(): FormValues {
     meetingUrl: "",
     place: "",
   };
-}
-
-function buildScheduledAt(dateValue: string, timeValue: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue) || !/^\d{2}:\d{2}$/.test(timeValue)) {
-    return null;
-  }
-
-  const date = new Date(`${dateValue}T${timeValue}:00`);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toISOString();
 }
 
 function readParam(value?: string | string[]) {

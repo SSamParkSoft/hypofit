@@ -1,6 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useState } from "react";
 import { Image, View } from "react-native";
+import { colors } from "@/shared/theme/tokens";
 
 interface UserAvatarProps {
   iconSize: number;
@@ -29,7 +30,7 @@ export function UserAvatar({ iconSize, imageUrl, name, sizeClassName }: UserAvat
           source={{ uri: imageUrl as string }}
         />
       ) : (
-        <Feather color="#176B5D" name="user" size={iconSize} />
+        <Feather color={colors.brand} name="user" size={iconSize} />
       )}
     </View>
   );

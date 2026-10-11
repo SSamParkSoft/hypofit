@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 12.0.0",
+    "version": "24.12.0",
     "appVersionSource": "local"
   },
   "build": {
@@ -35,7 +35,7 @@
         "EXPO_PUBLIC_WEB_BASE_URL": "https://hypofit.bukae.co.kr"
       },
       "ios": {
-        "image": "macos-sequoia-15.6-xcode-26.2"
+        "image": "auto"
       }
     }
   },

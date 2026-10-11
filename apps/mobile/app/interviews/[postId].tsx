@@ -1,1 +1,1 @@
-export { InterviewDetailScreen as default } from "@/screens/interviews/InterviewDetailScreen";
+export { PostingDetailScreen as default } from "@/screens/postings/PostingDetailScreen";

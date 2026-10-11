@@ -71,7 +71,6 @@ function readOptionalTrimmedString(...values: Array<string | undefined>) {
 
 const iosConfig = {
   usesNonExemptEncryption: false,
-  ...(googleMapsApiKey ? { googleMapsApiKey } : {}),
 };
 const sentryPlugin =
   sentryUploadEnabled && sentryOrg && sentryProject
@@ -92,9 +91,6 @@ const config: ExpoConfig = {
   version: appVersion,
   orientation: "portrait",
   userInterfaceStyle: "light",
-  // Keep legacy architecture for the current release while map/navigation
-  // dependencies are stabilized. See docs/completed/code-remediation-implementation-plan.md.
-  newArchEnabled: false,
   icon: "./assets/icon.png",
   extra: {
     ...(appRevision ? { appRevision } : {}),
@@ -102,11 +98,8 @@ const config: ExpoConfig = {
       projectId: "af7fe2c6-af1b-4c87-8976-cdccd20b100f",
     },
   },
-  androidStatusBar: {
-    backgroundColor: "#0F7A4D",
-    barStyle: "light-content",
-  },
   ios: {
+    icon: "./assets/ios-icon.png",
     supportsTablet: false,
     bundleIdentifier: "com.contentruck.hypofit",
     buildNumber: iosBuildNumber,
@@ -122,31 +115,48 @@ const config: ExpoConfig = {
     package: "com.contentruck.hypofit",
     versionCode: androidVersionCode,
     googleServicesFile,
-    config: googleMapsApiKey
-      ? { googleMaps: { apiKey: googleMapsApiKey } }
-      : undefined,
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       monochromeImage: "./assets/adaptive-icon-monochrome.png",
-      backgroundColor: "#0F7A4D",
+      backgroundColor: "#58C96B",
     },
   },
   plugins: [
     "expo-router",
     "expo-apple-authentication",
     "expo-web-browser",
+    ["expo-status-bar", { style: "dark" }],
     "@react-native-community/datetimepicker",
+    [
+      "react-native-maps",
+      {
+        ...(googleMapsApiKey
+          ? {
+              iosGoogleMapsApiKey: googleMapsApiKey,
+              androidGoogleMapsApiKey: googleMapsApiKey,
+            }
+          : {}),
+      },
+    ],
+    [
+      "expo-build-properties",
+      {
+        ios: {
+          deploymentTarget: "16.4",
+          enableSceneSupport: true,
+        },
+      },
+    ],
     [
       "expo-splash-screen",
       {
-        backgroundColor: "#0F7A4D",
+        backgroundColor: "#58C96B",
         image: "./assets/splash-static.png",
-        imageWidth: 176,
+        imageWidth: 240,
         resizeMode: "contain",
+        android: { imageWidth: 176 },
       },
     ],
-    "./plugins/withFmtCxx17",
-    "./plugins/withAndroidExpoPackageListFix",
     ...(sentryPlugin ? [sentryPlugin] : []),
     [
       "expo-notifications",
@@ -162,7 +172,7 @@ const config: ExpoConfig = {
         cameraPermission: "프로필 사진을 촬영하기 위해 카메라를 사용합니다.",
         microphonePermission: false,
         photosPermission:
-          "프로필 사진을 선택하기 위해 사진 보관함을 사용합니다.",
+          "프로필 사진과 공고 이미지를 선택하기 위해 사진 보관함을 사용합니다.",
       },
     ],
     [

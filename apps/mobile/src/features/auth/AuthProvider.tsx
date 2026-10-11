@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import type { AppUser, SyncMeInput, UpdateMeInput, UserRole } from "@hypofit/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/shared/api/client";
-import { meApi } from "@/shared/api/me";
+import { meApi } from "@/features/account/accountApi";
 import {
   buildAuthFailure,
   captureAuthFailure,
@@ -133,7 +133,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [requiresRoleOnboarding, setRequiresRoleOnboarding] = useState(false);
   const previousAuthUserIdRef = useRef<string | null>(null);
 
-  function resetAuthRuntimeState(message?: string | null) {
+  const resetAuthRuntimeState = useCallback((message?: string | null) => {
     setSession(null);
     setAppUser(null);
     setRequiresRoleOnboarding(false);
@@ -143,9 +143,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setErrorMessage(message);
     }
     void clearAuthScopedQueries(queryClient);
-  }
+  }, [queryClient]);
 
-  async function signOutLocalBestEffort(phase: string) {
+  const signOutLocalBestEffort = useCallback(async (phase: string) => {
     try {
       const result = await withLocalAuthCleanupTimeout(
         getSupabaseClient().auth.signOut({ scope: "local" }),
@@ -174,16 +174,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         phase,
       });
     }
-  }
+  }, []);
 
-  async function clearLocalAuthSession(
+  const clearLocalAuthSession = useCallback(async (
     phase: string,
     options: {
       accessToken?: string | null;
       message?: string | null;
       code?: string;
     } = {},
-  ) {
+  ) => {
     addAppBreadcrumb("auth_local_session_clear_start", {
       code: options.code ?? null,
       phase,
@@ -208,22 +208,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
       code: options.code ?? null,
       phase,
     });
-  }
+  }, [resetAuthRuntimeState, signOutLocalBestEffort]);
 
-  async function clearInactiveAccountSession(phase: string, accessToken?: string | null) {
+  const clearInactiveAccountSession = useCallback(async (phase: string, accessToken?: string | null) => {
     addAppBreadcrumb("auth_account_inactive_session_clear", { phase });
     await clearLocalAuthSession(`auth_account_inactive_${phase}`, {
       accessToken,
       code: "auth_account_inactive",
       message: "삭제되었거나 비활성화된 계정이에요. 다시 이용하려면 회원가입을 진행해 주세요.",
     });
-  }
+  }, [clearLocalAuthSession]);
 
-  async function clearStartupSessionAfterProfileFailure(
+  const clearStartupSessionAfterProfileFailure = useCallback(async (
     phase: "profile_bootstrap" | "signin",
     error: unknown,
     accessToken?: string | null,
-  ) {
+  ) => {
     const normalized = normalizeAuthError(error, phase);
     const shouldSignOut =
       normalized.code === "auth_token_expired" ||
@@ -264,7 +264,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     resetAuthRuntimeState(normalized.userMessage);
-  }
+  }, [clearLocalAuthSession, resetAuthRuntimeState]);
 
   useEffect(() => {
     addAppBreadcrumb("auth_provider_session_effect_start", { configured });
@@ -360,7 +360,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [configured]);
+  }, [configured, clearLocalAuthSession]);
 
   useEffect(() => {
     const currentAuthUserId = resolveAuthUserId(appUser?.id, session?.user.id);
@@ -434,6 +434,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       })
       .catch(async (error) => {
+        if (!isMounted) return;
         if (isAccountInactiveError(error)) {
           void clearInactiveAccountSession("auth_provider_app_user_sync", token);
           return;
@@ -443,7 +444,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           addAppBreadcrumb("auth_provider_app_user_sync_timeout");
           captureAppError(error, {
             code: "auth_profile_sync_failed",
-            has_session: Boolean(session),
+            has_session: true,
             phase: "profile_bootstrap",
           });
           if (isMounted) {
@@ -477,9 +478,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       isMounted = false;
     };
-  }, [appUser?.id, configured, requiresRoleOnboarding, session?.access_token, session?.user]);
+  }, [appUser?.id, configured, requiresRoleOnboarding, session?.access_token, session?.user,
+    clearInactiveAccountSession, clearLocalAuthSession, clearStartupSessionAfterProfileFailure]);
 
-  async function syncOnboardingProfile(input: SyncMeInput, accessToken: string) {
+  const syncOnboardingProfile = useCallback(async (input: SyncMeInput, accessToken: string) => {
     addAppBreadcrumb("auth_onboarding_api_sync_start");
     logAuthDiagnostic("auth_onboarding_api_sync_start");
 
@@ -509,7 +511,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
       throw toUserFacingAuthError(normalized);
     }
-  }
+  }, [clearInactiveAccountSession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -623,6 +625,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isSyncing,
       requiresRoleOnboarding,
       session,
+      clearLocalAuthSession,
+      syncOnboardingProfile,
     ],
   );
 

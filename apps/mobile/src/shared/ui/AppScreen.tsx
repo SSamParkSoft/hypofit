@@ -11,6 +11,7 @@ import {
 import { router, type Href } from "expo-router";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import { goBackOrReplaceFallback } from "@/shared/navigation/backNavigation";
+import { GlassHeaderButton } from "@/shared/ui/GlassHeaderButton";
 
 interface AppScreenProps {
   backTo?: Href;
@@ -18,10 +19,13 @@ interface AppScreenProps {
   bottomPaddingClassName?: string;
   contentClassName?: string;
   scrollContentContainerStyle?: ScrollViewProps["contentContainerStyle"];
+  onScroll?: ScrollViewProps["onScroll"];
+  scrollEventThrottle?: ScrollViewProps["scrollEventThrottle"];
   eyebrow?: string;
   description?: string;
   showHeader?: boolean;
   showBackButton?: boolean;
+  glassHeaderControls?: boolean;
   children: ReactNode;
   scroll?: boolean;
   safeAreaEdges?: Edge[];
@@ -40,9 +44,12 @@ export function AppScreen({
   eyebrow,
   right,
   showBackButton = true,
+  glassHeaderControls = false,
   showHeader = true,
   scroll = true,
   scrollContentContainerStyle,
+  onScroll,
+  scrollEventThrottle,
   safeAreaEdges,
   title,
   onBack,
@@ -52,27 +59,32 @@ export function AppScreen({
   const bodyClassName = ["gap-4 px-4 pt-3", bottomPaddingClassName, contentClassName]
     .filter(Boolean)
     .join(" ");
+  const handleBack = onBack ?? (() => {
+    if (backTo) {
+      goBackOrReplaceFallback(backTo);
+      return;
+    }
+
+    router.replace("/(tabs)/interviews");
+  });
   const body = (
     <View className={bodyClassName}>
       {showHeader ? (
         <View className="min-h-11 flex-row items-center gap-2">
           {showBackButton ? (
-            <Pressable
-              accessibilityLabel="뒤로가기"
-              accessibilityRole="button"
-              hitSlop={12}
-              className="h-10 w-10 items-center justify-center"
-              onPress={onBack ?? (() => {
-                if (backTo) {
-                  goBackOrReplaceFallback(backTo);
-                  return;
-                }
-
-                router.replace("/(tabs)/home");
-              })}
-            >
-              <Text className="text-[32px] font-semibold leading-10 text-hypo-text">‹</Text>
-            </Pressable>
+            glassHeaderControls ? (
+              <GlassHeaderButton accessibilityLabel="뒤로가기" icon="chevron-left" onPress={handleBack} />
+            ) : (
+              <Pressable
+                accessibilityLabel="뒤로가기"
+                accessibilityRole="button"
+                hitSlop={12}
+                className="h-10 w-10 items-center justify-center"
+                onPress={handleBack}
+              >
+                <Text className="text-[32px] font-semibold leading-10 text-hypo-text">‹</Text>
+              </Pressable>
+            )
           ) : null}
           <View className="min-w-0 flex-1 justify-center">
             {eyebrow ? <Text className="text-[11px] font-semibold text-hypo-brand">{eyebrow}</Text> : null}
@@ -91,6 +103,8 @@ export function AppScreen({
     <ScrollView
       contentContainerStyle={scrollContentContainerStyle}
       keyboardShouldPersistTaps="handled"
+      onScroll={onScroll}
+      scrollEventThrottle={scrollEventThrottle}
       showsVerticalScrollIndicator={false}
     >
       {body}

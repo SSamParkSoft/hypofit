@@ -1,17 +1,20 @@
 import assert from "node:assert/strict";
-import { getPostingDurationError, isGoogleFormsParticipationUrl } from "../src/features/interview-posts/postingCreationMethod.ts";
+import { getPostingDurationError, getPostingStepIssues, getPostingDraftIssue, isPostingDate, betaPlatformLabel, toggleBetaPlatform } from "../src/features/postings/postingCreationMethod.ts";
+import { isExternalSurveyUrl } from "@hypofit/contracts/survey-urls";
+import { getSurveyProviderLabel, surveyProviderOptions } from "@hypofit/contracts/survey-providers";
 
 import {
   durationToMinutes,
   serializePostingCreationDraft,
   postingToEditDraft,
   serializePostingEditDraft,
-} from "../src/features/interview-posts/postingCreationPayload.ts";
-import { normalizePostingCreationDraft } from "../src/features/interview-posts/postingCreationDraftMigration.ts";
+} from "../src/features/postings/postingCreationPayload.ts";
+import { normalizePostingCreationDraft } from "../src/features/postings/postingCreationDraftMigration.ts";
 import {
   getCreatablePostingTypes,
   getPostingCreationCapabilityError,
-} from "../src/features/interview-posts/postingCreationCapability.ts";
+  canEditPosting,
+} from "../src/features/postings/postingCreationCapability.ts";
 
 const baseDraft = {
   schemaVersion: 1,
@@ -51,6 +54,74 @@ const baseDraft = {
 };
 
 function run() {
+  for (const type of ["interview", "survey", "beta_test", "research_experiment"]) {
+    for (const status of ["draft", "open", "closed"]) {
+      const post = { founder_id: "owner", status, recruitment_type: type };
+      assert.equal(canEditPosting(post, "owner"), true);
+      assert.equal(canEditPosting(post, "outsider"), false);
+      assert.equal(canEditPosting(post, null), false);
+    }
+  }
+  for (const type of ["usability_test", "other", "focus_group"]) {
+    assert.equal(canEditPosting({ founder_id: "owner", status: "open", recruitment_type: type }, "owner"), false);
+  }
+  for (const status of ["completed", "archived", "hidden", "removed"]) {
+    assert.equal(canEditPosting({ founder_id: "owner", status, recruitment_type: "research_experiment" }, "owner"), false);
+  }
+  assert.equal(canEditPosting(undefined, "owner"), false);
+  assert.equal(canEditPosting({ founder_id: "owner", status: "open" }, "owner"), true);
+  assert.deepEqual(getCreatablePostingTypes({ enabled_recruitment_types: ["interview"], direct_participation_recruitment_types: [] }), ["interview"]);
+  assert.equal(canEditPosting({ founder_id: "owner", status: "open", recruitment_type: "research_experiment" }, "owner"), true);
+  console.log("Posting edit access fixtures passed: four types, owner/status guards, legacy and flag-off editing.");
+  assert.equal(getPostingDraftIssue(baseDraft), null);
+  assert.equal(getPostingDraftIssue({ ...baseDraft, description: "일정 관리 경험을 확인해요.\n두 번째 줄 안내입니다." }), null);
+  assert.equal(getPostingDraftIssue({ ...baseDraft, title: "ㅎㅎㅎ" }).message, "제목에 초성이나 특수문자만 입력할 수 없어요.");
+  assert.equal(getPostingDraftIssue({ ...baseDraft, title: "" }).field, "title");
+  assert.deepEqual(getPostingStepIssues(2, { ...baseDraft, title: "", description: "", targetParticipant: "" })
+    .map((issue) => issue.field), ["title", "service_summary", "target_description"]);
+  for (const [key, max, field] of [
+    ["title", 120, "title"], ["description", 2000, "service_summary"], ["targetParticipant", 2000, "target_description"],
+  ]) {
+    assert.equal(getPostingStepIssues(2, { ...baseDraft, [key]: "가".repeat(max) }).length, 0);
+    assert.equal(getPostingStepIssues(2, { ...baseDraft, [key]: "가".repeat(max + 1) })[0].field, field);
+  }
+  const legacyDraft = { ...baseDraft, title: "옛", description: "이전", durationValue: "5", durationUnit: "minutes" };
+  assert.equal(getPostingDraftIssue({ ...legacyDraft, title: "새 공고 제목" }, legacyDraft), null);
+  assert.equal(getPostingStepIssues(3, { ...baseDraft, locationSource: null })[0].field, "location");
+  assert.equal(getPostingStepIssues(3, { ...baseDraft, scheduleMode: "fixed", fixedSlots: [] })[0].field, "schedule_mode");
+  const surveyDraft = { ...baseDraft, type: "survey", externalUrl: "https://forms.gle/test", deadlineEnabled: true, deadline: "2030-09-11" };
+  assert.equal(getPostingDraftIssue(surveyDraft), null);
+  assert.equal(getPostingStepIssues(4, { ...surveyDraft, deadlineEnabled: false })[0].field, "participation_deadline_at");
+  assert.equal(getPostingStepIssues(3, { ...surveyDraft, externalUrl: "https://example.com/forms" }).length, 0);
+  assert.equal(getPostingStepIssues(3, { ...surveyDraft, externalUrl: "not-a-url" })[0].field, "external_url");
+  const betaDraft = { ...baseDraft, type: "beta_test", durationValue: "7", durationUnit: "days", betaPlatforms: ["ios", "android"], betaStartsAt: "2030-09-11", betaEndsAt: "2030-09-17" };
+  assert.equal(getPostingDraftIssue(betaDraft), null);
+  assert.equal(getPostingStepIssues(3, { ...betaDraft, betaEndsAt: betaDraft.betaStartsAt }).length, 0);
+  assert.equal(getPostingStepIssues(3, { ...betaDraft, betaEndsAt: "2030-09-10" })[0].field, "beta_dates");
+  assert.equal(getPostingStepIssues(3, { ...betaDraft, environment: "가".repeat(1001) })[0].field, "beta_test_environment");
+  assert.equal(getPostingStepIssues(3, { ...betaDraft, workflowNote: "가".repeat(2001) })[0].field, "beta_test_workflow_note");
+  assert.equal(isPostingDate("2026-02-30"), false);
+  assert.equal(isPostingDate("2028-02-29"), true);
+  const deadlineDraft = { ...baseDraft, deadlineEnabled: true, deadline: "2030-09-11" };
+  assert.equal(getPostingStepIssues(4, deadlineDraft, undefined, Date.parse("2030-09-11T14:59:00Z")).length, 0);
+  assert.equal(getPostingStepIssues(4, deadlineDraft, undefined, Date.parse("2030-09-11T15:00:00Z"))[0].field, "participation_deadline_at");
+  for (const count of ["0", "1000", "1.5", "x"]) {
+    assert.equal(getPostingStepIssues(4, { ...baseDraft, recruitmentCount: count })[0].field, "recruit_count");
+  }
+  for (const rewards of [[], [{ type: "none" }, { type: "gift_card", label: "Coffee" }], [{ type: "cash", amount: 0 }],
+    [{ type: "cash", amount: 2147483648 }], [{ type: "points", points: 1.5 }], [{ type: "gift_card", label: "" }]]) {
+    assert.equal(getPostingStepIssues(4, { ...baseDraft, compensations: rewards })[0].field, "compensations");
+  }
+  assert.deepEqual(["ios", "Android", "web", "other"].map(betaPlatformLabel), ["iOS", "Android", "Web", "기타"]);
+  assert.deepEqual([" IOS ", "ANDROID", "Web", "기타", "Windows"].map(betaPlatformLabel), ["iOS", "Android", "Web", "기타", "Windows"]);
+  assert.deepEqual(toggleBetaPlatform(["ios", "android"], "iOS"), ["android"]);
+  assert.deepEqual(toggleBetaPlatform(["ios", "other"], "기타"), ["ios"]);
+  for (const mode of ["fixed", "recurring", "negotiated"]) {
+    const input = serializePostingCreationDraft({ ...baseDraft, scheduleMode: mode, fixedSlots: ["2030-09-11 14:00"] });
+    assert.deepEqual(input.schedule_fixed_slots, mode === "fixed" ? ["2030-09-11 14:00"] : []);
+    assert.deepEqual(input.schedule_recurring_windows, mode === "recurring" ? ["평일 저녁"] : []);
+  }
+  console.log("Posting field validation fixtures passed: explicit fields, limits, same-day beta, strict dates, legacy edit, rewards, platform prefill, schedule modes.");
   const editPost = {
     ...serializePostingCreationDraft(baseDraft),
     id: "post-id", founder_id: "owner-id", status: "closed",
@@ -88,7 +159,28 @@ function run() {
   const surveyEdit = postingToEditDraft({ ...editPost, recruitment_type: "survey", external_url: null, external_action_available: true, external_provider: "google_forms" }, baseDraft);
   assert.equal(surveyEdit.externalUrl, "");
   assert.deepEqual(serializePostingEditDraft({ ...surveyEdit, title: "설문 제목 수정" }, surveyEdit), { title: "설문 제목 수정" });
+  assert.deepEqual(serializePostingEditDraft({ ...surveyEdit, externalProvider: "tally", externalUrl: "https://tally.so/r/replacement" }, surveyEdit), { external_url: "https://tally.so/r/replacement", external_provider: "tally" });
   assert.deepEqual(serializePostingEditDraft({ ...surveyEdit, externalUrl: "https://forms.gle/replacement" }, surveyEdit), { external_url: "https://forms.gle/replacement" });
+  assert.deepEqual(serializePostingEditDraft({ ...surveyEdit, title: "제목만 바꾼 설문" }, surveyEdit), { title: "제목만 바꾼 설문" });
+  assert.deepEqual(surveyProviderOptions.map((option) => option.label), ["Google Forms", "네이버 폼", "Microsoft Forms", "Typeform", "Tally", "기타"]);
+  for (const option of surveyProviderOptions) {
+    const chosenDraft = { ...surveyDraft, schemaVersion: 2, externalProvider: option.value, externalUrl: "https://research.example.org/form" };
+    const recovered = normalizePostingCreationDraft(JSON.parse(JSON.stringify(chosenDraft)), { ...baseDraft, schemaVersion: 2 }, () => "new-id");
+    assert.equal(recovered.externalProvider, option.value);
+    assert.equal(getPostingStepIssues(3, recovered).length, 0);
+    const payload = serializePostingCreationDraft(recovered);
+    assert.equal(payload.external_provider, option.value);
+    assert.equal(payload.external_url, chosenDraft.externalUrl);
+    const refetched = postingToEditDraft({ ...editPost, ...payload, external_url: null }, baseDraft);
+    assert.equal(refetched.externalProvider, option.value);
+    assert.equal(getSurveyProviderLabel(refetched.externalProvider), option.label);
+    assert.deepEqual(serializePostingEditDraft(refetched, refetched), {});
+    assert.deepEqual(serializePostingEditDraft({ ...surveyEdit, externalProvider: option.value }, surveyEdit),
+      option.value === "google_forms" ? {} : { external_provider: option.value });
+  }
+  assert.equal(getPostingStepIssues(3, { ...surveyDraft, externalProvider: "unknown" })[0].field, "external_provider");
+  assert.equal(normalizePostingCreationDraft({ ...surveyDraft, schemaVersion: 1 }, { ...baseDraft, schemaVersion: 2 }, () => "new-id").externalProvider, "google_forms");
+  console.log("Survey provider fixtures passed: six choices, draft restore, create/fetch labels, masked URL edit, provider-independent HTTPS validation.");
   const betaEdit = postingToEditDraft({ ...editPost, recruitment_type: "beta_test", duration_value: 7, duration_unit: "days", beta_test_platforms: ["ios", "android"], beta_test_starts_at: "2026-09-10T14:00:00+09:00", beta_test_ends_at: "2026-09-17T14:00:00+09:00", beta_test_environment: "iOS 17 이상", beta_test_workflow_note: "테스트 후 설문" }, baseDraft);
   assert.equal(betaEdit.durationValue, "7");
   assert.deepEqual(betaEdit.betaPlatforms, ["ios", "android"]);
@@ -107,7 +199,7 @@ function run() {
   assert.ok(getPostingCreationCapabilityError({ type: "survey", entryMode: "direct" }, {
     ...capabilities, direct_participation_recruitment_types: [],
   }));
-  for (const type of ["usability_test", "research_experiment", "focus_group", "other"]) {
+  for (const type of ["usability_test", "focus_group", "other"]) {
     const source = { ...baseDraft, type, environment: "보존할 준비 사항", workflowNote: "보존할 진행 안내" };
     const recovered = normalizePostingCreationDraft(source, { ...baseDraft, schemaVersion: 2 }, () => "new-id");
     assert.equal(recovered.type, type);
@@ -121,13 +213,51 @@ function run() {
     }), capabilities.enabled_recruitment_types);
     assert.equal(getPostingCreationCapabilityError({ ...recovered, type: "interview" }, capabilities), null);
   }
-  for (const type of ["survey", "beta_test"]) {
+  for (const type of ["survey", "beta_test", "research_experiment"]) {
     assert.ok(getPostingCreationCapabilityError({ ...baseDraft, type }, {
       enabled_recruitment_types: ["interview"], direct_participation_recruitment_types: [],
     }));
   }
   assert.equal(durationToMinutes("2", "weeks"), 20160);
   assert.equal(durationToMinutes("0", "minutes"), 0);
+
+  const researchDraft = { ...baseDraft, schemaVersion: 2, type: "research_experiment",
+    title: "성인 시각 과제 연구 참여자 모집", scheduleMode: "fixed",
+    fixedSlots: ["2099-09-15T10:00:00+09:00"], scheduleNote: "개인 노트북을 준비해 주세요.\n도착 후 담당자에게 연락해 주세요.",
+  };
+  const researchCapabilities = { ...capabilities,
+    enabled_recruitment_types: [...capabilities.enabled_recruitment_types, "research_experiment"],
+  };
+  assert.equal(getPostingCreationCapabilityError(researchDraft, researchCapabilities), null);
+  assert.ok(getPostingCreationCapabilityError(researchDraft, capabilities));
+  assert.ok(getPostingCreationCapabilityError({ ...researchDraft, entryMode: "direct" }, researchCapabilities));
+  assert.deepEqual(getCreatablePostingTypes(researchCapabilities), researchCapabilities.enabled_recruitment_types);
+  for (const interviewMode of ["online", "offline", "both"]) {
+    const source = { ...researchDraft, interviewMode };
+    const recovered = normalizePostingCreationDraft(JSON.parse(JSON.stringify(source)), { ...baseDraft, schemaVersion: 2 }, () => "new-id");
+    assert.equal(getPostingDraftIssue(recovered), null);
+    const wire = serializePostingCreationDraft(recovered);
+    assert.equal(wire.interview_mode, interviewMode);
+    assert.equal(wire.schedule_mode, "fixed");
+    assert.deepEqual(wire.schedule_fixed_slots, researchDraft.fixedSlots);
+    assert.deepEqual(wire.schedule_recurring_windows, []);
+    assert.equal(wire.schedule_note, researchDraft.scheduleNote);
+    assert.equal(wire.location_latitude, interviewMode === "online" ? null : baseDraft.locationLatitude);
+    assert.equal(wire.beta_test_environment, null);
+    assert.equal(wire.external_url, null);
+    const restored = postingToEditDraft({ ...editPost, ...wire }, baseDraft);
+    assert.equal(restored.type, "research_experiment");
+    assert.equal(restored.scheduleNote, researchDraft.scheduleNote);
+    assert.deepEqual(serializePostingEditDraft(restored, restored), {});
+    assert.deepEqual(serializePostingEditDraft({ ...restored, scheduleNote: "준비물은 없어요." }, restored),
+      { schedule_note: "준비물은 없어요." });
+  }
+  assert.equal(getPostingStepIssues(3, { ...researchDraft, locationSource: null })[0].field, "location");
+  assert.equal(getPostingStepIssues(3, { ...researchDraft, fixedSlots: [] })[0].field, "schedule_mode");
+  assert.equal(getPostingStepIssues(3, { ...researchDraft, scheduleMode: "none" })[0].field, "schedule_mode");
+  assert.equal(getPostingStepIssues(3, { ...researchDraft, durationValue: "5" })[0].field, "duration_value");
+  assert.equal(getPostingStepIssues(3, { ...researchDraft, scheduleNote: "가".repeat(2001) })[0].field, "schedule_note");
+  console.log("Research creation fixtures passed: capability, modes/location, schedule/preparation, draft recovery, edit and validation.");
 
   const interview = serializePostingCreationDraft(baseDraft);
   assert.deepEqual(interview, {
@@ -230,11 +360,20 @@ function run() {
     assert.ok(getPostingDurationError("beta_test", value, "weeks"));
   }
   assert.ok(getPostingDurationError("survey", "1", "days"));
-  for (const url of ["https://forms.gle/example", " https://docs.google.com/forms/d/example/viewform "]) {
-    assert.equal(isGoogleFormsParticipationUrl(url), true);
+  for (const url of ["https://forms.gle/example", " https://docs.google.com/forms/d/example/viewform ",
+    "https://tally.so/r/example", "https://research.typeform.com/to/example", "https://naver.me/example",
+    "https://forms.office.com/r/example", "https://research.example.org/custom?source=hypofit#start",
+    "https://docs.google.com/document/example", "https://xn--3e0b707e.example/form"]) {
+    assert.equal(isExternalSurveyUrl(url), true, url);
+    assert.equal(getPostingStepIssues(3, { ...surveyDraft, externalUrl: url }).length, 0, url);
   }
-  for (const url of ["http://forms.gle/example", "https://docs.google.com/document/example", "https://forms.gle.evil.test/example", "https://user:password@forms.gle/example"]) {
-    assert.equal(isGoogleFormsParticipationUrl(url), false);
+  for (const url of ["", "not-a-url", "http://forms.gle/example", "javascript:alert(1)", "data:text/html,test",
+    "file:///tmp/form", "https://user:password@forms.gle/example", "https://@example.com", "https:example.com",
+    "https://localhost/form", "https://127.0.0.1/form", "https://[::1]/form", "https://example.com:99999/",
+    "https://example.com:0/", "https://exa mple.com", "https://example.com/line\nbreak", "https://example.com/has space",
+    "https://example.com/" + "a".repeat(2000)]) {
+    assert.equal(isExternalSurveyUrl(url), false, url);
+    assert.equal(getPostingStepIssues(3, { ...surveyDraft, externalUrl: url })[0].field, "external_url", url);
   }
 
   const migratedV1Draft = normalizePostingCreationDraft(

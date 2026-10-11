@@ -234,14 +234,18 @@ function reportApiError(error: ApiError | NetworkError) {
 }
 
 export async function apiRequest<T>(path: string, init?: ApiRequestInit): Promise<T> {
-  const { accessToken, headers, ...requestInit } = init ?? {};
+  const { accessToken, headers, signal, ...requestInit } = init ?? {};
   const method = requestInit.method ?? "GET";
   const requestId = createRequestId();
   const releaseHeaders = createClientReleaseHeaders();
   const controller = new AbortController();
+  const cancelRequest = () => controller.abort();
+  signal?.addEventListener("abort", cancelRequest);
+  if (signal?.aborted) controller.abort();
   const timeout = setTimeout(() => controller.abort(), apiTimeoutMs);
 
   let response: Response;
+  let body: unknown;
 
   try {
     response = await fetch(`${mobileEnv.apiBaseUrl}${path}`, {
@@ -256,7 +260,11 @@ export async function apiRequest<T>(path: string, init?: ApiRequestInit): Promis
       signal: controller.signal,
       ...requestInit,
     });
+    body = await readResponseBody(response);
   } catch (error) {
+    // Query cancellation is not a timeout or a reportable network failure.
+    if (signal?.aborted) throw error;
+
     const networkError = new NetworkError({
       code: error instanceof Error && error.name === "AbortError" ? "api_timeout" : "network_error",
       message:
@@ -271,9 +279,8 @@ export async function apiRequest<T>(path: string, init?: ApiRequestInit): Promis
     throw networkError;
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener("abort", cancelRequest);
   }
-
-  const body = await readResponseBody(response);
 
   if (!response.ok) {
     const apiError = buildApiError({

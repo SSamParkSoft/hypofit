@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateSupportTicketInput, SupportTicketKind, UpdateSupportTicketInput } from "@hypofit/contracts";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { supportApi } from "@/shared/api/support";
+import { supportApi } from "@/features/support/supportApi";
 import { buildAuthQueryKey, resolveAuthUserId } from "@/shared/query/authQuery";
 
 const supportTicketQueryKeys = {

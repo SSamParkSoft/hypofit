@@ -1,5 +1,6 @@
-import { router, type Href } from "expo-router";
+import { router } from "expo-router";
 import { addAppBreadcrumb } from "@/shared/diagnostics/sentry";
+import { getNotificationDestination } from "@/features/notifications/notificationPresentation";
 
 export type PushNotificationTargetKind =
   | "chat_room"
@@ -14,6 +15,7 @@ export interface PushNavigationTarget {
   id: string | null;
   type: string | null;
   notificationId: string | null;
+  metadata?: Record<string, unknown>;
 }
 
 export function parsePushNotificationTarget(data: Record<string, unknown>): PushNavigationTarget {
@@ -34,12 +36,18 @@ export function parsePushNotificationTarget(data: Record<string, unknown>): Push
 
   if (targetType === "application") {
     addRouteParsedBreadcrumb("application", type, notificationId);
-    return { kind: "application", id: targetId, type, notificationId };
+    return {
+      kind: "application", id: targetId, type, notificationId,
+      metadata: { interview_post_id: readString(data.interview_post_id), chat_room_id: readString(data.chat_room_id) },
+    };
   }
 
   if (targetType === "interview_session") {
     addRouteParsedBreadcrumb("interview_session", type, notificationId);
-    return { kind: "interview_session", id: targetId, type, notificationId };
+    return {
+      kind: "interview_session", id: targetId, type, notificationId,
+      metadata: { interview_post_id: readString(data.interview_post_id), chat_room_id: readString(data.chat_room_id) },
+    };
   }
 
   if (targetType === "support_ticket") {
@@ -91,13 +99,14 @@ export function navigateToPushNotificationTarget(target: PushNavigationTarget) {
       }
       break;
     case "application":
-    case "interview_session":
+    case "interview_session": {
       addRouteNavigatedBreadcrumb(target);
-      router.push({
-        pathname: "/(tabs)/interviews/my-interviews",
-        params: { returnTo: "/notifications" },
-      });
+      const destination = getNotificationDestination({
+        type: target.type, target_type: target.kind, target_id: target.id, metadata: target.metadata,
+      }, "/notifications");
+      if (destination) router.push(destination.href);
       return;
+    }
     case "support_ticket":
       addRouteNavigatedBreadcrumb(target);
       router.push({
@@ -110,7 +119,7 @@ export function navigateToPushNotificationTarget(target: PushNavigationTarget) {
   }
 
   addRouteNavigatedBreadcrumb(target);
-  router.push({ pathname: "/notifications", params: { returnTo: "/(tabs)/home" } });
+  router.push({ pathname: "/notifications", params: { returnTo: "/(tabs)/interviews" } });
 }
 
 function buildSupportParams(ticketId: string | null): Record<string, string> {

@@ -7,10 +7,11 @@ import {
   navigateToPushNotificationTarget,
   parsePushNotificationTarget,
 } from "@/features/push/notificationRouting";
-import type { RegisterPushDeviceInput } from "@/shared/api/push";
-import { pushApi } from "@/shared/api/push";
-import { notificationsApi } from "@/shared/api/notifications";
+import type { RegisterPushDeviceInput } from "@/features/push/pushApi";
+import { pushApi } from "@/features/push/pushApi";
+import { notificationsApi } from "@/features/notifications/notificationsApi";
 import { addAppBreadcrumb, captureAppError } from "@/shared/diagnostics/sentry";
+import { colors } from "@/shared/theme/tokens";
 
 const installationIdStorageKey = "hypofit.installation_id";
 const registeredPushDeviceIdStorageKey = "hypofit.push.registered_device_id";
@@ -56,7 +57,7 @@ export async function configureNotificationRuntime() {
       name: "Hypofit 알림",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 220, 120, 220],
-      lightColor: "#0F7A4D",
+      lightColor: colors.brand,
       sound: "default",
     });
   }
@@ -410,5 +411,5 @@ function getPermissionStatusLabel(status: PushPermissionSummary["status"]) {
 }
 
 function getNotificationResponseData(response: PushNotificationResponse): Record<string, unknown> {
-  return response.notification.request.content.data;
+  return response.notification.request.content.data ?? {};
 }

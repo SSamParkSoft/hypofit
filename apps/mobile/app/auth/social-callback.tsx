@@ -11,6 +11,7 @@ import {
   getUnsupportedSocialNextStepMessage,
   resolveSocialAuthRoute,
 } from "@/features/auth/social/socialAuthService";
+import { colors } from "@/shared/theme/tokens";
 
 export default function SocialAuthCallbackRoute() {
   const auth = useAuth();
@@ -77,7 +78,7 @@ export default function SocialAuthCallbackRoute() {
         </View>
       ) : (
         <View className="items-center gap-4">
-          <ActivityIndicator color="#176B5D" />
+          <ActivityIndicator color={colors.brand} />
           <Text className="text-center text-[14px] leading-[22px] text-hypo-muted">
             로그인 정보를 확인하고 있어요.
           </Text>

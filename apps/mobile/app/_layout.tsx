@@ -6,7 +6,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import type { TextProps } from "react-native";
-import { Text, TextInput } from "react-native";
+import { Modal, Text, TextInput, View } from "react-native";
 import { enableScreens } from "react-native-screens";
 import { AppProviders } from "@/providers/AppProviders";
 import { MaintenanceScreen } from "@/features/maintenance/MaintenanceScreen";
@@ -50,7 +50,7 @@ function RootLayout() {
 
   return (
     <AppProviders>
-      <StatusBar style="dark" backgroundColor="#F6F7F8" />
+      <StatusBar style="dark" />
       <RootContent />
     </AppProviders>
   );
@@ -59,11 +59,8 @@ function RootLayout() {
 function RootContent() {
   const { isActive } = useMaintenance();
 
-  if (isActive) {
-    return <MaintenanceScreen />;
-  }
-
   return (
+    <View className="flex-1">
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
@@ -75,6 +72,10 @@ function RootContent() {
       <Stack.Screen name="notifications" />
       <Stack.Screen name="+not-found" />
     </Stack>
+    <Modal visible={isActive} animationType="none" presentationStyle="fullScreen" onRequestClose={() => {}}>
+      <MaintenanceScreen />
+    </Modal>
+    </View>
   );
 }
 

@@ -45,7 +45,7 @@ export function LoginScreen() {
                   <BrandMark />
                 </View>
                 <Text
-                  className="mt-[14px] text-center text-[32px] leading-[39px] text-[#0F7A4D]"
+                  className="mt-[14px] text-center text-[32px] leading-[39px] text-hypo-brand"
                   style={{ fontFamily: "HypofitSansBold" }}
                 >
                   Hypofit
@@ -123,7 +123,7 @@ function LoginToast() {
 }
 
 function getSafeReturnPath(returnTo?: string | string[]): Href {
-  return getSafeReturnTo(returnTo) ?? "/(tabs)/home";
+  return getSafeReturnTo(returnTo) ?? "/(tabs)/interviews";
 }
 
 function buildLegalHref(pathname: "/legal/terms" | "/legal/privacy"): Href {
