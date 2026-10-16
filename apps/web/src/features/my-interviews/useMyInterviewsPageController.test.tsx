@@ -6,7 +6,7 @@ import type { Application, AppUser, InterviewPost, Session } from "../../shared/
 
 const mocks = vi.hoisted(() => ({
   authState: {
-    accessToken: "token-123",
+    accessToken: "token-123" as string | null,
   },
   createSessionMutation: {
     error: null as Error | null,
@@ -21,6 +21,10 @@ const mocks = vi.hoisted(() => ({
   postsQuery: {
     data: [] as InterviewPost[],
     isError: false,
+    isLoading: false,
+  },
+  requestedPostQuery: {
+    data: null as InterviewPost | null,
     isLoading: false,
   },
   sessionsQuery: {
@@ -39,6 +43,10 @@ vi.mock("../auth/useAuth", () => ({
 
 vi.mock("../interview-posts/useInterviewPosts", () => ({
   useInterviewPosts: () => mocks.postsQuery,
+}));
+
+vi.mock("../interview-posts/usePostingDetail", () => ({
+  usePostingDetail: () => mocks.requestedPostQuery,
 }));
 
 vi.mock("../applications/useApplications", () => ({
@@ -158,10 +166,13 @@ const baseSession: Session = {
 
 describe("useMyInterviewsPageController", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "/my-interviews");
     mocks.authState.accessToken = "token-123";
     mocks.postsQuery.data = [basePost, secondPost];
     mocks.postsQuery.isError = false;
     mocks.postsQuery.isLoading = false;
+    mocks.requestedPostQuery.data = null;
+    mocks.requestedPostQuery.isLoading = false;
     mocks.applicationsQuery.data = [baseApplication, secondApplication];
     mocks.applicationsQuery.isError = false;
     mocks.applicationsQuery.isLoading = false;
@@ -172,6 +183,104 @@ describe("useMyInterviewsPageController", () => {
     mocks.createSessionMutation.error = null;
     mocks.createSessionMutation.isPending = false;
     mocks.createSessionMutation.mutate.mockReset();
+  });
+
+  it("opens the requested owned post after posts finish loading", async () => {
+    window.history.replaceState(null, "", "/my-interviews?tab=posts&post=post-2");
+    mocks.postsQuery.data = [];
+    mocks.postsQuery.isLoading = true;
+    const { result, rerender } = renderHook(() => useMyInterviewsPageController({ appUser: founderUser }));
+    expect(result.current.activeTab).toBe("posts");
+    mocks.postsQuery.data = [basePost, secondPost];
+    mocks.postsQuery.isLoading = false;
+    rerender();
+    await waitFor(() => expect(result.current.selectedFounderPost?.id).toBe("post-2"));
+  });
+
+  it("keeps an owned deep link when the post is absent from the public list", async () => {
+    window.history.replaceState(null, "", "/my-interviews?tab=posts&post=older-post");
+    mocks.requestedPostQuery.isLoading = true;
+    const { result, rerender } = renderHook(() => useMyInterviewsPageController({ appUser: founderUser }));
+    expect(result.current.selectedFounderPost).toBeNull();
+    expect(window.location.search).toBe("?tab=posts&post=older-post");
+
+    mocks.requestedPostQuery.data = { ...basePost, id: "older-post" };
+    mocks.requestedPostQuery.isLoading = false;
+    rerender();
+    await waitFor(() => expect(result.current.selectedFounderPost?.id).toBe("older-post"));
+    expect(result.current.myFounderPosts[0].id).toBe("older-post");
+  });
+
+  it("opens the requested participant application after applications finish loading", async () => {
+    window.history.replaceState(null, "", "/my-interviews?tab=applications&application=application-2");
+    mocks.applicationsQuery.data = [];
+    mocks.applicationsQuery.isLoading = true;
+    const { result, rerender } = renderHook(() => useMyInterviewsPageController({ appUser: respondentUser }));
+    mocks.applicationsQuery.data = [baseApplication, secondApplication];
+    mocks.applicationsQuery.isLoading = false;
+    rerender();
+    await waitFor(() => expect(result.current.selectedApplicationModel?.application.id).toBe("application-2"));
+  });
+
+  it("preserves an application deep link until the authenticated profile hydrates", async () => {
+    window.history.replaceState(null, "", "/my-interviews?tab=applications&application=application-2");
+    mocks.authState.accessToken = null;
+    mocks.applicationsQuery.data = [];
+    const { result, rerender } = renderHook(
+      ({ appUser }: { appUser: AppUser | null }) => useMyInterviewsPageController({ appUser }),
+      { initialProps: { appUser: null as AppUser | null } },
+    );
+    expect(result.current.selectedApplicationModel).toBeNull();
+
+    mocks.authState.accessToken = "token-123";
+    mocks.applicationsQuery.data = [baseApplication, secondApplication];
+    rerender({ appUser: null });
+    expect(result.current.selectedApplicationModel).toBeNull();
+
+    rerender({ appUser: respondentUser });
+    await waitFor(() => expect(result.current.selectedApplicationModel?.application.id).toBe("application-2"));
+  });
+
+  it("updates an application deep link when another application is selected", async () => {
+    window.history.replaceState(null, "", "/my-interviews?tab=applications&application=application-2");
+    const { result } = renderHook(() => useMyInterviewsPageController({ appUser: respondentUser }));
+
+    await waitFor(() => expect(result.current.selectedApplicationModel?.application.id).toBe("application-2"));
+    act(() => result.current.selectApplication("application-1"));
+
+    expect(result.current.selectedApplicationModel?.application.id).toBe("application-1");
+    expect(window.location.search).toBe("?tab=applications&application=application-1");
+  });
+
+  it("keeps the selected tab and owned post in the URL", async () => {
+    const { result } = renderHook(() => useMyInterviewsPageController({ appUser: founderUser }));
+
+    act(() => result.current.selectTab("posts"));
+    expect(window.location.search).toBe("?tab=posts&post=post-1");
+
+    act(() => result.current.selectPost("post-2"));
+    expect(result.current.selectedFounderPost?.id).toBe("post-2");
+    expect(window.location.search).toBe("?tab=posts&post=post-2");
+
+    act(() => result.current.selectTab("applications"));
+    expect(window.location.search).toBe("?tab=applications");
+
+    act(() => result.current.selectTab("posts"));
+    expect(window.location.search).toBe("?tab=posts&post=post-2");
+  });
+
+  it("keeps ownership filtering and falls back when an unavailable post is requested", async () => {
+    window.history.replaceState(null, "", "/my-interviews?tab=posts&post=foreign-post");
+    mocks.postsQuery.data = [{ ...basePost, id: "foreign-post", founder_id: respondentUser.id }, secondPost];
+    const { result } = renderHook(() => useMyInterviewsPageController({ appUser: founderUser }));
+    await waitFor(() => expect(result.current.selectedFounderPost?.id).toBe("post-2"));
+    expect(result.current.myFounderPosts).toEqual([secondPost]);
+  });
+
+  it("defaults to participant activity for an unsupported tab parameter", () => {
+    window.history.replaceState(null, "", "/my-interviews?tab=unsupported");
+    const { result } = renderHook(() => useMyInterviewsPageController({ appUser: respondentUser }));
+    expect(result.current.activeTab).toBe("applications");
   });
 
   it("restores the selected application to the first remaining row when the previous selection disappears", async () => {

@@ -1,8 +1,11 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { normalizeCompensations } from "@hypofit/contracts";
 
 import type { AppUser, InterviewPost } from "../shared/api/types";
+import type { ListInterviewPostsParams } from "../shared/api/interviewPosts";
+import type { CompensationFilter, PostingTypeFilter } from "../features/interview-posts/model/interviewsSearch";
 
 const mocks = vi.hoisted(() => ({
   applicationsQuery: {
@@ -29,6 +32,7 @@ const mocks = vi.hoisted(() => ({
     isLoading: false,
   },
   replacePath: vi.fn(),
+  usePosts: vi.fn(),
 }));
 
 vi.mock("../features/auth/useAuth", () => ({
@@ -49,12 +53,22 @@ vi.mock("../features/interview-posts/useInterviewPostViews", () => ({
 }));
 
 vi.mock("../features/interview-posts/useInterviewPosts", () => ({
-  useInterviewPosts: () => mocks.postsQuery,
+  useInterviewPosts: (params: ListInterviewPostsParams) => {
+    mocks.usePosts(params);
+    return { ...mocks.postsQuery, data: mocks.postsQuery.data.filter((post) =>
+      (!params.q || post.title.includes(params.q)) &&
+      (!params.recruitmentType || (post.recruitment_type ?? "interview") === params.recruitmentType) &&
+      (!params.compensationType || normalizeCompensations(post.compensations, post.reward_amount)
+        .some((compensation) => compensation.type === params.compensationType)),
+    ).slice(0, 100) };
+  },
 }));
 
 vi.mock("../features/interview-posts/components/InterviewSearchToolbar", () => ({
   InterviewSearchToolbar: (props: {
     onQueryChange: (query: string) => void;
+    onCompensationChange: (filter: CompensationFilter) => void;
+    onPostingTypeChange: (filter: PostingTypeFilter) => void;
     query: string;
     resultCount: number;
   }) => (
@@ -66,6 +80,12 @@ vi.mock("../features/interview-posts/components/InterviewSearchToolbar", () => (
         onChange={(event) => props.onQueryChange(event.target.value)}
       />
       <p data-testid="result-count">{props.resultCount}</p>
+      <button onClick={() => props.onPostingTypeChange("survey")}>설문 필터</button>
+      <button onClick={() => props.onCompensationChange("gift_card")}>상품권 필터</button>
+      <button onClick={() => {
+        props.onPostingTypeChange("all");
+        props.onCompensationChange("all");
+      }}>전체 필터</button>
     </div>
   ),
 }));
@@ -75,9 +95,11 @@ vi.mock("../features/interview-posts/components/InterviewResultsList", () => ({
     filteredPosts: InterviewPost[];
     onSelect: (postId: string) => void;
     selectedPostId: string | null;
+    viewerId?: string | null;
   }) => (
     <div>
       <p data-testid="selected-post-id">{props.selectedPostId ?? "none"}</p>
+      <p data-testid="list-viewer-id">{props.viewerId ?? "none"}</p>
       {props.filteredPosts.map((post) => (
         <button key={post.id} type="button" onClick={() => props.onSelect(post.id)}>
           {post.title}
@@ -90,6 +112,7 @@ vi.mock("../features/interview-posts/components/InterviewResultsList", () => ({
 vi.mock("../features/interview-posts/components/OpportunityDetailPanel", () => ({
   OpportunityDetailPanel: (props: {
     canApply: boolean;
+    isOwner?: boolean;
     onApply?: (input: {
       answers?: Record<string, string>;
       available_times?: string[];
@@ -100,6 +123,7 @@ vi.mock("../features/interview-posts/components/OpportunityDetailPanel", () => (
     <div>
       <p data-testid="detail-post-title">{props.post?.title ?? "none"}</p>
       <p data-testid="detail-can-apply">{String(props.canApply)}</p>
+      <p data-testid="detail-is-owner">{String(props.isOwner)}</p>
       <button
         disabled={!props.post}
         type="button"
@@ -180,6 +204,7 @@ describe("InterviewsPage", () => {
     mocks.createApplicationMutation.mutate.mockReset();
     mocks.interviewPostViewsQuery.data = [];
     mocks.markPostViewedMutation.mutate.mockReset();
+    mocks.usePosts.mockReset();
     mocks.navigateTo.mockReset();
     mocks.replacePath.mockReset();
     mocks.postsQuery.data = [
@@ -239,6 +264,12 @@ describe("InterviewsPage", () => {
     expect(mocks.navigateTo).toHaveBeenCalledWith("/interviews/new");
   });
 
+  it("passes ownership to both detail surfaces for the founder's post", () => {
+    render(<InterviewsPage appUser={{ ...respondentUser, id: "founder-1" }} />);
+    expect(screen.getByTestId("detail-is-owner")).toHaveTextContent("true");
+    expect(screen.getByTestId("list-viewer-id")).toHaveTextContent("founder-1");
+  });
+
   it("clears an invalid selected post after search filtering removes it", async () => {
     const user = userEvent.setup();
 
@@ -255,6 +286,7 @@ describe("InterviewsPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("result-count")).toHaveTextContent("1");
       expect(screen.getByTestId("selected-post-id")).toHaveTextContent("none");
+      expect(mocks.usePosts).toHaveBeenLastCalledWith(expect.objectContaining({ q: "alpha", status: "open" }));
     });
 
     expect(screen.getByTestId("detail-post-title")).toHaveTextContent("alpha interview");
@@ -268,5 +300,34 @@ describe("InterviewsPage", () => {
         }),
       );
     });
+  });
+
+  it("sends URL type and compensation filters instead of filtering the first 100 locally", () => {
+    window.history.replaceState({}, "", "/interviews?type=survey&compensation=gift_card");
+    mocks.postsQuery.data = [
+      ...Array.from({ length: 100 }, (_, index) => createPost({ id: `other-${index}` })),
+      createPost({ id: "matching-survey", title: "상품권 설문", recruitment_type: "survey",
+        compensations: [{ type: "gift_card", label: "커피 상품권" }] }),
+    ];
+    render(<InterviewsPage appUser={respondentUser} />);
+    expect(mocks.usePosts).toHaveBeenLastCalledWith(expect.objectContaining({
+      recruitmentType: "survey", compensationType: "gift_card",
+    }));
+    expect(screen.getByTestId("result-count")).toHaveTextContent("1");
+    expect(screen.getByTestId("detail-post-title")).toHaveTextContent("상품권 설문");
+  });
+
+  it("updates server parameters when type and compensation filters change or clear", async () => {
+    const user = userEvent.setup();
+    render(<InterviewsPage appUser={respondentUser} />);
+    await user.click(screen.getByRole("button", { name: "설문 필터" }));
+    await user.click(screen.getByRole("button", { name: "상품권 필터" }));
+    expect(mocks.usePosts).toHaveBeenLastCalledWith(expect.objectContaining({
+      recruitmentType: "survey", compensationType: "gift_card",
+    }));
+    await user.click(screen.getByRole("button", { name: "전체 필터" }));
+    expect(mocks.usePosts).toHaveBeenLastCalledWith(expect.objectContaining({
+      recruitmentType: undefined, compensationType: undefined,
+    }));
   });
 });

@@ -1,298 +1,125 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
-  AccountDeletionDetailPanel,
-  AccountDeletionListPanel,
-  AdminAccessState,
-  AdminSectionNavigation,
-  AdminSummaryStrip,
-  HealthPanel,
-  MaintenancePanel,
-  NoticePanel,
-  PushPanel,
-  SupportTicketDetailPanel,
-  SupportTicketListPanel,
+  AccountDeletionDetailPanel, AccountDeletionListPanel, AdminAccessState, AdminSectionNavigation,
+  AdminSummaryStrip, HealthPanel, PushPanel,
+  SupportTicketDetailPanel, SupportTicketListPanel,
 } from "../features/admin/components";
-import { getErrorMessage, type AdminSection } from "../features/admin/adminViewModel";
+import { adminSections, getErrorMessage, type AdminSection } from "../features/admin/adminViewModel";
+import { useAdminData } from "../features/admin/useAdminData";
 import { adminApi } from "../shared/api/admin";
-import { apiRequest } from "../shared/api/client";
-import type {
-  AdminAccountDeletionRequest,
-  AdminMe,
-  AdminSupportTicket,
-  AdminSummary,
-  AdminMaintenance,
-  AdminNotice,
-  AdminTargetPreview,
-  SupportTicketKind,
-  SupportTicketStatus,
-} from "../shared/api/types";
-import { ErrorState } from "../shared/ui/state";
+import { isApiError } from "../shared/api/client";
+import type { AdminAccountDeletionRequest, AdminMe, SupportTicketStatus } from "../shared/api/types";
+import { ErrorState, LoadingState } from "../shared/ui/state";
+import { replacePath } from "../shared/navigation/appNavigation";
 
-interface AdminPageProps {
-  accessToken: string | null;
+interface AdminPageProps { accessToken: string | null; userId?: string | null; }
+const NoticePanel = lazy(() => import("../features/admin/components/NoticePanel").then((module) => ({ default: module.NoticePanel })));
+const MaintenancePanel = lazy(() => import("../features/admin/components/MaintenancePanel").then((module) => ({ default: module.MaintenancePanel })));
+
+export function AdminPage({ accessToken, userId }: AdminPageProps) {
+  const [admin, setAdmin] = useState<AdminMe | null>(null);
+  const [failure, setFailure] = useState<{ message: string; denied: boolean } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!accessToken) { setAdmin(null); return; }
+    const controller = new AbortController();
+    if (!userId) setAdmin(null);
+    setFailure(null);
+    adminApi.getMe(accessToken, controller.signal).then((value) => {
+      if (!controller.signal.aborted) setAdmin(value);
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted) return;
+      setAdmin(null);
+      setFailure({ message: getErrorMessage(error, "관리자 확인에 실패했습니다."), denied: isApiError(error) && (error.status === 401 || error.status === 403) });
+    });
+    return () => controller.abort();
+  }, [accessToken, userId, attempt]);
+
+  if (!accessToken) return <AdminAccessState title="로그인이 필요합니다." description="관리자 콘솔은 로그인 후 이용할 수 있습니다." />;
+  if (failure) return <div><AdminAccessState title={failure.denied ? "관리자 권한이 필요합니다." : "관리자 확인을 다시 시도해 주세요."} description={failure.message} /><button className="mx-auto block rounded-hypo-md border border-hypo-border px-4 py-2" type="button" onClick={() => setAttempt((value) => value + 1)}>다시 시도</button></div>;
+  if (!admin || (userId && admin.id !== userId)) return <LoadingState title="관리자 확인 중입니다." />;
+  return <AdminConsole key={admin.id} admin={admin} accessToken={accessToken} />;
 }
 
-export function AdminPage({ accessToken }: AdminPageProps) {
-  const [admin, setAdmin] = useState<AdminMe | null>(null);
-  const [summary, setSummary] = useState<AdminSummary | null>(null);
-  const [tickets, setTickets] = useState<AdminSupportTicket[]>([]);
-  const [notices, setNotices] = useState<AdminNotice[]>([]);
-  const [maintenances, setMaintenances] = useState<AdminMaintenance[]>([]);
-  const [deletionRequests, setDeletionRequests] = useState<AdminAccountDeletionRequest[]>([]);
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  const [selectedDeletionRequestId, setSelectedDeletionRequestId] = useState<string | null>(null);
-  const [targetPreview, setTargetPreview] = useState<AdminTargetPreview | null>(null);
-  const [section, setSection] = useState<AdminSection>("tickets");
+function initialSection(): AdminSection {
+  const value = new URLSearchParams(window.location.search).get("section");
+  return adminSections.find((item) => item.id === value)?.id ?? "tickets";
+}
+
+function AdminConsole({ admin, accessToken }: { admin: AdminMe; accessToken: string }) {
+  const [section, setSection] = useState<AdminSection>(initialSection);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(() => new URLSearchParams(window.location.search).get("ticket"));
+  const [selectedDeletionId, setSelectedDeletionId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<SupportTicketStatus | "all">("open");
-  const [deletionStatusFilter, setDeletionStatusFilter] = useState<
-    AdminAccountDeletionRequest["status"] | "all"
-  >("all");
   const [deletedFilter, setDeletedFilter] = useState<"all" | "active" | "deleted">("active");
+  const [deletionStatusFilter, setDeletionStatusFilter] = useState<AdminAccountDeletionRequest["status"] | "all">("all");
   const [ticketSearch, setTicketSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deletionSearch, setDeletionSearch] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [debouncedDeletionSearch, setDebouncedDeletionSearch] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [healthJson, setHealthJson] = useState<Record<string, unknown> | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const selectedTicket = useMemo(
-    () => tickets.find((ticket) => ticket.id === selectedTicketId) ?? tickets[0] ?? null,
-    [selectedTicketId, tickets],
-  );
-  const selectedDeletionRequest = useMemo(
-    () =>
-      deletionRequests.find((request) => request.id === selectedDeletionRequestId) ??
-      deletionRequests[0] ??
-      null,
-    [deletionRequests, selectedDeletionRequestId],
-  );
-
-  const activeKind: SupportTicketKind | undefined = section === "reports" ? "report" : undefined;
-
-  const refresh = useCallback(async () => {
-    if (!accessToken) return;
-
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const [adminMe, nextSummary] = await Promise.all([
-        adminApi.getMe(accessToken),
-        adminApi.getSummary(accessToken),
-      ]);
-      setAdmin(adminMe);
-      setSummary(nextSummary);
-
-      if (section === "notices") {
-        setNotices(await adminApi.listNotices(accessToken));
-        return;
-      }
-
-      if (section === "operations") {
-        setMaintenances(await adminApi.listMaintenances(accessToken));
-        return;
-      }
-
-      if (section === "deletion") {
-        const nextRequests = await adminApi.listAccountDeletionRequests(
-          {
-            status: deletionStatusFilter === "all" ? undefined : deletionStatusFilter,
-            limit: 100,
-          },
-          accessToken,
-        );
-        setDeletionRequests(nextRequests);
-        setSelectedDeletionRequestId((currentId) =>
-          currentId && !nextRequests.some((request) => request.id === currentId)
-            ? nextRequests[0]?.id ?? null
-            : currentId,
-        );
-        return;
-      }
-
-      const nextTickets = await adminApi.listTickets(
-        {
-          kind: activeKind,
-          status: statusFilter === "all" ? undefined : statusFilter,
-          deleted_by_user: deletedFilter === "all" ? undefined : deletedFilter === "deleted",
-          limit: 100,
-        },
-        accessToken,
-      );
-      setTickets(nextTickets);
-      setSelectedTicketId((currentId) =>
-        currentId && !nextTickets.some((ticket) => ticket.id === currentId)
-          ? nextTickets[0]?.id ?? null
-          : currentId,
-      );
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error, "관리자 데이터를 불러오지 못했습니다."));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken, activeKind, deletedFilter, deletionStatusFilter, section, statusFilter]);
-
+  useEffect(() => { const timer = window.setTimeout(() => setDebouncedSearch(ticketSearch), 300); return () => window.clearTimeout(timer); }, [ticketSearch]);
+  useEffect(() => { const timer = window.setTimeout(() => setDebouncedDeletionSearch(deletionSearch), 300); return () => window.clearTimeout(timer); }, [deletionSearch]);
+  const data = useAdminData({ adminId: admin.id, accessToken, section, selectedTicketId, statusFilter, deletedFilter, deletionStatusFilter, search: debouncedSearch, deletionSearch: debouncedDeletionSearch });
+  const selectedDeletion = data.deletionRequests.find((request) => request.id === selectedDeletionId) ?? data.deletionRequests[0] ?? null;
+  const canLeave = () => !busy && (!dirty || window.confirm("저장하지 않은 내용을 버리고 이동할까요?"));
+  const writeLocation = (nextSection: AdminSection, ticketId: string | null) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("section", nextSection);
+    if (ticketId) url.searchParams.set("ticket", ticketId); else url.searchParams.delete("ticket");
+    replacePath(`${url.pathname}${url.search}${url.hash}`, { intent: "state", scroll: "preserve", focus: "none" });
+  };
+  const changeSection = (value: AdminSection) => {
+    if (value === section || !canLeave()) return;
+    setDirty(false); setActionError(null); setActionMessage(null); setSection(value); setSelectedTicketId(null);
+    writeLocation(value, null);
+  };
+  const selectTicket = (id: string) => {
+    if (id === data.selectedTicket?.id || !canLeave()) return;
+    setDirty(false); setActionError(null); setActionMessage(null); setSelectedTicketId(id); writeLocation(section, id);
+  };
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    const beforeUnload = (event: BeforeUnloadEvent) => { if (dirty || busy) { event.preventDefault(); event.returnValue = ""; } };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [dirty, busy]);
+  const refresh = data.refresh;
+  const onAction = useCallback((message: string) => { setActionError(null); setActionMessage(message); refresh(); }, [refresh]);
+  const error = actionError ?? (data.error ? getErrorMessage(data.error, "데이터를 불러오지 못했습니다.") : null);
 
-  useEffect(() => {
-    if (
-      section === "deletion" ||
-      !accessToken ||
-      !selectedTicket?.target_type ||
-      !selectedTicket.target_id
-    ) {
-      setTargetPreview(null);
-      return;
-    }
-
-    let isMounted = true;
-    adminApi
-      .getTargetPreview(selectedTicket.target_type, selectedTicket.target_id, accessToken)
-      .then((preview) => {
-        if (isMounted) setTargetPreview(preview);
-      })
-      .catch(() => {
-        if (isMounted) setTargetPreview(null);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [accessToken, section, selectedTicket?.target_id, selectedTicket?.target_type]);
-
-  const loadHealth = useCallback(async (signal?: AbortSignal) => {
-    setErrorMessage(null);
-    try {
-      const nextHealth = await apiRequest<Record<string, unknown>>("/api/v1/health/ready", {
-        signal,
-      });
-      setHealthJson(nextHealth);
-    } catch (error) {
-      setErrorMessage(getErrorMessage(error, "상태 점검을 불러오지 못했습니다."));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (section !== "health") {
-      return;
-    }
-
-    const controller = new AbortController();
-    void loadHealth(controller.signal);
-    return () => controller.abort();
-  }, [loadHealth, section]);
-
-  const handleRefresh = useCallback(() => {
-    void refresh();
-  }, [refresh]);
-
-  const handleHealthRefresh = useCallback(() => {
-    void loadHealth();
-  }, [loadHealth]);
-
-  const handleAction = useCallback(
-    (message: string) => {
-      setActionMessage(message);
-      void refresh();
-    },
-    [refresh],
-  );
-
-  if (!accessToken) {
-    return <AdminAccessState title="로그인이 필요합니다." description="관리자 콘솔은 로그인 후 이용할 수 있습니다." />;
-  }
-
-  if (errorMessage && !admin && !isLoading) {
-    return <AdminAccessState title="관리자 권한이 필요합니다." description={errorMessage} />;
-  }
-
-  return (
-    <div className="min-h-dvh bg-[#F6F7F8] text-hypo-text">
-      <header className="border-b border-hypo-border bg-white">
-        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-6 py-4">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-hypo-brand">Hypofit Admin</p>
-            <h1 className="mt-1 text-2xl font-black">운영 콘솔</h1>
-          </div>
-          <div className="text-right text-sm">
-            <p className="font-black">{admin?.name ?? "관리자 확인 중"}</p>
-            <p className="text-hypo-text-muted">{admin?.email ?? ""}</p>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto grid w-full max-w-[1440px] grid-cols-[220px_minmax(0,1fr)] gap-6 px-6 py-6">
-        <AdminSectionNavigation section={section} onSectionChange={setSection} />
-
-        <section className="space-y-5">
-          {summary ? <AdminSummaryStrip summary={summary} /> : null}
-          {actionMessage ? (
-            <div className="rounded-hypo-lg border border-green-100 bg-hypo-success-soft px-4 py-3 text-sm font-bold text-hypo-success">
-              {actionMessage}
-            </div>
-          ) : null}
-          {errorMessage && admin ? (
-            <ErrorState title="처리하지 못했습니다.">{errorMessage}</ErrorState>
-          ) : null}
-
-          {section === "notices" ? (
-            <NoticePanel accessToken={accessToken} notices={notices} onChanged={handleAction} onError={setErrorMessage} />
-          ) : section === "operations" ? (
-            <MaintenancePanel accessToken={accessToken} maintenances={maintenances} onChanged={handleAction} onError={setErrorMessage} />
-          ) : section === "health" ? (
-            <HealthPanel health={summary?.health ?? null} healthJson={healthJson} onRefresh={handleHealthRefresh} />
-          ) : section === "push" ? (
-            <PushPanel accessToken={accessToken} onAction={handleAction} onError={setErrorMessage} />
-          ) : section === "deletion" ? (
-            <div className="grid grid-cols-[minmax(0,0.95fr)_minmax(420px,0.75fr)] gap-5">
-              <AccountDeletionListPanel
-                isLoading={isLoading}
-                onRefresh={handleRefresh}
-                onSearchChange={setDeletionSearch}
-                onSelect={setSelectedDeletionRequestId}
-                onStatusFilterChange={setDeletionStatusFilter}
-                requests={deletionRequests}
-                search={deletionSearch}
-                selectedRequestId={selectedDeletionRequest?.id ?? null}
-                statusFilter={deletionStatusFilter}
-              />
-              <AccountDeletionDetailPanel
-                accessToken={accessToken}
-                request={selectedDeletionRequest}
-                onAction={handleAction}
-                onError={setErrorMessage}
-              />
-            </div>
-          ) : (
-            <div className="grid grid-cols-[minmax(0,0.95fr)_minmax(420px,0.75fr)] gap-5">
-              <SupportTicketListPanel
-                deletedFilter={deletedFilter}
-                isLoading={isLoading}
-                onDeletedFilterChange={setDeletedFilter}
-                onRefresh={handleRefresh}
-                onSearchChange={setTicketSearch}
-                onSelect={setSelectedTicketId}
-                onStatusFilterChange={setStatusFilter}
-                search={ticketSearch}
-                section={section === "reports" ? "reports" : "tickets"}
-                selectedTicketId={selectedTicket?.id ?? null}
-                statusFilter={statusFilter}
-                tickets={tickets}
-              />
-              <SupportTicketDetailPanel
-                accessToken={accessToken}
-                targetPreview={targetPreview}
-                ticket={selectedTicket}
-                onAction={handleAction}
-                onError={setErrorMessage}
-              />
-            </div>
-          )}
-        </section>
-      </main>
-    </div>
-  );
+  return <div className="min-h-dvh bg-hypo-surface-muted text-hypo-text">
+    <a href="#admin-content" className="sr-only focus:not-sr-only">운영 내용으로 이동</a>
+    <header className="border-b border-hypo-border bg-white">
+      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div><p className="text-sm font-bold text-hypo-brand">Hypofit Admin</p><h1 className="text-xl font-bold">운영 콘솔</h1></div>
+        <div className="text-right text-sm"><p className="font-bold">{admin.name}</p><p className="break-all text-hypo-text-muted">{admin.email}</p><a className="text-hypo-brand underline" href="/app" onClick={(event) => { if (!canLeave()) event.preventDefault(); }}>서비스로 이동</a></div>
+      </div>
+    </header>
+    <main className="mx-auto grid max-w-[1440px] gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[180px_minmax(0,1fr)]">
+      <AdminSectionNavigation section={section} onSectionChange={changeSection} />
+      <section id="admin-content" className="min-w-0 space-y-5" aria-busy={data.isLoading}>
+        {data.summary ? <AdminSummaryStrip summary={data.summary} /> : null}
+        {actionMessage ? <p role="status" className="rounded-hypo-md bg-hypo-success-soft px-4 py-3 text-sm text-hypo-success">{actionMessage}</p> : null}
+        {error ? <div role="alert"><ErrorState title="처리하지 못했습니다.">{error}</ErrorState><button type="button" className="mt-2 text-sm font-bold text-hypo-brand" onClick={() => { setActionError(null); data.refresh(); }}>다시 시도</button></div> : null}
+        {data.isLoading && (section === "notices" || section === "operations") ? <LoadingState title="운영 데이터를 불러오는 중입니다." /> : null}
+        <Suspense fallback={<LoadingState title="운영 화면을 준비하고 있습니다." />}>
+        {section === "notices" ? <NoticePanel accessToken={accessToken} notices={data.notices} onChanged={onAction} onError={setActionError} onDirtyChange={setDirty} onBusyChange={setBusy} />
+          : section === "operations" ? <MaintenancePanel adminId={admin.id} accessToken={accessToken} maintenances={data.maintenances} onChanged={onAction} onError={setActionError} onDirtyChange={setDirty} onBusyChange={setBusy} />
+          : section === "health" ? <HealthPanel health={data.summary?.health ?? null} healthJson={data.health.data ?? null} isLoading={data.health.isFetching} checkedAt={data.health.dataUpdatedAt} error={data.health.error ? getErrorMessage(data.health.error, "상태 확인 실패") : null} onRefresh={() => { void data.health.refetch(); }} />
+          : section === "push" ? <PushPanel accessToken={accessToken} onAction={onAction} onError={setActionError} onDirtyChange={setDirty} onBusyChange={setBusy} />
+          : section === "deletion" ? <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+            <AccountDeletionListPanel isLoading={data.isLoading} onRefresh={data.refresh} onSearchChange={(value) => { setSelectedDeletionId(null); setDeletionSearch(value); }} onSelect={setSelectedDeletionId} onStatusFilterChange={(value) => { setSelectedDeletionId(null); setDeletionStatusFilter(value); }} requests={data.deletionRequests} search={deletionSearch} selectedRequestId={selectedDeletion?.id ?? null} statusFilter={deletionStatusFilter} serverSearch hasMore={data.hasMoreDeletionRequests} onLoadMore={data.loadMoreDeletionRequests} />
+            <AccountDeletionDetailPanel key={selectedDeletion?.id} accessToken={accessToken} request={selectedDeletion} onAction={onAction} onError={setActionError} />
+          </div> : <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+            <SupportTicketListPanel deletedFilter={deletedFilter} isLoading={data.isLoading} onDeletedFilterChange={(value) => { if (canLeave()) { setDirty(false); setSelectedTicketId(null); setDeletedFilter(value); writeLocation(section, null); } }} onRefresh={() => { if (canLeave()) { setDirty(false); data.refresh(); } }} onSearchChange={(value) => { if (canLeave()) { setDirty(false); setSelectedTicketId(null); setTicketSearch(value); writeLocation(section, null); } }} onSelect={selectTicket} onStatusFilterChange={(value) => { if (canLeave()) { setDirty(false); setSelectedTicketId(null); setStatusFilter(value); writeLocation(section, null); } }} search={ticketSearch} section={section === "reports" ? "reports" : "tickets"} selectedTicketId={data.selectedTicket?.id ?? null} statusFilter={statusFilter} tickets={data.tickets} serverSearch hasMore={data.hasMoreTickets} onLoadMore={data.loadMoreTickets} />
+            <SupportTicketDetailPanel key={data.selectedTicket?.id} accessToken={accessToken} targetPreview={data.targetPreview} targetError={data.targetError ? getErrorMessage(data.targetError, "대상 요약을 불러오지 못했습니다.") : null} ticket={data.selectedTicket} onAction={onAction} onError={setActionError} onDirtyChange={setDirty} onBusyChange={setBusy} />
+          </div>}
+        </Suspense>
+      </section>
+    </main>
+  </div>;
 }

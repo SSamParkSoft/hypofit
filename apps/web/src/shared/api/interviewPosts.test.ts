@@ -86,6 +86,27 @@ describe("interviewPosts capability headers", () => {
     expect(headers.get("Authorization")).toBe("Bearer token-123");
   });
 
+  it("sends search, mode, type and compensation filters to the API before the server limit", async () => {
+    fetchMock.mockResolvedValue(createResponse({ body: "[]", status: 200 }));
+    await listInterviewPosts({
+      status: "open", q: "  coffee & work  ", mode: "online",
+      recruitmentType: "survey", compensationType: "gift_card",
+    });
+    const url = new URL(fetchMock.mock.calls[0][0], "https://example.invalid");
+    expect(url.searchParams.get("q")).toBe("coffee & work");
+    expect(url.searchParams.get("mode")).toBe("online");
+    expect(url.searchParams.get("recruitment_type")).toBe("survey");
+    expect(url.searchParams.get("compensation_type")).toBe("gift_card");
+  });
+
+  it("omits unset filters for existing callers", async () => {
+    fetchMock.mockResolvedValue(createResponse({ body: "[]", status: 200 }));
+    await listInterviewPosts({ status: "open" });
+    const url = new URL(fetchMock.mock.calls[0][0], "https://example.invalid");
+    expect(url.searchParams.has("recruitment_type")).toBe(false);
+    expect(url.searchParams.has("compensation_type")).toBe(false);
+  });
+
   it("adds the capability header to create requests", async () => {
     fetchMock.mockResolvedValue(
       createResponse({

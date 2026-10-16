@@ -29,10 +29,6 @@ export const postingTypeFilters: Array<{ label: string; value: PostingTypeFilter
   { label: "인터뷰", value: "interview" },
   { label: "설문조사", value: "survey" },
   { label: "베타테스트", value: "beta_test" },
-  { label: "사용성 테스트", value: "usability_test" },
-  { label: "연구 실험", value: "research_experiment" },
-  { label: "좌담회", value: "focus_group" },
-  { label: "기타", value: "other" },
 ];
 
 export const nearbyRadiusOptions = [1000, 3000, 5000, 10000, 20000] as const;

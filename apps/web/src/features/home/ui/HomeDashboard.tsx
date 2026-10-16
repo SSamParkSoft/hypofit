@@ -1,4 +1,4 @@
-import { formatCompensationSummary, normalizeCompensations } from "@hypofit/contracts";
+import { formatCompensationSummary, formatPostingDuration, normalizeCompensations, postingTypeLabels } from "@hypofit/contracts";
 import { useState } from "react";
 
 import { navigateTo } from "../../../shared/navigation/appNavigation";
@@ -134,7 +134,7 @@ function CurrentFocusPanel({ focus }: { focus: HomeDashboardFocus }) {
             {focus.body}
           </p>
 
-          <ol className="mt-6 grid grid-cols-4" aria-label="인터뷰 진행 단계">
+          {focus.steps.length > 0 ? <ol className="mt-6 grid grid-cols-4" aria-label="인터뷰 진행 단계">
             {focus.steps.map((step, index) => {
               const isComplete =
                 focus.currentStep >= 0 && index < focus.currentStep;
@@ -180,7 +180,7 @@ function CurrentFocusPanel({ focus }: { focus: HomeDashboardFocus }) {
                 </li>
               );
             })}
-          </ol>
+          </ol> : null}
         </div>
 
         <div className="w-full border-t border-hypo-border/70 pt-5 xl:w-[250px] xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
@@ -308,6 +308,8 @@ function RecentInterviews({
               onClick={() =>
                 onPreview({
                   description: post.service_summary,
+                  recruitmentType: post.recruitment_type,
+                  entryMode: post.entry_mode,
                   href: `/interviews/${post.id}`,
                   metaLabels: secondaryMeta.split(" · "),
                   sourceLabel: "최근 올라온 공고",
@@ -365,6 +367,8 @@ function RecommendationSpotlight({
           onClick={() =>
             onPreview({
               description: recommendation.post.service_summary,
+              recruitmentType: recommendation.post.recruitment_type,
+              entryMode: recommendation.post.entry_mode,
               href: `/interviews/${recommendation.post.id}`,
               metaLabels: [
                 formatCompensationSummary(normalizeCompensations(recommendation.post.compensations, recommendation.post.reward_amount)),
@@ -394,7 +398,10 @@ function RecommendationSpotlight({
           <div className="mt-auto flex w-full items-end justify-between gap-4 pt-7">
             <div>
               <p className="ui-metadata text-hypo-text-muted">
-                {recommendation.post.recruitment_type === "survey" ? "설문조사" : recommendation.post.recruitment_type === "beta_test" ? "베타테스트" : "인터뷰"} · {recommendation.post.duration_minutes}분
+                {[
+                  postingTypeLabels[recommendation.post.recruitment_type ?? "interview"],
+                  formatPostingDuration(recommendation.post),
+                ].filter(Boolean).join(" · ")}
               </p>
               <strong className="mt-1 block text-[1.625rem] font-bold leading-8 text-hypo-brand-strong">
                 {formatCompensationSummary(normalizeCompensations(recommendation.post.compensations, recommendation.post.reward_amount))}

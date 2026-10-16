@@ -2,7 +2,8 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { HomeDashboardData } from "../model/homeDashboardModel";
+import { buildHomeDashboardData, type HomeDashboardData } from "../model/homeDashboardModel";
+import type { InterviewPost } from "../../../shared/api/types";
 import { HomeDashboard } from "./HomeDashboard";
 
 const mocks = vi.hoisted(() => ({
@@ -137,6 +138,23 @@ describe("HomeDashboard", () => {
     expect(mocks.navigateTo).toHaveBeenLastCalledWith("/interviews/post-recommendation");
   });
 
+  it.each([
+    ["beta period", { recruitment_type: "beta_test", beta_test_starts_at: "2026-08-01T00:00:00Z", beta_test_ends_at: "2026-08-15T00:00:00Z" }, "베타테스트 · 14일"],
+    ["research duration", { recruitment_type: "research_experiment", duration_value: 2, duration_unit: "hours" }, "연구 실험 · 2시간"],
+    ["missing duration", { recruitment_type: "survey", duration_minutes: 0 }, "설문조사"],
+  ] satisfies [string, Partial<InterviewPost>, string][])("shows %s in the recommendation without minute-only metadata", (_name, overrides, expected) => {
+    mocks.query.data = {
+      ...dashboardData,
+      recommendation: { post: { ...recommendationPost, ...overrides } },
+    };
+
+    render(<HomeDashboard accessToken="token" appUserId="user-1" canApply displayName="세현" />);
+
+    expect(screen.getByText(expected, { exact: true })).toBeInTheDocument();
+    expect(screen.queryByText("베타테스트 · 30분")).not.toBeInTheDocument();
+    expect(screen.queryByText("설문조사 · 0분")).not.toBeInTheDocument();
+  });
+
   it("opens a preview for a recent API interview before navigating", async () => {
     const user = userEvent.setup();
     render(<HomeDashboard accessToken="token" appUserId="user-1" canApply displayName="세현" />);
@@ -172,5 +190,45 @@ describe("HomeDashboard", () => {
     render(<HomeDashboard accessToken="token" appUserId="user-1" canApply displayName="세현" />);
 
     expect(screen.getByLabelText("홈 정보를 불러오는 중")).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("opens an approved survey from selected focus without interview steps", async () => {
+    const user = userEvent.setup();
+    const surveyPost: InterviewPost = { ...recentPost, recruitment_type: "survey", entry_mode: "application_required" };
+    mocks.query.data = buildHomeDashboardData({
+      appUserId: "user-1", chatRooms: [], sessions: [], posts: [surveyPost],
+      applications: [{ id: "selected-survey", interview_post_id: surveyPost.id,
+        respondent_id: "user-1", status: "selected", answers: {}, available_times: [], rejection_reason: null }],
+    });
+    render(<HomeDashboard accessToken="token" appUserId="user-1" canApply displayName="세현" />);
+
+    expect(screen.queryByRole("list", { name: "인터뷰 진행 단계" })).not.toBeInTheDocument();
+    expect(screen.queryByText("일정 조율하기")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "설문 참여 안내 보기" }));
+    expect(mocks.navigateTo).toHaveBeenLastCalledWith("/interviews/post-recent");
+  });
+
+  describe.each(["recent", "recommendation"] as const)("%s preview guidance", (source) => {
+    it.each([
+      ["direct survey", { recruitment_type: "survey", entry_mode: "direct" }, "외부 설문에서 바로 참여해요. 설문 답변은 Hypofit에 저장되지 않아요."],
+      ["approved survey", { recruitment_type: "survey", entry_mode: "application_required" }, "신청 후 선정되면 외부 설문 링크로 참여할 수 있어요. 설문 답변은 Hypofit에 저장되지 않아요."],
+      ["beta", { recruitment_type: "beta_test" }, "선정 후 채팅에서 테스트 준비와 진행 안내를 확인해요."],
+      ["research", { recruitment_type: "research_experiment" }, "선정 후 채팅에서 연구 일정과 준비 사항을 조율해요."],
+      ["interview", {}, "가능한 시간과 정확한 장소는 선정 후 채팅에서 조율해요."],
+    ] satisfies [string, Partial<InterviewPost>, string][])("shows %s policy and retains detail navigation", async (_name, overrides, expected) => {
+      const user = userEvent.setup();
+      const post: InterviewPost = { ...recentPost, ...overrides };
+      mocks.query.data = {
+        ...dashboardData,
+        recentInterviews: source === "recent" ? [{ post, secondaryMeta: "공고" }] : [],
+        recommendation: source === "recommendation" ? { post } : null,
+      };
+      render(<HomeDashboard accessToken="token" appUserId="user-1" canApply displayName="세현" />);
+
+      await user.click(screen.getByRole("button", { name: /중고거래 약속 조율 경험 인터뷰/ }));
+      expect(screen.getByRole("dialog")).toHaveTextContent(expected);
+      await user.click(screen.getByRole("button", { name: "상세 보기" }));
+      expect(mocks.navigateTo).toHaveBeenLastCalledWith("/interviews/post-recent");
+    });
   });
 });

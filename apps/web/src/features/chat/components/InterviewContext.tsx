@@ -1,9 +1,8 @@
 import { ChevronDown } from "lucide-react";
-import { formatCompensationSummary, normalizeCompensations, postingTypeLabels } from "@hypofit/contracts";
+import { formatBetaTestPlatforms, formatCompensationSummary, formatPostingDuration, normalizeCompensations, postingTypeLabels } from "@hypofit/contracts";
 
 import type { ChatRoom } from "../../../shared/api/types";
 import { Avatar } from "../../../shared/ui/avatar";
-import { Button } from "../../../shared/ui/button";
 import { cn } from "../../../shared/ui/cn";
 import {
   formatInterviewMode,
@@ -28,6 +27,14 @@ export function InterviewContextBar({
   if (!post) {
     return null;
   }
+  const isInterview = !post.recruitment_type || post.recruitment_type === "interview";
+  const duration = formatPostingDuration(post);
+  const mode = post.recruitment_type === "beta_test" ? formatBetaTestPlatforms(post.beta_test_platforms) : formatInterviewMode(post.interview_mode);
+  const summary = [postingTypeLabels[post.recruitment_type ?? "interview"],
+    formatCompensationSummary(normalizeCompensations(post.compensations, post.reward_amount)), duration, mode].filter(Boolean).join(" · ");
+  const location = post.interview_mode === "online" || (!isInterview && post.recruitment_type !== "research_experiment")
+    ? null
+    : post.location_place_name ?? post.location_text ?? post.location_address ?? post.location;
 
   return (
     <div className="mt-3 border-t border-hypo-border/70 pt-3">
@@ -42,8 +49,7 @@ export function InterviewContextBar({
             {post.title}
           </p>
           <p className="mt-1 truncate text-[11px] font-medium leading-4 text-hypo-text-muted">
-            {postingTypeLabels[post.recruitment_type ?? "interview"]} · {formatCompensationSummary(normalizeCompensations(post.compensations, post.reward_amount))} · {post.duration_minutes}분 ·{" "}
-            {formatInterviewMode(post.interview_mode)}
+            {summary}
           </p>
         </div>
         <span
@@ -71,13 +77,15 @@ export function InterviewContextBar({
               {post.target_description}
             </p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <ContextDetailRow label="장소" value={post.location ?? "온라인 또는 추후 안내"} />
-            <ContextDetailRow
-              label="가능 시간"
-              value={post.schedule_options[0] ?? "모집자와 협의"}
-            />
-          </div>
+          {location || isInterview ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {location ? <ContextDetailRow label="장소" value={location} /> : null}
+              {isInterview ? <ContextDetailRow
+                label="가능 시간"
+                value={post.schedule_options[0] ?? "모집자와 협의"}
+              /> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -106,6 +114,14 @@ export function InterviewContextPanel({
 
   const counterpart = getCounterpart(room, appUserId);
   const post = room.interview_post;
+  const isInterview = Boolean(post && (!post.recruitment_type || post.recruitment_type === "interview"));
+  const isBeta = post?.recruitment_type === "beta_test";
+  const duration = post ? formatPostingDuration(post) : null;
+  const isOwner = appUserId === room.founder_id;
+  const isParticipant = appUserId === room.respondent_id;
+  const activityParams = new URLSearchParams(isOwner
+    ? { tab: "posts", post: room.interview_post_id }
+    : { tab: "applications", application: room.application_id });
 
   return (
     <aside className="hidden min-h-0 overflow-y-auto border-l border-hypo-border/80 px-5 py-4 min-[1600px]:block">
@@ -142,8 +158,8 @@ export function InterviewContextPanel({
               label="보상"
               value={formatCompensationSummary(normalizeCompensations(post.compensations, post.reward_amount))}
             />
-            <ContextDetailRow label="시간" value={`${post.duration_minutes}분`} />
-            <ContextDetailRow label="방식" value={formatInterviewMode(post.interview_mode)} />
+            {duration ? <ContextDetailRow label={isBeta ? "예상 참여 기간" : "시간"} value={duration} /> : null}
+            <ContextDetailRow label={isBeta ? "테스트 플랫폼" : "방식"} value={isBeta ? formatBetaTestPlatforms(post.beta_test_platforms) : formatInterviewMode(post.interview_mode)} />
             <ContextDetailRow
               label="상태"
               value={getRoomStatusLabel(getRoomDisplayStatus(room, false))}
@@ -151,9 +167,14 @@ export function InterviewContextPanel({
           </section>
         ) : null}
 
-        <Button className="w-full justify-center" size="sm" variant="secondary">
-          일정 확정하기
-        </Button>
+        {isInterview && (isOwner || isParticipant) ? (
+          <a
+            className="ui-control-text inline-flex min-h-9 w-full items-center justify-center rounded-hypo-lg border border-hypo-border bg-hypo-surface px-3.5 text-hypo-text transition-colors hover:border-hypo-border-strong hover:bg-hypo-surface-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/18"
+            href={`/my-interviews?${activityParams.toString()}`}
+          >
+            {isOwner ? "지원자 관리" : "내 참여 보기"}
+          </a>
+        ) : null}
       </div>
     </aside>
   );

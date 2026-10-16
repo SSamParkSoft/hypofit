@@ -8,7 +8,6 @@ import { InterviewSearchToolbar } from "../features/interview-posts/components/I
 import { OpportunityDetailPanel } from "../features/interview-posts/components/OpportunityDetailPanel";
 import {
   buildInterviewsSearchParams,
-  filterInterviewPosts,
   readInterviewsSearchStateFromUrl,
   type ModeFilter,
   type NearbyStatus,
@@ -40,18 +39,32 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
     initialSearchState.nearbyCenter,
   );
   const [nearbyRadiusM, setNearbyRadiusM] = useState(initialSearchState.nearbyRadiusM);
+  const [query, setQuery] = useState(initialSearchState.query);
+  const [debouncedQuery, setDebouncedQuery] = useState(initialSearchState.query.trim());
+  const [modeFilter, setModeFilter] = useState<ModeFilter>(initialSearchState.modeFilter);
+  const [compensationFilter, setCompensationFilter] = useState<CompensationFilter>(initialSearchState.compensationFilter);
+  const [postingTypeFilter, setPostingTypeFilter] = useState<PostingTypeFilter>(initialSearchState.postingTypeFilter);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
   const interviewPostParams = useMemo(
-    () =>
-      nearbyCenter
+    () => ({
+      status: "open" as const,
+      q: debouncedQuery || undefined,
+      mode: modeFilter === "all" ? undefined : modeFilter,
+      recruitmentType: postingTypeFilter === "all" ? undefined : postingTypeFilter,
+      compensationType: compensationFilter === "all" ? undefined : compensationFilter,
+      ...(nearbyCenter
         ? {
-            status: "open" as const,
             lat: nearbyCenter.lat,
             lng: nearbyCenter.lng,
             radiusM: nearbyRadiusM,
             sort: "distance" as const,
           }
-        : { status: "open" as const },
-    [nearbyCenter, nearbyRadiusM],
+        : {}),
+    }),
+    [debouncedQuery, modeFilter, compensationFilter, postingTypeFilter, nearbyCenter, nearbyRadiusM],
   );
   const { data: posts = [], isError, isLoading } = useInterviewPosts(interviewPostParams);
   const { data: applications = [] } = useApplications(accessToken);
@@ -59,10 +72,6 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(
     initialSearchState.selectedPostId,
   );
-  const [query, setQuery] = useState(initialSearchState.query);
-  const [modeFilter, setModeFilter] = useState<ModeFilter>(initialSearchState.modeFilter);
-  const [compensationFilter, setCompensationFilter] = useState<CompensationFilter>(initialSearchState.compensationFilter);
-  const [postingTypeFilter, setPostingTypeFilter] = useState<PostingTypeFilter>(initialSearchState.postingTypeFilter);
   const canCreateAndManagePosts = Boolean(appUser?.id);
   const createApplication = useCreateApplication(accessToken);
   const markPostViewed = useMarkInterviewPostViewed(accessToken);
@@ -75,10 +84,7 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
     [postViews],
   );
 
-  const filteredPosts = useMemo(
-    () => filterInterviewPosts(posts, { modeFilter, query, compensationFilter, postingTypeFilter }),
-    [compensationFilter, modeFilter, posts, postingTypeFilter, query],
-  );
+  const filteredPosts = posts;
 
   const requestNearbyLocation = () => {
     if (!navigator.geolocation) {
@@ -208,6 +214,7 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
                 createApplication.error instanceof Error ? createApplication.error.message : null
               }
               isApplying={createApplication.isPending}
+              isOwner={Boolean(selectedPost && appUser?.id === selectedPost.founder_id)}
               existingApplication={
                 selectedPost ? applicationByPostId.get(selectedPost.id) ?? null : null
               }
@@ -232,6 +239,7 @@ export function InterviewsPage({ appUser }: InterviewsPageProps) {
             isLoading={isLoading}
             selectedPostId={selectedPostId}
             viewedPostIds={viewedPostIds}
+            viewerId={appUser?.id}
             onApply={(input) => {
               createApplication.mutate(input);
             }}

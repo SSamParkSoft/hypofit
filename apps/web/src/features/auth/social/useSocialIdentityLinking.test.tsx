@@ -117,27 +117,18 @@ describe("useSocialIdentityLinking", () => {
     expect(storedAttempt).toContain("\"providerIdentifier\":\"kakao\"");
   });
 
-  it("starts Naver account linking with the custom Supabase provider while preserving the link attempt and callback redirect", async () => {
+  it("rejects Naver linking before any request", async () => {
     const { result } = renderHook(() => useSocialIdentityLinking());
 
     await act(async () => {
       await result.current.linkProvider("naver");
     });
 
-    expect(mocks.createSocialAuthLinkAttempt).toHaveBeenCalledWith("user-access-token", {
-      provider: "naver",
-      returnTo: "/profile/account",
-    });
-    expect(mocks.linkIdentity).toHaveBeenCalledWith({
-      options: {
-        redirectTo: `${window.location.origin}/auth/social/callback`,
-        skipBrowserRedirect: true,
-      },
-      provider: "custom:naver",
-    });
-
-    const storedAttempt = window.sessionStorage.getItem(SOCIAL_AUTH_STORAGE_KEY);
-    expect(storedAttempt).toContain("\"provider\":\"naver\"");
-    expect(storedAttempt).toContain("\"providerIdentifier\":\"custom:naver\"");
+    expect(result.current.availableProviders.map((item) => item.provider)).toEqual(["kakao", "apple", "google"]);
+    expect(result.current.feedback).toBeTruthy();
+    expect(mocks.createSocialAuthLinkAttempt).not.toHaveBeenCalled();
+    expect(mocks.getSupabaseClientOrThrow).not.toHaveBeenCalled();
+    expect(mocks.linkIdentity).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(SOCIAL_AUTH_STORAGE_KEY)).toBeNull();
   });
 });

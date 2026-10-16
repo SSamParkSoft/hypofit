@@ -92,6 +92,14 @@ describe("workflow read models", () => {
     });
   });
 
+  it("uses a neutral posting label when the referenced post is unavailable", () => {
+    expect(buildApplicationReadModels({ applications: [application], posts: [], sessions: [] })[0])
+      .toMatchObject({
+        displayTitle: "공고 post-123",
+        targetSummary: "이 화면에서 참여 조건을 확인할 수 없어요.",
+      });
+  });
+
   it("does not expose a respondent id when the user summary is unavailable", () => {
     const deletedUserApplication = { ...application, respondent: null };
 
@@ -114,6 +122,7 @@ describe("workflow read models", () => {
 
   it("formats known answer keys and short IDs", () => {
     expect(formatAnswerLabel("relevant_experience")).toBe("관련 경험");
+    expect(formatAnswerLabel("reason")).toBe("참여 이유");
     expect(formatAnswerLabel("other_answer")).toBe("other answer");
     expect(shortId("1234567890")).toBe("12345678");
   });

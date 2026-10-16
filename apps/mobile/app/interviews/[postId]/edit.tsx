@@ -1,1 +1,1 @@
-export { EditInterviewScreen as default } from "@/screens/interviews/EditInterviewScreen";
+export { EditPostingScreen as default } from "@/screens/postings/EditPostingScreen";

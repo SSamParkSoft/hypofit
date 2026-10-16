@@ -63,10 +63,6 @@ describe("AuthScreen", () => {
         provider: "google",
         providerIdentifier: "google",
       },
-      {
-        provider: "naver",
-        providerIdentifier: "custom:naver",
-      },
     ];
   });
 
@@ -83,7 +79,6 @@ describe("AuthScreen", () => {
       "카카오 로그인",
       "Apple로 로그인",
       "Google로 로그인",
-      "네이버로 로그인",
     ]);
     expect(screen.queryByLabelText("이메일")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("비밀번호")).not.toBeInTheDocument();
@@ -112,8 +107,7 @@ describe("AuthScreen", () => {
     await user.click(screen.getByRole("button", { name: "Google로 로그인" }));
     expect(mocks.socialEntry.startSocialAuth).toHaveBeenCalledWith("google", "sign_in");
 
-    await user.click(screen.getByRole("button", { name: "네이버로 로그인" }));
-    expect(mocks.socialEntry.startSocialAuth).toHaveBeenCalledWith("naver", "sign_in");
+    expect(screen.queryByRole("button", { name: /네이버/ })).not.toBeInTheDocument();
   });
 
   it("lets an existing session continue or switch to another account", async () => {

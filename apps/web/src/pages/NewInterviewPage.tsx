@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import { PostCreationForm } from "../features/interview-posts/components/PostCreationForm";
 import { toCreateInterviewPostInput } from "../features/interview-posts/components/postCreationValidation";
 import { useCreateInterviewPost } from "../features/interview-posts/useCreateInterviewPost";
+import { usePostingImageCapabilities } from "../features/interview-posts/usePostingImageCapabilities";
+import { getApiErrorMessage } from "../shared/api/errorPresentation";
 import type { AppUser } from "../shared/api/types";
 import { navigateBack, navigateTo } from "../shared/navigation/appNavigation";
 import { BackLink } from "../shared/ui/back-link";
@@ -16,8 +18,9 @@ interface NewInterviewPageProps {
   appUser: AppUser | null;
 }
 
-export function NewInterviewPage({ accessToken }: NewInterviewPageProps) {
+export function NewInterviewPage({ accessToken, appUser }: NewInterviewPageProps) {
   const createInterviewPost = useCreateInterviewPost(accessToken);
+  const imageCapabilities = usePostingImageCapabilities(accessToken);
   const goBack = () => navigateBack("/my-interviews");
 
   return (
@@ -49,9 +52,12 @@ export function NewInterviewPage({ accessToken }: NewInterviewPageProps) {
       <section className="grid gap-5 min-[1200px]:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
           <PostCreationForm
-            errorMessage={
-              createInterviewPost.error instanceof Error ? createInterviewPost.error.message : null
-            }
+            key={appUser?.id ?? "signed-out"}
+            accessToken={accessToken}
+            imagesEnabled={Boolean(imageCapabilities.data?.posting_images_enabled)}
+            errorMessage={createInterviewPost.error
+              ? getApiErrorMessage(createInterviewPost.error, "모집글을 저장하지 못했어요. 다시 시도해 주세요.")
+              : null}
             hideCancelAction
             hideHeader
             isSubmitting={createInterviewPost.isPending}

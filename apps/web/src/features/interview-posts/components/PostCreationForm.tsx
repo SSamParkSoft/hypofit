@@ -1,4 +1,6 @@
-import { type FormEvent, type InputHTMLAttributes, useState } from "react";
+import { type FormEvent, type InputHTMLAttributes, useRef, useState } from "react";
+import { PostingImageEditor } from "./PostingImageEditor";
+import { usePostingImageEditor } from "./usePostingImageEditor";
 
 import { loadKakaoMaps, type KakaoKeywordSearchResult } from "../../../shared/map/kakaoMapLoader";
 import { Button } from "../../../shared/ui/button";
@@ -7,6 +9,8 @@ import { Field, SelectInput, TextareaInput, TextInput } from "../../../shared/ui
 import { type PostCreationFormValues, validatePostCreation } from "./postCreationValidation";
 
 interface PostCreationFormProps {
+  accessToken?: string | null;
+  imagesEnabled?: boolean;
   errorMessage?: string | null;
   hideCancelAction?: boolean;
   hideHeader?: boolean;
@@ -48,6 +52,8 @@ function NumberWithUnit({
 }
 
 export function PostCreationForm({
+  accessToken,
+  imagesEnabled = false,
   errorMessage,
   hideCancelAction,
   hideHeader,
@@ -56,7 +62,11 @@ export function PostCreationForm({
   onSubmit,
 }: PostCreationFormProps) {
   const [values, setValues] = useState<PostCreationFormValues>(initialValues);
+  const imageEditor = usePostingImageEditor(accessToken, imagesEnabled);
+  const submitLock = useRef(false);
+  const submitting = isSubmitting || imageEditor.busy;
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [placeQuery, setPlaceQuery] = useState("");
   const [placeResults, setPlaceResults] = useState<KakaoKeywordSearchResult[]>([]);
   const [placeSearchError, setPlaceSearchError] = useState<string | null>(null);
@@ -69,6 +79,7 @@ export function PostCreationForm({
     value: PostCreationFormValues[K],
   ) {
     setValues((current) => ({ ...current, [key]: value }));
+    setValidationError(null);
   }
 
   async function searchPlaces() {
@@ -133,10 +144,13 @@ export function PostCreationForm({
     setPlaceQuery(placeName);
     setPlaceResults([]);
     setPlaceSearchError(null);
+    setValidationError(null);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting || submitLock.current) return;
+    setSubmissionError(null);
     const nextValidationError = validatePostCreation(values);
 
     if (nextValidationError) {
@@ -145,7 +159,13 @@ export function PostCreationForm({
     }
 
     setValidationError(null);
-    onSubmit(values);
+    submitLock.current = true;
+    try {
+      const imageIds = await imageEditor.upload();
+      onSubmit(imageIds.length ? { ...values, imageIds } : values);
+    } catch (error) {
+      setSubmissionError(error instanceof Error ? error.message : "이미지를 업로드하지 못했어요.");
+    } finally { submitLock.current = false; }
   }
 
   return (
@@ -171,6 +191,7 @@ export function PostCreationForm({
       )}
 
       <div className={hideHeader ? "grid gap-x-4 gap-y-5 lg:grid-cols-2" : "mt-6 grid gap-x-4 gap-y-5 lg:grid-cols-2"}>
+        <PostingImageEditor editor={imageEditor} disabled={submitting} />
         <Field className="lg:col-span-2" label="제목" error={errorFor("모집글 제목을 입력하세요.")}>
           <TextInput
             required
@@ -363,6 +384,11 @@ export function PostCreationForm({
           {errorMessage}
         </p>
       ) : null}
+      {submissionError ? (
+        <p className="mt-4 text-sm font-bold text-hypo-danger" role="alert">
+          {submissionError}
+        </p>
+      ) : null}
 
       <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-hypo-border pt-5">
         {hideCancelAction ? null : (
@@ -370,7 +396,7 @@ export function PostCreationForm({
             취소
           </Button>
         )}
-        <Button disabled={isSubmitting} type="submit">
+        <Button disabled={submitting} type="submit">
           {isSubmitting ? "저장 중" : "모집글 저장"}
         </Button>
       </div>

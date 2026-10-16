@@ -26,6 +26,7 @@ describe("providerRegistry", () => {
   });
 
   it("exposes the approved public web providers in product order", () => {
-    expect(getVisibleWebSocialProviders()).toEqual(["kakao", "apple", "google", "naver"]);
+    expect(getVisibleWebSocialProviders()).toEqual(["kakao", "apple", "google"]);
+    expect(getVisibleWebSocialProviders()).not.toContain("naver");
   });
 });

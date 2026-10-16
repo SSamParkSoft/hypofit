@@ -120,16 +120,43 @@ export function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export function getReadinessIntent(value: string): AdminBadgeIntent {
-  const normalized = value.toLowerCase();
-  const healthy = ["ok", "ready", "configured", "enabled"].some((item) => normalized.includes(item));
-  if (healthy) return "success";
-
-  const degraded = ["disabled", "not_configured", "unconfigured", "false"].some((item) =>
-    normalized.includes(item),
-  );
-  if (degraded) return "warning";
-
+  const normalized = value.toLowerCase().trim();
+  if (["ok", "ready", "configured", "enabled", "설정됨"].includes(normalized)) return "success";
+  if (["disabled", "not_configured", "unconfigured", "false", "unavailable", "degraded", "미설정"].includes(normalized)) return "warning";
   return "neutral";
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+export function readinessValues(data: Record<string, unknown> | null) {
+  const checks = objectValue(data?.checks);
+  const push = objectValue(checks.push);
+  const email = objectValue(checks.outbound_email);
+  const provider = (value: unknown) => {
+    const item = objectValue(value);
+    if (item.enabled === false) return "disabled";
+    return item.configured === true ? "설정됨" : item.configured === false ? "미설정" : "unknown";
+  };
+  return {
+    api: data ? (typeof data.status === "string" ? data.status : "unknown") : "unknown",
+    database: typeof checks.database === "string" ? checks.database : "unknown",
+    apns: push.enabled === false ? "disabled" : provider(push.apns),
+    fcm: push.enabled === false ? "disabled" : provider(push.fcm),
+    email: email.configured === true ? "설정됨" : email.configured === false ? "미설정" : "unknown",
+  };
+}
+
+export const moderationLabels: Record<AdminModerationActionCreateInput["action"], string> = {
+  close_report: "신고 종료", warn: "주의 기록 (사용자 알림 없음)", hide: "숨기기", remove: "제거",
+  block: "계정 비활성화", unblock: "계정 활성화", restore: "복구",
+};
+
+export function availableModerationActions(targetType: string) {
+  const effects = targetType === "user" ? ["block", "remove", "unblock", "restore"]
+    : ["interview_post", "application", "session", "chat_message"].includes(targetType) ? ["hide", "remove", "restore"] : [];
+  return moderationActions.filter((action) => action === "warn" || action === "close_report" || effects.includes(action));
 }
 
 export function getSupportTicketSearchValues(ticket: {

@@ -26,6 +26,33 @@ afterEach(() => {
 });
 
 describe("LandingPage", () => {
+  it.each([false, true])("uses current product captures on desktop=%s", (desktop) => {
+    mockViewport(desktop);
+    render(<LandingPage />);
+
+    expect(screen.queryByText("신청 · 참여 관리 화면")).not.toBeInTheDocument();
+    expect(screen.queryByText("Hypofit Web 화면")).not.toBeInTheDocument();
+    expect(screen.getByAltText(/검색과 필터, 공고 목록/)).toHaveAttribute("width", "1470");
+    expect(screen.getByAltText(/신청자 목록과 진행 상태/)).toBeInTheDocument();
+    const discovery = screen.getAllByAltText(/공고를 탐색하고 조건을 비교/);
+    expect(discovery[0]).toHaveAttribute("loading", "eager");
+    expect(discovery[0]).toHaveAttribute("fetchpriority", "high");
+    for (const image of screen.getAllByRole("img").filter((image) => image.getAttribute("src")?.includes("store-assets/landing") && !image.getAttribute("src")?.includes("web-discovery"))) {
+      expect(image).toHaveAttribute("width", "720");
+      expect(image).toHaveAttribute("height", "1565");
+      expect(image.getAttribute("src")).toMatch(/\.webp$/);
+    }
+    expect(screen.queryByAltText(/앱 홈 화면/)).not.toBeInTheDocument();
+    const bezels = document.querySelectorAll('img[src*="iphone-17-pro-silver"]');
+    expect(bezels).toHaveLength(8);
+    bezels.forEach((bezel) => {
+      expect(bezel).toHaveAttribute("alt", "");
+      expect(bezel).toHaveAttribute("aria-hidden", "true");
+      expect(bezel).toHaveAttribute("width", "810");
+      expect(bezel).toHaveAttribute("height", "1656");
+    });
+  });
+
   it("communicates the public product promise and the two-sided platform", () => {
     render(<LandingPage />);
 

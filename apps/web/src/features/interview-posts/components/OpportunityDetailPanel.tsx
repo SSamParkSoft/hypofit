@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { type ReactNode } from "react";
 import { SurveyParticipationPanel } from "./SurveyParticipationPanel";
+import { PostingImageGallery } from "./PostingImageGallery";
+import { getPostingDetailStatus } from "../model/postingDetailStatus";
 
 import {
   ApplicationForm,
@@ -14,6 +16,7 @@ import {
 } from "../../applications/ui";
 import type { CreateApplicationInput } from "../../../shared/api/applications";
 import type { Application, InterviewPost } from "../../../shared/api/types";
+import { navigateTo } from "../../../shared/navigation/appNavigation";
 import { Badge } from "../../../shared/ui/badge";
 import { Button } from "../../../shared/ui/button";
 import {
@@ -23,6 +26,8 @@ import {
 import {
   CompensationSummary,
   PostingTypeLabel,
+  postingDetailLocationLabel,
+  postingDurationLabel,
   postingParticipationLabel,
   postingPrimaryAction,
 } from "./postingPresentation";
@@ -32,6 +37,7 @@ interface OpportunityDetailPanelProps {
   errorMessage?: string | null;
   existingApplication?: Application | null;
   isApplying?: boolean;
+  isOwner?: boolean;
   onApply?: (input: CreateApplicationInput) => void;
   post: InterviewPost | null;
 }
@@ -41,6 +47,7 @@ export function OpportunityDetailPanel({
   errorMessage,
   existingApplication,
   isApplying,
+  isOwner = false,
   onApply,
   post,
 }: OpportunityDetailPanelProps) {
@@ -58,11 +65,16 @@ export function OpportunityDetailPanel({
     );
   }
 
+  const status = getPostingDetailStatus(post);
+  const duration = postingDurationLabel(post);
+  const isBeta = post.recruitment_type === "beta_test";
+  const location = postingDetailLocationLabel(post);
+
   return (
     <aside className="overflow-hidden rounded-hypo-lg border border-hypo-border bg-hypo-surface">
       <div className="grid gap-4 px-5 py-5">
         <div className="flex flex-wrap items-center gap-2">
-          <InterviewPostStatusBadge status={post.status} />
+          <InterviewPostStatusBadge status={status} />
           <Badge intent="info"><PostingTypeLabel post={post} /></Badge>
         </div>
 
@@ -77,19 +89,20 @@ export function OpportunityDetailPanel({
       </div>
 
       <div className="divide-y divide-hypo-border">
+        {post.cover_image || post.images?.length ? <div className="grid gap-2 px-5"><PostingImageGallery postId={post.id} /></div> : null}
         <section className="grid gap-3 px-5 py-4">
           <DetailMeta icon={<CircleDollarSign size={17} />} label="보상">
             <strong className="text-hypo-text"><CompensationSummary post={post} /></strong>
           </DetailMeta>
-          <DetailMeta icon={<CalendarDays size={17} />} label="예상 시간">
-            <span className="tabular-nums">{post.duration_minutes}분</span>
-          </DetailMeta>
-          <DetailMeta icon={<MonitorUp size={17} />} label="진행 방식">
+          {duration ? <DetailMeta icon={<CalendarDays size={17} />} label={isBeta ? "예상 참여 기간" : "예상 시간"}>
+            <span className="tabular-nums">{duration}</span>
+          </DetailMeta> : null}
+          <DetailMeta icon={<MonitorUp size={17} />} label={isBeta ? "테스트 플랫폼" : "진행 방식"}>
             {postingParticipationLabel(post)}
           </DetailMeta>
-          <DetailMeta icon={<MapPin size={17} />} label="장소">
-            {post.location ?? "온라인 또는 추후 안내"}
-          </DetailMeta>
+          {location ? <DetailMeta icon={<MapPin size={17} />} label="장소">
+            {location}
+          </DetailMeta> : null}
         </section>
 
         <section className="grid gap-3 px-5 py-4">
@@ -123,7 +136,11 @@ export function OpportunityDetailPanel({
         </section> : null}
 
         <section className="grid gap-4 px-5 py-5">
-          {post.recruitment_type === "survey" && (post.entry_mode === "direct" || existingApplication?.status === "selected") ? (
+          {isOwner ? (
+            <Button onClick={() => navigateTo(`/my-interviews?tab=posts&post=${encodeURIComponent(post.id)}`)}>
+              공고 관리
+            </Button>
+          ) : post.recruitment_type === "survey" && (post.entry_mode === "direct" || existingApplication?.status === "selected") ? (
             <SurveyParticipationPanel key={post.id} post={post} />
           ) : existingApplication ? (
             <div className="border-l-2 border-hypo-brand bg-hypo-brand-soft/35 px-4 py-3">
@@ -142,10 +159,10 @@ export function OpportunityDetailPanel({
             </div>
           ) : !applicationForm.isOpen ? (
             <Button
-              disabled={!canApply || post.status !== "open"}
+              disabled={!canApply || status !== "open"}
               onClick={applicationForm.open}
             >
-              {canApply ? postingPrimaryAction(post) : "로그인 후 참여"}
+              {post.recruitment_type === "survey" && status !== "open" ? "모집 종료" : canApply ? postingPrimaryAction(post) : "로그인 후 참여"}
             </Button>
           ) : (
             <ApplicationForm
@@ -161,7 +178,7 @@ export function OpportunityDetailPanel({
               onCancel={applicationForm.close}
               onExperienceAnswerChange={applicationForm.setExperienceAnswer}
               onSubmit={applicationForm.submit}
-              submitDisabled={!canApply || post.status !== "open"}
+              submitDisabled={!canApply || status !== "open"}
               submitLabel="신청 제출"
             />
           )}
@@ -185,7 +202,7 @@ function DetailMeta({
   label: string;
 }) {
   return (
-    <div className="grid grid-cols-[20px_72px_minmax(0,1fr)] items-center gap-3 text-sm">
+    <div className="grid grid-cols-[20px_100px_minmax(0,1fr)] items-center gap-3 text-sm">
       <span className="text-hypo-brand">{icon}</span>
       <span className="font-semibold text-hypo-text-muted">{label}</span>
       <span className="min-w-0 text-hypo-text">{children}</span>

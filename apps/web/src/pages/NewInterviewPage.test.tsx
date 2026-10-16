@@ -1,12 +1,13 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AppUser, CreateInterviewPostInput } from "../shared/api/types";
+import { ApiError } from "../shared/api/client";
 
 const mocks = vi.hoisted(() => ({
   createInterviewPostMutation: {
-    error: null,
+    error: null as Error | null,
     isPending: false,
     mutate: vi.fn(),
   },
@@ -16,6 +17,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../features/interview-posts/useCreateInterviewPost", () => ({
   useCreateInterviewPost: () => mocks.createInterviewPostMutation,
+}));
+
+vi.mock("../features/interview-posts/usePostingImageCapabilities", () => ({
+  usePostingImageCapabilities: () => ({ data: { posting_images_enabled: false } }),
 }));
 
 vi.mock("../shared/navigation/appNavigation", () => ({
@@ -128,5 +133,33 @@ describe("NewInterviewPage", () => {
     await user.click(screen.getByRole("button", { name: "내 모집글 보기" }));
 
     expect(mocks.navigateTo).toHaveBeenCalledWith("/my-interviews");
+  });
+
+  it("shows a failed create request with its request ID without discarding the form", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<NewInterviewPage accessToken="token-123" appUser={founderUser} />);
+    await user.type(screen.getByLabelText("제목"), "충돌 후 유지할 공고 제목");
+    await user.type(screen.getByLabelText("서비스 설명"), "서비스 사용 경험 확인");
+    await user.type(screen.getByLabelText("찾는 응답자 조건"), "최근 사용 경험자");
+    await user.click(screen.getByRole("button", { name: "모집글 저장" }));
+    await waitFor(() => expect(mocks.createInterviewPostMutation.mutate).toHaveBeenCalledTimes(1));
+
+    mocks.createInterviewPostMutation.error = new ApiError({
+      code: "idempotency_key_reused",
+      kind: "http",
+      message: "같은 요청 키가 다른 내용에 사용됐어요.",
+      method: "POST",
+      path: "/api/v1/interview-posts",
+      requestId: "req-create-conflict",
+      status: 409,
+    });
+    rerender(<NewInterviewPage accessToken="token-123" appUser={founderUser} />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "같은 요청 키가 다른 내용에 사용됐어요. 요청 ID: req-create-conflict",
+    );
+    expect(screen.getByLabelText("제목")).toHaveValue("충돌 후 유지할 공고 제목");
+    expect(screen.getByRole("button", { name: "모집글 저장" })).toBeEnabled();
+    expect(mocks.navigateTo).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { blocksApi, type BlockUserInput, type UserBlock } from "@/shared/api/blocks";
+import { blocksApi, type BlockUserInput, type UserBlock } from "@/features/blocks/blocksApi";
 import { buildAuthQueryKey, resolveAuthUserId } from "@/shared/query/authQuery";
 
 export function blockedUsersQueryKey(userId?: string | null) {

@@ -7,7 +7,7 @@ import {
   type AccountDeletionResendInput,
   type AccountDeletionVerification,
   type AccountDeletionVerificationInput,
-} from "@/shared/api/accountDeletion";
+} from "@/features/account-deletion/accountDeletionApi";
 
 function requireAccessToken(accessToken?: string | null): string {
   if (!accessToken) {

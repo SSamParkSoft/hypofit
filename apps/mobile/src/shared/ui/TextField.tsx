@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Text, TextInput, View } from "react-native";
 import type { KeyboardTypeOptions, TextInputProps, TextStyle } from "react-native";
+import { colors } from "@/shared/theme/tokens";
 
 interface TextFieldProps extends TextInputProps {
   errorMessage?: string | null;
@@ -42,7 +43,7 @@ export function TextField({
       <TextInput
         accessibilityLabel={accessibilityLabel ?? label}
         autoCapitalize="none"
-        placeholderTextColor="#87918B"
+        placeholderTextColor={colors.textSoft}
         className={`h-[52px] ${inputRadiusClassName} border bg-hypo-surface px-4 py-0 text-hypo-text ${
           errorMessage ? "border-hypo-danger" : isFocused ? "border-hypo-brand" : "border-hypo-border"
         }`}

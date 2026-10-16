@@ -1,4 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
+import type { InterviewPost } from "../../../shared/api/types";
 
 import { Badge } from "../../../shared/ui/badge";
 import { Button } from "../../../shared/ui/button";
@@ -6,6 +7,8 @@ import { AppIcon } from "../../../shared/ui/icon";
 
 export interface HomeInterviewPreview {
   description: string;
+  recruitmentType?: InterviewPost["recruitment_type"];
+  entryMode?: InterviewPost["entry_mode"];
   href: string;
   metaLabels: string[];
   sourceLabel: string;
@@ -77,7 +80,15 @@ export function InterviewPreviewDialog({
                     진행 안내
                   </dt>
                   <dd className="ui-body mt-2 text-hypo-text-muted">
-                    가능한 시간과 정확한 장소는 신청 후 채팅에서 조율해요.
+                    {preview.recruitmentType === "survey"
+                      ? preview.entryMode === "direct"
+                        ? "외부 설문에서 바로 참여해요. 설문 답변은 Hypofit에 저장되지 않아요."
+                        : "신청 후 선정되면 외부 설문 링크로 참여할 수 있어요. 설문 답변은 Hypofit에 저장되지 않아요."
+                      : preview.recruitmentType === "beta_test"
+                        ? "선정 후 채팅에서 테스트 준비와 진행 안내를 확인해요."
+                        : preview.recruitmentType === "research_experiment"
+                          ? "선정 후 채팅에서 연구 일정과 준비 사항을 조율해요."
+                          : "가능한 시간과 정확한 장소는 선정 후 채팅에서 조율해요."}
                   </dd>
                 </div>
               </dl>

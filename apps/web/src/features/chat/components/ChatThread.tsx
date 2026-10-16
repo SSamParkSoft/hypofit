@@ -1,12 +1,14 @@
 import { ArrowLeft, BellOff, Send } from "lucide-react";
+import { Fragment, useLayoutEffect, useRef } from "react";
 
-import type { ChatRoom } from "../../../shared/api/types";
+import type { ChatRoom, Session } from "../../../shared/api/types";
 import { Avatar } from "../../../shared/ui/avatar";
 import { Badge } from "../../../shared/ui/badge";
 import { Button } from "../../../shared/ui/button";
 import { LoadingState } from "../../../shared/ui/state";
 import { cn } from "../../../shared/ui/cn";
 import { getWorkspaceRegionClassName } from "../../../shared/ui/workspace";
+import { getSafeExternalUrl } from "../../../shared/ui/safeExternalUrl";
 import {
   getCounterpart,
   getRoomBadgeIntent,
@@ -21,6 +23,7 @@ import { ChatRoomActionMenu } from "./ChatRoomActionMenu";
 interface ChatThreadProps {
   accessToken: string | null;
   appUserId: string | null;
+  confirmedSession: Session | null;
   isBlocked: boolean;
   isMuted: boolean;
   onBlock: () => void;
@@ -32,9 +35,17 @@ interface ChatThreadProps {
   room: ChatRoom;
 }
 
+const chatDateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  weekday: "long",
+});
+
 export function ChatThread({
   accessToken,
   appUserId,
+  confirmedSession,
   isBlocked,
   isMuted,
   onBlock,
@@ -49,12 +60,37 @@ export function ChatThread({
     accessToken,
     isBlocked,
     room,
+    appUserId,
   });
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const previousScrollHeight = useRef<number | null>(null);
+  const shouldStickToBottom = useRef(true);
+  useLayoutEffect(() => {
+    const composer = composerRef.current;
+    if (!composer) return;
+    composer.style.height = "auto";
+    composer.style.height = `${composer.scrollHeight}px`;
+  }, [controller.message]);
+  useLayoutEffect(() => {
+    const viewport = scrollRef.current;
+    if (!viewport || controller.isLoadingOlder) return;
+
+    if (previousScrollHeight.current !== null) {
+      viewport.scrollTop += viewport.scrollHeight - previousScrollHeight.current;
+      previousScrollHeight.current = null;
+    } else if (shouldStickToBottom.current) {
+      viewport.scrollTop = viewport.scrollHeight;
+    }
+  }, [controller.messages, controller.isLoadingOlder]);
   const counterpart = getCounterpart(room, appUserId);
   const displayStatus = getRoomDisplayStatus(room, isBlocked);
+  const meetingUrl = confirmedSession?.meeting_type === "online"
+    ? getSafeExternalUrl(confirmedSession.meeting_url)
+    : null;
 
   return (
-    <section className="fixed inset-0 z-40 grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-hypo-surface min-[1200px]:static min-[1200px]:h-full min-[1200px]:min-h-0">
+    <section className="fixed inset-0 z-40 grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-hypo-surface md:max-[1199px]:top-[var(--app-medium-nav-height)] min-[1200px]:static min-[1200px]:h-full min-[1200px]:min-h-0">
       <header className="border-b border-hypo-border bg-hypo-surface px-4 pb-3 pt-[calc(var(--app-safe-top)+0.75rem)] md:px-5 md:pb-4 md:pt-[calc(var(--app-safe-top)+1rem)] min-[1200px]:px-5 min-[1200px]:pb-4 min-[1200px]:pt-4">
         <div className="mx-auto w-full max-w-4xl">
           <div className="flex min-w-0 items-center gap-3">
@@ -114,25 +150,54 @@ export function ChatThread({
       </header>
 
       <div
+        ref={scrollRef}
+        role="region"
+        aria-label="대화 내용"
+        onScroll={(event) => {
+          const viewport = event.currentTarget;
+          shouldStickToBottom.current =
+            viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= 80;
+        }}
+        style={{ overflowAnchor: "none" }}
         className={cn(
           "bg-hypo-bg px-4 py-4 md:px-5 min-[1200px]:px-5",
           getWorkspaceRegionClassName({ scroll: "panel" }),
         )}
       >
         <div className="mx-auto grid w-full max-w-4xl gap-3">
+          {controller.hasOlder ? (
+            <Button variant="ghost" disabled={controller.isLoadingOlder} onClick={() => {
+              previousScrollHeight.current = scrollRef.current?.scrollHeight ?? null;
+              void controller.loadOlder();
+            }}>
+              {controller.isLoadingOlder ? "불러오는 중" : "이전 메시지 보기"}
+            </Button>
+          ) : null}
+          {controller.isHistoryError ? <p role="alert" className="text-sm text-hypo-danger">이전 메시지를 불러오지 못했어요. 다시 시도해 주세요.</p> : null}
           {controller.isLoading ? (
             <LoadingState
               className="rounded-none border-0 bg-transparent px-0 py-0"
               title="메시지를 불러오는 중입니다."
             />
           ) : null}
-          {controller.messages.map((chatMessage) => (
-            <MessageBubble
-              key={chatMessage.id}
-              message={chatMessage}
-              mySenderId={appUserId}
-            />
-          ))}
+          {controller.messages.map((chatMessage, index) => {
+            const previousMessage = controller.messages[index - 1];
+            const messageDate = new Date(chatMessage.created_at);
+            const startsNewDate =
+              !previousMessage ||
+              messageDate.toDateString() !== new Date(previousMessage.created_at).toDateString();
+
+            return (
+              <Fragment key={chatMessage.id}>
+                {startsNewDate ? (
+                  <p className="py-2 text-center text-xs font-medium text-hypo-text-soft">
+                    {chatDateFormatter.format(messageDate)}
+                  </p>
+                ) : null}
+                <MessageBubble message={chatMessage} mySenderId={appUserId} />
+              </Fragment>
+            );
+          })}
         </div>
       </div>
 
@@ -141,12 +206,41 @@ export function ChatThread({
         onSubmit={controller.handleSubmit}
       >
         <div className="mx-auto w-full max-w-4xl">
+          {confirmedSession ? (
+            <div className="mb-3 border-b border-hypo-border/70 pb-3">
+              <p className="text-xs font-semibold text-hypo-text">
+                확정된 일정 · {confirmedSession.meeting_type === "online" ? "화상" : "대면"}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <time className="text-sm font-semibold text-hypo-text" dateTime={confirmedSession.scheduled_at}>
+                  {new Date(confirmedSession.scheduled_at).toLocaleString("ko-KR", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </time>
+                {meetingUrl ? (
+                  <a
+                    className="text-sm font-medium text-hypo-brand underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-hypo-brand/20"
+                    href={meetingUrl}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    화상 링크 열기
+                  </a>
+                ) : null}
+              </div>
+              {confirmedSession.meeting_type === "offline" && confirmedSession.place ? (
+                <p className="mt-1 text-xs text-hypo-text-muted">{confirmedSession.place}</p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="flex items-end gap-2">
             <label className="sr-only" htmlFor="chat-message">
               메시지
             </label>
             <textarea
-              className="min-h-[42px] flex-1 resize-none rounded-hypo-pill border border-hypo-border bg-hypo-bg px-4 py-2.5 text-sm leading-5 text-hypo-text outline-none transition focus:border-hypo-brand focus:ring-[3px] focus:ring-hypo-brand/15"
+              ref={composerRef}
+              className="min-h-[42px] max-h-32 flex-1 resize-none overflow-y-auto rounded-hypo-pill border border-hypo-border bg-hypo-bg px-4 py-2.5 text-sm leading-5 text-hypo-text outline-none transition focus:border-hypo-brand focus:ring-[3px] focus:ring-hypo-brand/15"
               id="chat-message"
               maxLength={1000}
               placeholder={

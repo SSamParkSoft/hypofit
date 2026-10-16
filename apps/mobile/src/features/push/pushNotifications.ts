@@ -7,10 +7,11 @@ import {
   navigateToPushNotificationTarget,
   parsePushNotificationTarget,
 } from "@/features/push/notificationRouting";
-import type { RegisterPushDeviceInput } from "@/shared/api/push";
-import { pushApi } from "@/shared/api/push";
-import { notificationsApi } from "@/shared/api/notifications";
+import type { RegisterPushDeviceInput } from "@/features/push/pushApi";
+import { pushApi } from "@/features/push/pushApi";
+import { notificationsApi } from "@/features/notifications/notificationsApi";
 import { addAppBreadcrumb, captureAppError } from "@/shared/diagnostics/sentry";
+import { colors } from "@/shared/theme/tokens";
 
 const installationIdStorageKey = "hypofit.installation_id";
 const registeredPushDeviceIdStorageKey = "hypofit.push.registered_device_id";
@@ -56,7 +57,7 @@ export async function configureNotificationRuntime() {
       name: "Hypofit 알림",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 220, 120, 220],
-      lightColor: "#0F7A4D",
+      lightColor: colors.brand,
       sound: "default",
     });
   }
@@ -115,13 +116,17 @@ export async function syncPushRegistrationIfAlreadyAllowed(
 
   try {
     const pushEnabled = await resolvePushMasterPreference(accessToken, userId);
-    if (pushEnabled === false) {
+    if (pushEnabled !== true) {
       addAppBreadcrumb("push_silent_registration_skipped_by_preference", { user_id: userId });
       return;
     }
 
     await configureNotificationRuntime();
     const permissions = await Notifications.getPermissionsAsync();
+    if (permissions.status === "denied") {
+      await disableRegisteredPushDevice(accessToken);
+      return;
+    }
     if (permissions.status !== "granted") {
       return;
     }
@@ -145,7 +150,7 @@ export async function requestInitialPushPermissionIfNeeded(
 
   try {
     const pushEnabled = await resolvePushMasterPreference(accessToken, userId);
-    if (pushEnabled === false) {
+    if (pushEnabled !== true) {
       addAppBreadcrumb("push_initial_prompt_skipped_by_preference", { user_id: userId });
       return;
     }
@@ -320,17 +325,13 @@ export async function persistPushEnabledPreference(userId: string, pushEnabled: 
 
 async function resolvePushMasterPreference(accessToken: string, userId: string) {
   const storedPreference = await readStoredPushEnabledPreference(userId);
-  if (storedPreference === false) {
-    return false;
-  }
-
   try {
     const preference = await pushApi.getPreferences(accessToken);
     await persistPushEnabledPreference(preference.user_id, preference.push_enabled);
     return preference.push_enabled;
   } catch (error) {
     captureAppError(error, { phase: "push_preference_sync" });
-    return storedPreference;
+    return storedPreference === false ? false : null;
   }
 }
 
@@ -410,5 +411,5 @@ function getPermissionStatusLabel(status: PushPermissionSummary["status"]) {
 }
 
 function getNotificationResponseData(response: PushNotificationResponse): Record<string, unknown> {
-  return response.notification.request.content.data;
+  return response.notification.request.content.data ?? {};
 }

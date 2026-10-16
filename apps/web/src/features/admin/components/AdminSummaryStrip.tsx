@@ -6,7 +6,7 @@ interface AdminSummaryStripProps {
 
 export function AdminSummaryStrip({ summary }: AdminSummaryStripProps) {
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
       <SummaryItem label="열린 티켓" value={summary.support.open} />
       <SummaryItem label="검토 중" value={summary.support.in_review} />
       <SummaryItem label="열린 신고" value={summary.support.reports_open} />

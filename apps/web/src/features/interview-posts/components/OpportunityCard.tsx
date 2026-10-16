@@ -1,8 +1,9 @@
 import { Clock3, MapPin, MonitorUp } from "lucide-react";
+import { useState } from "react";
 
 import type { InterviewPost } from "../../../shared/api/types";
 import { cn } from "../../../shared/ui/cn";
-import { CompensationSummary, PostingTypeLabel, postingParticipationLabel } from "./postingPresentation";
+import { CompensationSummary, PostingTypeLabel, postingDurationLabel, postingParticipationLabel } from "./postingPresentation";
 
 interface OpportunityCardProps {
   isSelected?: boolean;
@@ -21,6 +22,9 @@ export function OpportunityCard({
 }: OpportunityCardProps) {
   const locationOrSchedule = post.location ?? post.schedule_options[0] ?? "조건 확인";
   const isCompact = variant === "compact";
+  const duration = postingDurationLabel(post);
+  const [failedThumbnail, setFailedThumbnail] = useState<string | null>(null);
+  const thumbnailUrl = post.cover_image?.url;
 
   return (
     <button
@@ -72,14 +76,17 @@ export function OpportunityCard({
           isViewed && !isSelected ? "text-hypo-text-soft/80" : "text-hypo-text-soft",
         )}
       >
+        {thumbnailUrl && thumbnailUrl !== failedThumbnail ? <img src={thumbnailUrl}
+          alt={post.cover_image?.alt_text || "공고 대표 이미지"} loading="lazy"
+          className="h-12 w-12 shrink-0 rounded-lg object-cover" onError={() => setFailedThumbnail(thumbnailUrl)} /> : null}
         <span className="inline-flex items-center gap-1">
           <MonitorUp size={13} />
           {postingParticipationLabel(post)}
         </span>
-        {!isCompact ? (
+        {!isCompact && duration ? (
           <span className="inline-flex items-center gap-1 tabular-nums">
             <Clock3 size={13} />
-            {post.duration_minutes}분
+            {duration}
           </span>
         ) : null}
         <span className="inline-flex min-w-0 items-center gap-1">

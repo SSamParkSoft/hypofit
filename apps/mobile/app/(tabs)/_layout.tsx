@@ -1,8 +1,9 @@
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { useEffect } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { AccessibilityInfo, Pressable, Text, View } from "react-native";
+import type { ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePathname, useRouter } from "expo-router";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -14,17 +15,20 @@ import {
 } from "@/features/chat/unreadChatBadge";
 import { emitMapTabReselect } from "@/screens/map/mapTabEvents";
 import { getBottomTabBarStyle, getBottomTabItemStyle, getHiddenBottomTabBarStyle } from "@/shared/navigation/tabBarStyle";
+import { FloatingTabBarBackground } from "@/shared/navigation/FloatingTabBarBackground";
+import { ScrollAnimatedTabBar } from "@/shared/navigation/ScrollAnimatedTabBar";
+import { shouldHideTabBar, subscribeTabBarVisibility } from "@/shared/navigation/tabBarScroll";
 import { useMaintenance } from "@/features/maintenance/MaintenanceProvider";
+import { colors } from "@/shared/theme/tokens";
 
-type TabIconName = "home" | "interviews" | "map" | "chat" | "profile";
+type TabIconName = "interviews" | "map" | "chat" | "profile";
 type FeatherIconName = ComponentProps<typeof Feather>["name"];
 
 const tabIconNames: Record<TabIconName, FeatherIconName> = {
-  home: "home",
   interviews: "search",
   map: "map",
   chat: "message-circle",
-  profile: "user",
+  profile: "menu",
 };
 
 export default function TabsLayout() {
@@ -34,6 +38,23 @@ export default function TabsLayout() {
   const { isLoading, session } = useAuth();
   const { status: serviceStatus } = useMaintenance();
   const isChatThread = pathname.startsWith("/chat/");
+  const [tabBarVisible, setTabBarVisible] = useState(true);
+  const [screenReaderEnabled, setScreenReaderEnabled] = useState(true);
+  const hideForPostingScroll = shouldHideTabBar(pathname, tabBarVisible, screenReaderEnabled);
+  const tabBarStyle = getBottomTabBarStyle(insets.bottom);
+
+  useEffect(() => subscribeTabBarVisibility(setTabBarVisible), []);
+  useEffect(() => {
+    let active = true;
+    const subscription = AccessibilityInfo.addEventListener("screenReaderChanged", setScreenReaderEnabled);
+    void AccessibilityInfo.isScreenReaderEnabled().then((enabled) => {
+      if (active) setScreenReaderEnabled(enabled);
+    }).catch(() => {});
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, []);
   const { data: chatRooms } = useChatRooms(session?.access_token, {
     pollingEnabled: true,
     pollingIntervalMs: 15_000,
@@ -55,8 +76,8 @@ export default function TabsLayout() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${scheduledMaintenance.title} 점검 안내 보기`}
-          className="mx-4 mt-2 rounded-hypo-md border border-[#CBE4D4] bg-[#E8F4EC] px-3 py-2.5"
-          onPress={() => router.push({ pathname: "/notice", params: { returnTo: pathname } })}
+          className="mx-4 mt-2 rounded-hypo-md border border-[#CBE4D4] bg-hypo-brandSoft px-3 py-2.5"
+          onPress={() => router.push({ pathname: "/notice", params: { returnTo: pathname, ...(scheduledMaintenance.noticeId ? { noticeId: scheduledMaintenance.noticeId } : {}) } })}
         >
           <Text className="text-[13px] font-black text-hypo-brand" numberOfLines={1}>
             {formatScheduledMaintenance(scheduledMaintenance.startsAt)} 서비스 점검 예정
@@ -64,22 +85,29 @@ export default function TabsLayout() {
         </Pressable>
       ) : null}
       <Tabs
+      initialRouteName="interviews"
+      tabBar={(props) => (
+        <ScrollAnimatedTabBar {...props} hidden={hideForPostingScroll} bottomInset={insets.bottom} />
+      )}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#0F7A4D",
-        tabBarInactiveTintColor: "#657069",
+        tabBarActiveTintColor: colors.brand,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelPosition: "below-icon",
         tabBarShowLabel: true,
-        tabBarStyle: isChatThread ? getHiddenBottomTabBarStyle() : getBottomTabBarStyle(insets.bottom),
+        tabBarHideOnKeyboard: true,
+        tabBarBackground: () => <FloatingTabBarBackground />,
+        tabBarStyle: isChatThread ? getHiddenBottomTabBarStyle() : tabBarStyle,
         tabBarItemStyle: getBottomTabItemStyle(),
         tabBarLabel: ({ color, focused, children }) => (
           <Text
             numberOfLines={1}
+            maxFontSizeMultiplier={1.4}
             style={{
               color,
               fontFamily: focused ? "HypofitSansBold" : "HypofitSansMedium",
-              fontSize: 10,
-              lineHeight: 12,
+              fontSize: 11,
+              lineHeight: 14,
               marginTop: 2,
             }}
           >
@@ -88,7 +116,7 @@ export default function TabsLayout() {
         ),
       }}
     >
-      <Tabs.Screen name="home" options={getTabOptions("home", "홈")} />
+      <Tabs.Screen name="home" options={{ href: null }} />
       <Tabs.Screen
         name="interviews"
         listeners={{
@@ -124,14 +152,14 @@ export default function TabsLayout() {
           tabBarBadge: chatTabBadge,
           tabBarBadgeStyle: {
             backgroundColor: "#D94A4A",
-            color: "#FFFFFF",
+            color: colors.surface,
             fontFamily: "HypofitSansBold",
             fontSize: 10,
             minWidth: 17,
           },
         }}
       />
-      <Tabs.Screen name="profile" options={getTabOptions("profile", "프로필")} />
+      <Tabs.Screen name="profile" options={getTabOptions("profile", "더보기")} />
       </Tabs>
     </View>
   );
@@ -140,28 +168,28 @@ export default function TabsLayout() {
 function formatScheduledMaintenance(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "예정된";
-  return new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
 }
 
 function getTabOptions(name: TabIconName, title: string) {
   return {
     title,
-    tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+    tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
       <View
         style={{
           alignItems: "center",
-          backgroundColor: focused ? "#E8F4EC" : "transparent",
-          borderRadius: 11,
+          backgroundColor: focused ? colors.brandSoft : "transparent",
+          borderRadius: 13,
           height: 26,
           justifyContent: "center",
           marginBottom: 0,
-          width: 34,
+          width: 36,
         }}
       >
         <Feather
           color={color}
           name={tabIconNames[name]}
-          size={focused ? 20 : 19}
+          size={21}
         />
       </View>
     ),

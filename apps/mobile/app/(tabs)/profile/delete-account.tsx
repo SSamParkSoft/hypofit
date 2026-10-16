@@ -1,1 +1,1 @@
-export { DeleteAccountScreen as default } from "@/screens/profile/DeleteAccountScreen";
+export { DeleteAccountScreen as default } from "@/screens/account/DeleteAccountScreen";

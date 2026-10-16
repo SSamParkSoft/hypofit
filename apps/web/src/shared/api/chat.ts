@@ -1,4 +1,5 @@
 import { apiRequest, type ApiRequestInit } from "./client";
+import { chatMessageHistorySearch, type ChatMessageCursor } from "@hypofit/contracts";
 import type { ChatMessage, ChatRoom } from "./types";
 
 export interface SendChatMessageInput {
@@ -89,6 +90,9 @@ export const chatApi = {
   listRooms: listChatRooms,
   getRoom: getChatRoom,
   listMessages: listChatMessages,
+  listOlderMessages(roomId: string, cursor: ChatMessageCursor, accessToken?: string | null, signal?: AbortSignal) {
+    return apiRequest<ChatMessage[]>(`${chatRoutes.messages(roomId)}?${chatMessageHistorySearch(cursor)}`, { accessToken, signal });
+  },
   markRead: markChatRoomRead,
   sendMessage: sendChatMessage,
   updateSettings: updateChatRoomSettings,

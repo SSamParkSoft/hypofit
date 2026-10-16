@@ -64,9 +64,13 @@ export interface AdminTicketListParams {
   status?: SupportTicketStatus;
   deleted_by_user?: boolean;
   limit?: number;
+  offset?: number;
+  q?: string;
+  exclude_reports?: boolean;
+  include_events?: boolean;
 }
 
-export type AdminTicketStatusUpdateInput = AdminSupportTicketStatusUpdateInput;
+export type AdminTicketStatusUpdateInput = AdminSupportTicketStatusUpdateInput & { expected_status?: SupportTicketStatus };
 export type AdminTicketReplyInput = AdminSupportTicketReplyCreateInput;
 
 export interface AdminTargetPreview {
@@ -115,4 +119,3 @@ export interface AdminTestNotificationResult {
 }
 
 export type { AdminSupportTicket };
-

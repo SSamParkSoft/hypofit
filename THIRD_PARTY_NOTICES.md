@@ -19,6 +19,16 @@ Free Figma Community files are distributed under CC BY 4.0 unless the creator
 adds other terms. Hypofit retains this attribution alongside the source's
 additional usage terms.
 
+## Apple iPhone Product Bezel
+
+- Source: Apple Design Resources, `Bezel-iPhone-17.dmg`,
+  `iPhone 17 Pro - Silver - Portrait.png` (1350×2760).
+- Official download: https://devimages-cdn.apple.com/design/resources/download/Bezel-iPhone-17.dmg
+- Terms: Apple Design Resources license and applicable Apple marketing guidelines.
+- Use: iOS app screenshots on the Hypofit landing page. The transparent WebP
+  is resized proportionally; hardware geometry and branding are unchanged.
+  This asset is not covered by the repository's general code license.
+
 ## Iconsax Interface Icons
 
 - Source reference: `iconsax-react@0.0.8`

@@ -20,6 +20,7 @@ interface InterviewResultsListProps {
   selectedPostId: string | null;
   applicationByPostId: Map<string, Application>;
   viewedPostIds: Set<string>;
+  viewerId?: string | null;
 }
 
 export function InterviewResultsList({
@@ -35,6 +36,7 @@ export function InterviewResultsList({
   onSelect,
   selectedPostId,
   viewedPostIds,
+  viewerId,
 }: InterviewResultsListProps) {
   return (
     <ListSurface
@@ -85,11 +87,13 @@ export function InterviewResultsList({
             >
               <div className="min-h-0">
                 <OpportunityExpandedDetail
+                  showImages={post.id === selectedPostId}
                   canApply={canApply}
                   className="border-t border-hypo-border px-4 pb-5 pt-4 sm:px-5"
                   errorMessage={errorMessage}
                   existingApplication={applicationByPostId.get(post.id) ?? null}
                   isApplying={isApplying}
+                  isOwner={viewerId === post.founder_id}
                   post={post}
                   onApply={onApply}
                 />

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import type { Href } from "expo-router";
@@ -6,9 +6,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useChatRoom } from "@/features/chat/useChat";
 import { useCreateSession } from "@/features/sessions/useSessionMutations";
-import { StateMessage } from "@/screens/home/HomeScreen";
+import { StateMessage } from "@/shared/ui/StateMessage";
 import { getSafeReturnTo, goBackOrReplaceFallback } from "@/shared/navigation/backNavigation";
 import { PrimaryButton } from "@/shared/ui/PrimaryButton";
+import { buildScheduledAt, formatScheduleDate, formatScheduleTime, getAllowedMeetingTypes } from "./scheduleSessionValidation";
+import { ScheduleDateTimeField } from "./ScheduleDateTimeField";
 
 type MeetingType = "offline" | "online";
 
@@ -34,16 +36,19 @@ export function ScheduleSessionScreen() {
   const createSession = useCreateSession(accessToken);
   const [values, setValues] = useState<FormValues>(() => getInitialValues());
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const submissionLocked = useRef(false);
   const resolvedApplicationId = applicationId ?? room?.application_id ?? null;
 
   const interviewTitle = room?.interview_post?.title ?? "인터뷰";
   const isSubmitting = createSession.isPending;
+  const isBusy = isSubmitting || isConfirming;
   const submitLabel = isSubmitting ? "확정하는 중" : "일정 확정";
-
-  const meetingDetailLabel = useMemo(
-    () => (values.meetingType === "online" ? "화상 링크" : "장소"),
-    [values.meetingType],
-  );
+  const allowedMeetingTypes = getAllowedMeetingTypes(room?.interview_post?.interview_mode);
+  const meetingType = allowedMeetingTypes.includes(values.meetingType) ? values.meetingType : allowedMeetingTypes[0];
+  const meetingDetailLabel = meetingType === "online" ? "화상 링크" : "장소";
+  const selectedDate = new Date(buildScheduledAt(values.date, values.time) ?? Date.now());
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const updateValue = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
@@ -51,7 +56,8 @@ export function ScheduleSessionScreen() {
   };
 
   const handleSubmit = () => {
-    if (!resolvedApplicationId || !roomId) {
+    if (submissionLocked.current) return;
+    if (!resolvedApplicationId || !roomId || !meetingType) {
       setValidationError("채팅방 정보를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.");
       return;
     }
@@ -62,35 +68,59 @@ export function ScheduleSessionScreen() {
       return;
     }
 
-    if (values.meetingType === "online" && !values.meetingUrl.trim()) {
+    if (meetingType === "online" && !values.meetingUrl.trim()) {
       setValidationError("화상 인터뷰 링크를 입력해 주세요.");
       return;
     }
 
-    if (values.meetingType === "offline" && !values.place.trim()) {
+    if (meetingType === "offline" && !values.place.trim()) {
       setValidationError("만날 장소를 입력해 주세요.");
       return;
     }
 
-    createSession.mutate(
-      {
-        roomId,
-        input: {
-          application_id: resolvedApplicationId,
-          scheduled_at: scheduledAt,
-          meeting_type: values.meetingType,
-          meeting_url: values.meetingType === "online" ? values.meetingUrl.trim() : null,
-          place: values.meetingType === "offline" ? values.place.trim() : null,
+    submissionLocked.current = true;
+    setIsConfirming(true);
+    const releaseSubmission = () => {
+      submissionLocked.current = false;
+      setIsConfirming(false);
+    };
+    const summary = new Intl.DateTimeFormat("ko-KR", {
+      dateStyle: "long", timeStyle: "short",
+    }).format(new Date(scheduledAt));
+    Alert.alert(
+      "이 일정으로 확정할까요?",
+      `${summary}\n${timeZone}\n${meetingType === "online" ? "화상" : "대면"}\n${meetingType === "online" ? values.meetingUrl.trim() : values.place.trim()}`,
+      [
+        { text: "계속 수정", style: "cancel", onPress: releaseSubmission },
+        {
+          text: "일정 확정",
+          onPress: () => {
+            setIsConfirming(false);
+            createSession.mutate(
+              {
+                roomId,
+                input: {
+                  application_id: resolvedApplicationId,
+                  scheduled_at: scheduledAt,
+                  meeting_type: meetingType,
+                  meeting_url: meetingType === "online" ? values.meetingUrl.trim() : null,
+                  place: meetingType === "offline" ? values.place.trim() : null,
+                },
+              },
+              {
+                onError: () => {
+                  Alert.alert("일정을 확정하지 못했어요", "이미 일정이 있거나 상태가 바뀌었을 수 있어요.");
+                },
+                onSuccess: () => {
+                  router.replace({ pathname: "/(tabs)/chat/[roomId]", params: { roomId, returnTo: "/(tabs)/chat" } });
+                },
+                onSettled: releaseSubmission,
+              },
+            );
+          },
         },
-      },
-      {
-        onError: () => {
-          Alert.alert("일정을 확정하지 못했어요", "이미 일정이 있거나 상태가 바뀌었을 수 있어요.");
-        },
-        onSuccess: () => {
-          router.replace({ pathname: "/(tabs)/chat/[roomId]", params: { roomId, returnTo: "/(tabs)/chat" } });
-        },
-      },
+      ],
+      { cancelable: false },
     );
   };
 
@@ -115,48 +145,35 @@ export function ScheduleSessionScreen() {
                 <Text className="text-[13px] font-bold text-hypo-brand">선정된 인터뷰</Text>
                 <Text className="text-[20px] font-black leading-7 text-hypo-text">{interviewTitle}</Text>
                 <Text className="text-[13px] font-bold leading-5 text-hypo-muted">
-                  확정한 일정은 상대에게 바로 안내돼요.
+                  확정된 일정은 채팅에서 확인할 수 있어요.
                 </Text>
               </View>
 
               <View className="gap-3 rounded-[16px] border border-hypo-border bg-hypo-surface p-3">
-                <View className="flex-row gap-2">
-                  <Field
-                    label="날짜"
-                    placeholder="YYYY-MM-DD"
-                    value={values.date}
-                    onChangeText={(value) => updateValue("date", value)}
-                  />
-                  <Field
-                    label="시간"
-                    placeholder="HH:mm"
-                    value={values.time}
-                    onChangeText={(value) => updateValue("time", value)}
-                  />
-                </View>
+                <ScheduleDateTimeField mode="date" value={selectedDate} disabled={isBusy}
+                  onChange={(date) => updateValue("date", formatScheduleDate(date))} />
+                <ScheduleDateTimeField mode="time" value={selectedDate} disabled={isBusy}
+                  onChange={(date) => updateValue("time", formatScheduleTime(date))} />
+                <Text className="text-[12px] text-hypo-muted">{timeZone} 기준</Text>
 
                 <View className="gap-2">
                   <Text className="text-[13px] font-bold text-hypo-text">진행 방식</Text>
                   <View className="flex-row gap-2">
-                    <OptionChip
-                      isSelected={values.meetingType === "online"}
-                      label="화상"
-                      onPress={() => updateValue("meetingType", "online")}
-                    />
-                    <OptionChip
-                      isSelected={values.meetingType === "offline"}
-                      label="대면"
-                      onPress={() => updateValue("meetingType", "offline")}
-                    />
+                    {allowedMeetingTypes.map((type) => (
+                      <OptionChip key={type} isSelected={meetingType === type}
+                        label={type === "online" ? "화상" : "대면"} disabled={isBusy}
+                        onPress={() => updateValue("meetingType", type)} />
+                    ))}
                   </View>
                 </View>
 
                 <Field
                   label={meetingDetailLabel}
-                  placeholder={values.meetingType === "online" ? "예: Zoom 또는 Google Meet 링크" : "예: 안산 중앙역 근처 카페"}
-                  value={values.meetingType === "online" ? values.meetingUrl : values.place}
+                  placeholder={meetingType === "online" ? "예: Zoom 또는 Google Meet 링크" : "예: 안산 중앙역 근처 카페"}
+                  value={meetingType === "online" ? values.meetingUrl : values.place}
+                  disabled={isBusy}
                   onChangeText={(value) =>
-                    updateValue(values.meetingType === "online" ? "meetingUrl" : "place", value)
+                    updateValue(meetingType === "online" ? "meetingUrl" : "place", value)
                   }
                 />
               </View>
@@ -165,7 +182,7 @@ export function ScheduleSessionScreen() {
                 <Text className="px-1 text-[13px] font-bold leading-5 text-hypo-danger">{validationError}</Text>
               ) : null}
 
-              <PrimaryButton disabled={isSubmitting} onPress={handleSubmit}>
+              <PrimaryButton disabled={isBusy || !meetingType} onPress={handleSubmit}>
                 {submitLabel}
               </PrimaryButton>
             </ScrollView>
@@ -194,20 +211,23 @@ function Header({ backTo, title }: { backTo: Href; title: string }) {
 }
 
 function Field({
+  disabled,
   label,
   onChangeText,
   placeholder,
   value,
 }: {
+  disabled: boolean;
   label: string;
   onChangeText: (value: string) => void;
   placeholder: string;
   value: string;
 }) {
   return (
-    <View className="min-w-0 flex-1 gap-2">
+    <View className="min-w-0 gap-2">
       <Text className="text-[13px] font-bold text-hypo-text">{label}</Text>
       <TextInput
+        editable={!disabled}
         accessibilityLabel={label}
         autoCapitalize="none"
         autoCorrect={false}
@@ -229,17 +249,20 @@ function Field({
 }
 
 function OptionChip({
+  disabled,
   isSelected,
   label,
   onPress,
 }: {
+  disabled: boolean;
   isSelected: boolean;
   label: string;
   onPress: () => void;
 }) {
   return (
     <Pressable
-      accessibilityState={{ selected: isSelected }}
+      disabled={disabled}
+      accessibilityState={{ selected: isSelected, disabled }}
       accessibilityRole="button"
       className={`min-h-11 flex-1 items-center justify-center rounded-[12px] border px-3 ${
         isSelected ? "border-hypo-brand bg-hypo-brandSoft" : "border-hypo-border bg-hypo-bg"
@@ -272,19 +295,6 @@ function getInitialValues(): FormValues {
     meetingUrl: "",
     place: "",
   };
-}
-
-function buildScheduledAt(dateValue: string, timeValue: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue) || !/^\d{2}:\d{2}$/.test(timeValue)) {
-    return null;
-  }
-
-  const date = new Date(`${dateValue}T${timeValue}:00`);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toISOString();
 }
 
 function readParam(value?: string | string[]) {

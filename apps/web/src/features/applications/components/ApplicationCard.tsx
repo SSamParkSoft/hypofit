@@ -11,6 +11,11 @@ interface ApplicationCardProps {
 }
 
 export function ApplicationCard({ model, onReport }: ApplicationCardProps) {
+  const isInterview = Boolean(model.post && (!model.post.recruitment_type || model.post.recruitment_type === "interview"));
+  const showSchedule = (isInterview || !model.post) && (
+    Boolean(model.sessionTimeLabel) || (isInterview && model.application.status === "selected")
+  );
+
   return (
     <article className="rounded-hypo-lg border border-hypo-border bg-hypo-surface p-4 shadow-hypo-panel">
       <div className="flex items-start justify-between gap-3">
@@ -28,7 +33,8 @@ export function ApplicationCard({ model, onReport }: ApplicationCardProps) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <ApplicationStatusBadge status={model.application.status} />
-          {model.session ? <SessionStatusBadge status={model.session.status} /> : null}
+          {model.session && model.session.status !== model.application.status
+            ? <SessionStatusBadge status={model.session.status} /> : null}
         </div>
       </div>
 
@@ -41,10 +47,10 @@ export function ApplicationCard({ model, onReport }: ApplicationCardProps) {
           <CalendarDays size={15} />
           가능 시간 {model.availableTimeCount}개
         </span>
-        <span className="inline-flex items-center gap-1.5">
+        {showSchedule ? <span className="inline-flex items-center gap-1.5">
           <ClipboardList size={15} />
           {model.sessionTimeLabel ?? "일정 대기"}
-        </span>
+        </span> : null}
       </div>
 
       {model.application.available_times.length ? (

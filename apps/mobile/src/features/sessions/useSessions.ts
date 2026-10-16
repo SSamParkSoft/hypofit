@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { sessionsApi } from "@/shared/api/sessions";
+import { sessionsApi } from "@/features/sessions/sessionsApi";
 import { buildAuthQueryKey, resolveAuthUserId } from "@/shared/query/authQuery";
 
 const sessionQueryKeys = {

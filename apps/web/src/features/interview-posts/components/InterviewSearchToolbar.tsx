@@ -128,6 +128,7 @@ export function InterviewSearchToolbar({
               placeholder="제목, 참여 조건, 지역 검색"
               type="search"
               value={query}
+              maxLength={100}
               onChange={(event) => onQueryChange(event.target.value)}
             />
           </label>

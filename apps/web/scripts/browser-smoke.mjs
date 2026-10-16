@@ -64,6 +64,7 @@ try {
       ],
       settleMs: 5_000,
     },
+    { path: "/admin", requiredText: ["로그인"], settleMs: 5_000 },
   ];
 
   for (const route of routes) {
@@ -94,10 +95,10 @@ try {
   );
 
   console.log(
-    "Browser smoke passed for landing, support, protected auth entry, and 390x844 viewport.",
+    "Browser smoke passed for landing, support, protected app/admin auth entry, and 390x844 viewport.",
   );
 } finally {
-  previewProcess.kill("SIGTERM");
+  await stopChild(previewProcess);
   await fs.rm(temporaryDirectory, { force: true, recursive: true });
 }
 
@@ -229,7 +230,7 @@ async function withChromePage(
       `${error instanceof Error ? error.message : String(error)}${detail}`,
     );
   } finally {
-    client?.close();
+    await client?.close();
     await stopChild(child);
   }
 }
@@ -335,12 +336,17 @@ async function createCdpClient(webSocketUrl) {
   });
 
   return {
-    close() {
+    async close() {
       for (const pending of pendingCommands.values()) {
         pending.reject(new Error("CDP connection closed"));
       }
       pendingCommands.clear();
+      if (socket.readyState === WebSocket.CLOSED) return;
+      const closed = new Promise((resolve) =>
+        socket.addEventListener("close", resolve, { once: true }),
+      );
       socket.close();
+      await Promise.race([closed, delay(1_000)]);
     },
     send(method, params = {}) {
       const id = ++commandId;

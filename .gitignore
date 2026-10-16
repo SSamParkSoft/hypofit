@@ -46,6 +46,8 @@ releases-spring/
 *.server-backup-*
 
 # Mobile build artifacts
+/apps/mobile/ios/
+/apps/mobile/android/
 *.ipa
 *.aab
 *.apk

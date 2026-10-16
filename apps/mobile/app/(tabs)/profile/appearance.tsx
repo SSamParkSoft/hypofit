@@ -1,1 +1,1 @@
-export { AppearanceSettingsScreen as default } from "@/screens/profile/AppearanceSettingsScreen";
+export { AppearanceSettingsScreen as default } from "@/screens/settings/AppearanceSettingsScreen";

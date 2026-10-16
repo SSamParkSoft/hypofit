@@ -34,6 +34,8 @@ export interface AdminAccountDeletionRequest {
 export interface AdminAccountDeletionListParams {
   status?: AdminAccountDeletionRequest["status"];
   limit?: number;
+  page?: number;
+  q?: string;
 }
 
 export type NoticeType = "GENERAL" | "MAINTENANCE" | "IMPORTANT";
@@ -48,6 +50,7 @@ export interface AdminNotice {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  managed_by_maintenance?: boolean;
 }
 
 export interface AdminNoticeInput { type: NoticeType; title: string; body: string; }
@@ -78,6 +81,17 @@ export interface AdminMaintenanceInput {
   show_banner: boolean;
   banner_starts_at?: string | null;
   create_notice?: boolean;
+  expected_version?: number;
+}
+
+export interface AdminMaintenanceEvent {
+  id: string;
+  actorId: string | null;
+  actorName: string | null;
+  action: string;
+  before: string | null;
+  after: string | null;
+  createdAt: string;
 }
 
 export interface AdminEmergencyMaintenanceInput {

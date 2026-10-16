@@ -5,9 +5,9 @@ import { cn } from "../../../shared/ui/cn";
 import { InterviewPostStatusBadge } from "../../../shared/ui/status-badge";
 import { ListSurface } from "../../../shared/ui/workspace";
 import {
-  formatReward,
   interviewModeLabels,
 } from "../../interview-posts/components/interviewPostMeta";
+import { CompensationSummary, postingDurationLabel, postingParticipationLabel } from "../../interview-posts/components/postingPresentation";
 
 interface MyInterviewsFounderPostListPaneProps {
   applicationsByPostId: Map<string, Application[]>;
@@ -66,6 +66,8 @@ function FounderPostListRow({
   post,
 }: FounderPostListRowProps) {
   const selectedCount = applications.filter((application) => application.status === "selected").length;
+  const duration = postingDurationLabel(post);
+  const mode = post.recruitment_type === "beta_test" ? postingParticipationLabel(post) : interviewModeLabels[post.interview_mode];
   const isMutedPost =
     post.status === "archived" ||
     post.status === "closed" ||
@@ -102,11 +104,11 @@ function FounderPostListRow({
       <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-hypo-text-muted">
         <span className="inline-flex items-center gap-1.5 font-bold text-hypo-reward">
           <CircleDollarSign size={14} />
-          {formatReward(post.reward_amount)}
+          <CompensationSummary post={post} />
         </span>
         <span className="inline-flex items-center gap-1.5">
           <ClipboardList size={14} />
-          {interviewModeLabels[post.interview_mode]} · {post.duration_minutes}분
+          {[mode, duration].filter(Boolean).join(" · ")}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <UsersRound size={14} />

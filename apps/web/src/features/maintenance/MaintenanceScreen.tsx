@@ -1,8 +1,20 @@
 import { Button } from "../../shared/ui/button";
+import { useState } from "react";
+import { apiRequest } from "../../shared/api/client";
 import { useMaintenance } from "./MaintenanceProvider";
 
 export function MaintenanceScreen() {
   const { errorMessage, isRefreshing, refresh, status } = useMaintenance();
+  const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
+  const [noticeLoading, setNoticeLoading] = useState(false);
+  const [noticeError, setNoticeError] = useState<string | null>(null);
+  const openNotice = async () => {
+    if (!status.noticeId || noticeLoading) return;
+    setNoticeLoading(true); setNoticeError(null);
+    try { setNotice(await apiRequest<{ title: string; body: string }>(`/api/v1/notices/${encodeURIComponent(status.noticeId)}`)); }
+    catch { setNoticeError("점검 공지를 불러오지 못했어요. 잠시 후 다시 확인해 주세요."); }
+    finally { setNoticeLoading(false); }
+  };
   const title = status.status === "VERIFYING" ? "정상 동작을 확인하고 있어요" : status.title ?? "서비스 점검 중이에요";
   const message = status.message ?? "안정적인 서비스 제공을 위해 시스템을 점검하고 있어요.";
 
@@ -20,13 +32,16 @@ export function MaintenanceScreen() {
               <p className="mt-1 text-[15px] font-bold leading-6 text-hypo-text">{formatMaintenanceEnd(status.endsAt)}</p>
               <p className="mt-1 text-[13px] font-medium leading-5 text-hypo-text-muted">점검이 일찍 끝나면 바로 이용할 수 있어요.</p>
             </section>
-          ) : null}
+          ) : <p className="mt-6 text-sm text-hypo-text-muted">종료 시간은 확인되는 대로 안내드릴게요.</p>}
 
           <div className="mt-10 grid gap-3">
             {errorMessage ? <p className="text-sm font-medium leading-5 text-hypo-text-muted" role="status">{errorMessage}</p> : null}
             <Button className="w-full" disabled={isRefreshing} size="lg" onClick={() => void refresh()}>
               {isRefreshing ? "확인 중" : "다시 확인"}
             </Button>
+            {status.noticeId ? <Button variant="ghost" disabled={noticeLoading} onClick={() => { if (notice) setNotice(null); else void openNotice(); }}>{noticeLoading ? "공지 확인 중" : notice ? "점검 안내 닫기" : "점검 안내 보기"}</Button> : null}
+            {noticeError ? <p role="alert" className="text-sm text-hypo-text-muted">{noticeError}</p> : null}
+            {notice ? <section className="border-t border-hypo-border pt-4 text-left"><h2 className="font-bold">{notice.title}</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-hypo-text-muted">{notice.body}</p></section> : null}
           </div>
         </section>
       </div>

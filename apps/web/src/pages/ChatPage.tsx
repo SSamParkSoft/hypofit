@@ -8,13 +8,17 @@ import { getCounterpart } from "../features/chat/model/chatRoomModel";
 import { useChatRoomListController } from "../features/chat/model/useChatRoomListController";
 import { useChatRoomSelection } from "../features/chat/model/useChatRoomSelection";
 import { useChatRooms } from "../features/chat/useChatRooms";
+import { useSessions } from "../features/sessions/useSessions";
 import { cn } from "../shared/ui/cn";
 import { EmptyState } from "../shared/ui/state";
 import { getWorkspaceRegionClassName } from "../shared/ui/workspace";
 
 export function ChatPage() {
   const { accessToken, appUser } = useAuth();
-  const { data: rooms = [], isError, isLoading } = useChatRooms(accessToken);
+  const { data: rooms = [], isError, isLoading } = useChatRooms(accessToken, {
+    pollWhileActive: true,
+  });
+  const { data: sessions = [] } = useSessions(accessToken);
   const appUserId = appUser?.id ?? null;
   const roomSelection = useChatRoomSelection(rooms);
   const roomList = useChatRoomListController({
@@ -31,7 +35,8 @@ export function ChatPage() {
     <div
       className={cn(
         "mx-auto grid w-full max-w-none bg-hypo-bg min-[1200px]:m-5 min-[1200px]:w-auto min-[1200px]:grid-cols-[320px_minmax(0,1fr)] min-[1200px]:gap-0 min-[1200px]:rounded-hypo-lg min-[1200px]:border min-[1200px]:border-hypo-border min-[1200px]:bg-hypo-surface min-[1600px]:grid-cols-[320px_minmax(0,1fr)_300px]",
-        getWorkspaceRegionClassName({ height: "content", scroll: "clip" }),
+        "max-[1199px]:min-h-[var(--app-workspace-content-height)] md:max-[1199px]:h-[var(--app-workspace-content-height)]",
+        getWorkspaceRegionClassName({ scroll: "clip" }),
         getWorkspaceRegionClassName({ height: "framedDesktop" }),
       )}
     >
@@ -60,12 +65,24 @@ export function ChatPage() {
 
       {selectedRoom ? (
         <ChatThread
+          key={`${appUserId}:${selectedRoom.id}`}
           accessToken={accessToken}
           appUserId={appUserId}
           isBlocked={
             roomList.blockedRoomIds.has(selectedRoom.id) || selectedRoom.status === "blocked"
           }
           isMuted={roomList.getIsMuted(selectedRoom)}
+          confirmedSession={
+            selectedRoom.interview_post &&
+            (!selectedRoom.interview_post.recruitment_type ||
+              selectedRoom.interview_post.recruitment_type === "interview")
+              ? sessions.find(
+                  (session) =>
+                    session.application_id === selectedRoom.application_id &&
+                    session.status === "scheduled",
+                ) ?? null
+              : null
+          }
           room={selectedRoom}
           onBlock={() => roomList.requestBlock(selectedRoom)}
           onBack={roomSelection.closeThread}

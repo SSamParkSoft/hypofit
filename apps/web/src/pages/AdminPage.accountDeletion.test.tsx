@@ -1,10 +1,16 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render as testingRender, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { adminApi } from "../shared/api/admin";
 import type { AdminAccountDeletionRequest, AdminMe, AdminSummary } from "../shared/api/types";
 import { AdminPage } from "./AdminPage";
+
+function render(ui: Parameters<typeof testingRender>[0]) {
+  window.history.replaceState({}, "", "/admin");
+  return testingRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
+}
 
 const admin: AdminMe = {
   id: "admin-id",

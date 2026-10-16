@@ -31,7 +31,7 @@ const unreadNotification: NotificationRecord = {
   body: "지원자 정보를 확인해 보세요.",
   created_at: new Date().toISOString(),
   id: "notification-1",
-  metadata: {},
+  metadata: { interview_post_id: "post-1" },
   read_at: null,
   target_id: "application-1",
   target_type: "application",
@@ -90,10 +90,32 @@ describe("NotificationPopover", () => {
     );
 
     expect(mocks.markRead).toHaveBeenCalledWith("notification-1");
-    expect(mocks.navigateTo).toHaveBeenCalledWith("/my-interviews");
+    expect(mocks.navigateTo).toHaveBeenCalledWith("/my-interviews?tab=posts&post=post-1");
     await waitFor(() => {
       expect(screen.queryByRole("heading", { name: "알림" })).not.toBeInTheDocument();
     });
+  });
+
+  it("opens the selected participant's exact chat room", async () => {
+    const user = userEvent.setup();
+    mocks.useNotifications.mockReturnValue({
+      data: [{
+        ...unreadNotification,
+        metadata: { chat_room_id: "room-1", interview_post_id: "post-1" },
+        title: "인터뷰에 선정됐어요",
+        type: "application_selected",
+      }],
+      isError: false,
+      isLoading: false,
+      refetch: mocks.refetch,
+    });
+
+    render(<NotificationPopover accessToken="access-token" unreadCount={1} />);
+    await user.click(screen.getByRole("button", { name: "알림, 읽지 않은 알림 1개" }));
+    await user.click(screen.getByRole("link", { name: /인터뷰에 선정됐어요/ }));
+
+    expect(mocks.markRead).toHaveBeenCalledWith("notification-1");
+    expect(mocks.navigateTo).toHaveBeenCalledWith("/chat?room=room-1");
   });
 
   it("supports marking all notifications read and opening the full notification center", async () => {

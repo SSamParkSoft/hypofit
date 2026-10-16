@@ -56,7 +56,8 @@ export function ChatRoomListPanel({
     <section
       className={cn(
         "grid grid-rows-[auto_minmax(0,1fr)] bg-hypo-surface min-[1200px]:border-r min-[1200px]:border-hypo-border",
-        getWorkspaceRegionClassName({ height: "content", scroll: "clip" }),
+        "max-[1199px]:min-h-[var(--app-workspace-content-height)] md:max-[1199px]:h-[var(--app-workspace-content-height)] min-[1200px]:min-h-0",
+        getWorkspaceRegionClassName({ scroll: "clip" }),
         isThreadOpen && "hidden min-[1200px]:grid",
       )}
     >

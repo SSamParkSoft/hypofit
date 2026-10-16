@@ -17,6 +17,8 @@
     ".": "./src/index.ts",
     "./api": "./src/api/index.ts",
     "./domain": "./src/domain/index.ts",
+    "./survey-urls": "./src/survey-urls.ts",
+    "./survey-providers": "./src/survey-providers.ts",
     "./formatting": "./src/formatting/index.ts",
     "./legal": "./src/legal.ts"
   }

@@ -1,5 +1,7 @@
 import { CalendarDays, Target } from "lucide-react";
 import { SurveyParticipationPanel } from "./SurveyParticipationPanel";
+import { PostingImageGallery } from "./PostingImageGallery";
+import { getPostingDetailStatus } from "../model/postingDetailStatus";
 
 import { ApplicationForm, useApplicationFormController } from "../../applications/ui";
 import type { CreateApplicationInput } from "../../../shared/api/applications";
@@ -11,28 +13,38 @@ import { ApplicationStatusBadge } from "../../../shared/ui/status-badge";
 
 interface OpportunityExpandedDetailProps {
   canApply: boolean;
+  chatRoomId?: string | null;
   className?: string;
   errorMessage?: string | null;
   existingApplication?: Application | null;
   initialApplyOpen?: boolean;
   isApplying?: boolean;
+  isOwner?: boolean;
   onApply: (input: CreateApplicationInput) => void;
   post: InterviewPost;
   appliedStatusMode?: "summary" | "minimal";
   showDetailButton?: boolean;
+  showImages?: boolean;
+  showOverview?: boolean;
+  showScheduleOptions?: boolean;
 }
 
 export function OpportunityExpandedDetail({
   canApply,
+  chatRoomId,
   className,
   errorMessage,
   existingApplication,
   initialApplyOpen = false,
   isApplying,
+  isOwner = false,
   onApply,
   post,
   appliedStatusMode = "summary",
   showDetailButton = true,
+  showImages = true,
+  showOverview = true,
+  showScheduleOptions = true,
 }: OpportunityExpandedDetailProps) {
   const applicationForm = useApplicationFormController({
     initialOpen: initialApplyOpen,
@@ -40,23 +52,29 @@ export function OpportunityExpandedDetail({
     onApply,
   });
   const hasApplied = Boolean(existingApplication);
-  const canSubmit = canApply && post.status === "open" && !hasApplied;
+  const status = getPostingDetailStatus(post);
+  const canSubmit = canApply && status === "open" && !hasApplied;
+  const chatRoomPath = chatRoomId && existingApplication?.status === "selected" && post.recruitment_type !== "survey"
+    ? `/chat?room=${encodeURIComponent(chatRoomId)}`
+    : null;
+  const showImageGallery = showImages && Boolean(post.cover_image || post.images?.length);
 
   return (
     <section className={cn("grid gap-4", className)}>
-      <div className="grid gap-3">
-        <p className="text-sm leading-6 text-hypo-text-muted">{post.service_summary}</p>
+      {(showOverview || showImageGallery) ? <div className="grid gap-3">
+        {showOverview ? <p className="text-sm leading-6 text-hypo-text-muted">{post.service_summary}</p> : null}
+        {showImageGallery ? <PostingImageGallery postId={post.id} /> : null}
 
-        <div className="grid gap-2">
+        {showOverview ? <div className="grid gap-2">
           <h4 className="inline-flex items-center gap-1.5 text-xs font-semibold text-hypo-text">
             <Target className="text-hypo-brand" size={14} />
             찾는 응답자
           </h4>
           <p className="text-sm leading-6 text-hypo-text-muted">{post.target_description}</p>
-        </div>
-      </div>
+        </div> : null}
+      </div> : null}
 
-      {post.recruitment_type !== "survey" && <div className="grid gap-2 border-t border-hypo-border pt-4">
+      {showScheduleOptions && (!post.recruitment_type || post.recruitment_type === "interview") && <div className="grid gap-2 border-t border-hypo-border pt-4">
         <h4 className="inline-flex items-center gap-1.5 text-xs font-semibold text-hypo-text">
           <CalendarDays className="text-hypo-brand" size={14} />
           가능 시간
@@ -74,20 +92,31 @@ export function OpportunityExpandedDetail({
         )}
       </div>}
 
-      {post.recruitment_type === "survey" && (post.entry_mode === "direct" || existingApplication?.status === "selected") ? (
+      {isOwner ? (
+        <div className={cn("grid gap-2", showDetailButton && "grid-cols-2")}>
+          {showDetailButton ? (
+            <Button size="sm" variant="secondary" onClick={() => navigateToInterviewDetail(post.id)}>
+              상세보기
+            </Button>
+          ) : null}
+          <Button size="sm" onClick={() => navigateTo(`/my-interviews?tab=posts&post=${encodeURIComponent(post.id)}`)}>
+            공고 관리
+          </Button>
+        </div>
+      ) : post.recruitment_type === "survey" && (post.entry_mode === "direct" || existingApplication?.status === "selected") ? (
         <SurveyParticipationPanel key={post.id} post={post} />
       ) : hasApplied && appliedStatusMode === "minimal" ? (
         <div className="rounded-hypo-lg border border-hypo-border bg-hypo-bg px-4 py-3 text-sm font-semibold text-hypo-text">
-          신청을 보냈어요
+          신청 내역
         </div>
       ) : hasApplied ? (
-        <div className="grid gap-3 border-t border-hypo-border pt-4">
+        <div className={cn("grid gap-3", showOverview && "border-t border-hypo-border pt-4")}>
           <div className="rounded-hypo-lg border border-hypo-border bg-hypo-bg px-4 py-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <strong className="block text-sm font-semibold text-hypo-text">신청을 보냈어요</strong>
+                <strong className="block text-sm font-semibold text-hypo-text">신청 내역</strong>
                 <p className="mt-1 text-sm leading-5 text-hypo-text-muted">
-                  이후 조율은 내 인터뷰나 채팅에서 이어갈 수 있어요.
+                  내 참여에서 현재 신청 상태를 확인하세요.
                 </p>
               </div>
               {existingApplication ? <ApplicationStatusBadge status={existingApplication.status} /> : null}
@@ -100,24 +129,24 @@ export function OpportunityExpandedDetail({
                 상세보기
               </Button>
             ) : null}
-            <Button size="sm" variant="tonal" onClick={() => navigateTo("/my-interviews")}>
-              내 인터뷰 보기
+            <Button size="sm" variant="tonal" onClick={() => navigateTo(chatRoomPath ?? "/my-interviews")}>
+              {chatRoomPath ? "채팅 보기" : "내 참여 보기"}
             </Button>
           </div>
         </div>
       ) : !applicationForm.isOpen ? (
-        <div className={cn("grid gap-2 border-t border-hypo-border pt-4", showDetailButton && "grid-cols-[0.9fr_1.1fr]")}>
+        <div className={cn("grid gap-2", showOverview && "border-t border-hypo-border pt-4", showDetailButton && "grid-cols-[0.9fr_1.1fr]")}>
           {showDetailButton ? (
             <Button size="sm" variant="secondary" onClick={() => navigateToInterviewDetail(post.id)}>
               상세보기
             </Button>
           ) : null}
           <Button
-            disabled={!canApply || post.status !== "open"}
+            disabled={!canApply || status !== "open"}
             size="sm"
             onClick={applicationForm.open}
           >
-            {canApply ? "신청하기" : "로그인 후 신청"}
+            {post.recruitment_type === "survey" && status !== "open" ? "모집 종료" : canApply ? "신청하기" : "로그인 후 신청"}
           </Button>
         </div>
       ) : (
@@ -127,7 +156,7 @@ export function OpportunityExpandedDetail({
           availableTimesPlaceholder="예: 평일 20시 이후"
           buttonSize="sm"
           cancelLabel="접기"
-          className="border-t border-hypo-border pt-4"
+          className={cn(showOverview && "border-t border-hypo-border pt-4")}
           errorMessage={errorMessage}
           errors={applicationForm.errors}
           experienceAnswer={applicationForm.experienceAnswer}

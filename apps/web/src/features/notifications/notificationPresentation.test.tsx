@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotificationRecord } from "../../shared/api/notifications";
 import {
   formatRelativeTime,
+  getNotificationDestinationLabel,
   getNotificationHref,
   groupNotificationsByDate,
 } from "./notificationPresentation";
@@ -60,7 +61,26 @@ describe("notificationPresentation", () => {
           target_id: "application-1",
         }),
       ),
-    ).toBe("/my-interviews");
+    ).toBe("/my-interviews?tab=applications&application=application-1");
+
+    expect(
+      getNotificationHref(createNotification({
+        type: "application_selected",
+        target_id: "application-2",
+        metadata: { chat_room_id: "room/with spaces?" },
+      })),
+    ).toBe("/chat?room=room%2Fwith%20spaces%3F");
+    expect(getNotificationDestinationLabel(createNotification({
+      type: "application_selected",
+      metadata: { chat_room_id: "room-1" },
+    }))).toBe("채팅으로 이동");
+
+    expect(
+      getNotificationHref(createNotification({
+        type: "application_created",
+        metadata: { interview_post_id: "post/2" },
+      })),
+    ).toBe("/my-interviews?tab=posts&post=post%2F2");
 
     expect(
       getNotificationHref(

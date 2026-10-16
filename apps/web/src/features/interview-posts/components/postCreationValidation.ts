@@ -1,6 +1,7 @@
 import type { CreateInterviewPostInput } from "../../../shared/api/types";
 
 export interface PostCreationFormValues {
+  imageIds?: string[];
   durationMinutes: string;
   interviewMode: CreateInterviewPostInput["interview_mode"];
   location: string;
@@ -59,6 +60,7 @@ export function toCreateInterviewPostInput(
   values: PostCreationFormValues,
 ): CreateInterviewPostInput {
   return {
+    ...(values.imageIds ? { image_ids: values.imageIds } : {}),
     title: values.title.trim(),
     service_summary: values.serviceSummary.trim(),
     target_description: values.targetDescription.trim(),

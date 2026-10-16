@@ -11,6 +11,8 @@ import {
 
 import {
   formatCompensationSummary,
+  formatPostingDuration,
+  formatBetaTestPlatforms,
   normalizeCompensations,
   postingTypeLabels,
   type PostingType,
@@ -82,6 +84,24 @@ export function postingPrimaryAction(post: InterviewPost) {
 
 export function postingParticipationLabel(post: InterviewPost) {
   if (getPostingType(post) === "survey") return "온라인 설문";
-  if (getPostingType(post) === "beta_test") return "온라인 테스트";
+  if (getPostingType(post) === "beta_test") {
+    return formatBetaTestPlatforms(post.beta_test_platforms);
+  }
   return post.interview_mode === "online" ? "온라인" : post.interview_mode === "offline" ? "대면" : "온라인·대면";
+}
+
+export function postingDurationLabel(post: InterviewPost): string | null {
+  return formatPostingDuration(post);
+}
+
+export function postingDetailLocationLabel(post: InterviewPost): string | null {
+  const type = getPostingType(post);
+  if (
+    post.interview_mode === "online" ||
+    (type !== "interview" && type !== "research_experiment")
+  ) {
+    return null;
+  }
+
+  return post.location_place_name ?? post.location_text ?? post.location_address ?? post.location ?? null;
 }

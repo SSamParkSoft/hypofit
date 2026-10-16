@@ -1,27 +1,34 @@
-import chatScreenshot from "../../../../../docs/assets/readme/app-screens/chat.jpg";
-import homeScreenshot from "../../../../../docs/assets/readme/app-screens/home-current-brand.png";
-import interviewDetailScreenshot from "../../../../../docs/assets/readme/app-screens/interview-detail.jpg";
-import interviewScreenshot from "../../../../../docs/assets/readme/app-screens/interviews.jpg";
-import mapScreenshot from "../../../../../docs/assets/readme/app-screens/map.jpg";
+import activityScreenshot from "../../../../../docs/store-assets/landing/activity.webp";
+import applicantsScreenshot from "../../../../../docs/store-assets/landing/applicants.webp";
+import chatScreenshot from "../../../../../docs/store-assets/landing/chat.webp";
+import createScreenshot from "../../../../../docs/store-assets/landing/create.webp";
+import discoveryScreenshot from "../../../../../docs/store-assets/landing/discovery.webp";
+import mapScreenshot from "../../../../../docs/store-assets/landing/map.webp";
+import webScreenshot from "../../../../../docs/store-assets/landing/web-discovery.webp";
+import iphoneBezel from "../../../../../docs/store-assets/landing/iphone-17-pro-silver.webp";
 
-type AppScreenKind = "chat" | "detail" | "home" | "interviews" | "map";
+type AppScreenKind = "activity" | "applicants" | "chat" | "create" | "discovery" | "map";
 
 const screenSources = {
   chat: {
     alt: "공고 참여 과정에서 필요한 내용을 조율하는 Hypofit 채팅 화면",
     src: chatScreenshot,
   },
-  detail: {
-    alt: "공고 조건과 모집자 정보를 확인하는 Hypofit 앱 화면",
-    src: interviewDetailScreenshot,
+  create: {
+    alt: "인터뷰·설문조사·베타테스트·연구 실험 유형을 선택하는 Hypofit 공고 만들기 화면",
+    src: createScreenshot,
   },
-  home: {
-    alt: "내 공고와 참여 진행 상황을 확인하는 Hypofit 앱 홈 화면",
-    src: homeScreenshot,
+  applicants: {
+    alt: "신청자 목록과 진행 상태를 확인하는 Hypofit 지원자 관리 화면",
+    src: applicantsScreenshot,
   },
-  interviews: {
+  activity: {
+    alt: "내 참여와 내 공고의 진행 상태를 확인하는 Hypofit 내 활동 화면",
+    src: activityScreenshot,
+  },
+  discovery: {
     alt: "공고를 탐색하고 조건을 비교하는 Hypofit 앱 화면",
-    src: interviewScreenshot,
+    src: discoveryScreenshot,
   },
   map: {
     alt: "지도에서 주변 대면 공고를 확인하는 Hypofit 앱 화면",
@@ -41,41 +48,47 @@ export function LandingPhoneScreen({
   const screen = screenSources[kind];
 
   return (
-    <figure
-      className={`overflow-hidden rounded-[38px] border-[7px] border-[#152019] bg-[#152019] shadow-[0_2px_5px_rgb(8_24_15_/_0.12),0_18px_40px_rgb(8_24_15_/_0.16),0_46px_100px_rgb(8_24_15_/_0.19)] ${className}`}
-    >
-      <div className="relative overflow-hidden rounded-[31px] bg-white">
+    <figure className={className}>
+      <div className="relative aspect-[1350/2760] w-full">
+        {/* Official 1350×2760 bezel: 1206×2622 screen at (72, 69). */}
         <img
           alt={screen.alt}
-          className="block h-auto w-full"
+          className="absolute left-[5.333333%] top-[2.5%] h-[95%] w-[89.333333%] rounded-[14%/6.5%] bg-white object-contain"
           decoding={priority ? "sync" : "async"}
           loading={priority ? "eager" : "lazy"}
+          {...(priority ? { fetchpriority: "high" } : {})}
           src={screen.src}
-          height={2778}
-          width={1279}
+          height={1565}
+          width={720}
+        />
+        <img
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full select-none"
+          src={iphoneBezel}
+          width={810}
+          height={1656}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
         />
       </div>
     </figure>
   );
 }
 
-export function LandingScreenPlaceholder({
-  className = "",
-  inverse = false,
-  label,
-}: {
-  className?: string;
-  inverse?: boolean;
-  label: string;
-}) {
+export function LandingWebScreen() {
   return (
-    <p
-      className={`text-center text-[15px] font-semibold leading-7 tracking-[-0.025em] ${
-        inverse ? "text-white/70" : "text-landing-muted"
-      } ${className}`}
-    >
-      {label}
-    </p>
+    <figure className="w-full overflow-hidden rounded-xl border border-landing-border bg-white">
+      <img
+        alt="검색과 필터, 공고 목록과 선택한 설문 상세를 함께 확인하는 Hypofit 웹 화면"
+        className="block h-auto w-full"
+        src={webScreenshot}
+        width={1470}
+        height={630}
+        loading="lazy"
+        decoding="async"
+      />
+    </figure>
   );
 }
 
@@ -95,7 +108,7 @@ export function LandingHeroPhoneStage({
             ? "absolute bottom-0 left-[6%] z-10 w-[44%] -rotate-[7deg] opacity-95"
             : "absolute bottom-[9%] left-[4%] z-10 w-[39%] -rotate-[7deg] opacity-95"
         }
-        kind="interviews"
+        kind="activity"
       />
       <LandingPhoneScreen
         className={
@@ -103,7 +116,7 @@ export function LandingHeroPhoneStage({
             ? "absolute right-[7%] top-0 z-20 w-[56%] rotate-[4deg]"
             : "absolute right-[6%] top-[2%] z-20 w-[50%] rotate-[4deg]"
         }
-        kind="home"
+        kind="discovery"
         priority
       />
     </div>

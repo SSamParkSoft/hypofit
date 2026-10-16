@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SurveyParticipation, SurveyParticipationAction } from "@hypofit/contracts";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { surveyParticipationsApi } from "@/shared/api/surveyParticipations";
+import { surveyParticipationsApi } from "@/features/surveys/surveyParticipationsApi";
 import { buildAuthQueryKey, resolveAuthUserId } from "@/shared/query/authQuery";
 
 const surveyParticipationQueryKeys = {

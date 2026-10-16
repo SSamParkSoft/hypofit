@@ -1,11 +1,15 @@
-const CACHE_NAME = "hypofit-shell-v2";
+const CACHE_NAME = "hypofit-shell-v3";
 const SHELL_ASSETS = [
   "/",
-  "/manifest.webmanifest",
-  "/icons/favicon.ico",
-  "/icons/apple-touch-icon.png",
-  "/icons/icon.svg",
-  "/icons/icon-512.png",
+  "/manifest.webmanifest?v=3",
+  "/icons/favicon.ico?v=3",
+  "/icons/favicon.svg?v=3",
+  "/icons/apple-touch-icon.png?v=3",
+  "/icons/icon.svg?v=3",
+  "/icons/icon-192.png?v=3",
+  "/icons/icon-512.png?v=3",
+  "/icons/icon-maskable-192.png?v=3",
+  "/icons/icon-maskable-512.png?v=3",
   "/brand/hypofit-mark.svg",
   "/brand/hypofit-mark-inverse.svg",
 ];

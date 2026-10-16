@@ -13,13 +13,14 @@ export type InterviewPostStatus =
 
 /** @deprecated Use PostingType in new product UI. */
 export type RecruitmentType = PostingType;
-export type SurveyExternalProvider = "google_forms";
+export type SurveyExternalProvider = "google_forms" | "naver_forms" | "microsoft_forms" | "typeform" | "tally" | "external";
 export type ParticipationEntryMode = "application_required" | "direct";
 export type PostingDurationUnit = "minutes" | "hours" | "days" | "weeks";
 export type PostingScheduleMode = "fixed" | "recurring" | "negotiated" | "none";
 export type RecruitmentLimitMode = "limited" | "unlimited";
 
 export interface InterviewPostCreationCapabilities {
+  posting_images_enabled?: boolean;
   enabled_recruitment_types: PostingType[];
   direct_participation_recruitment_types: PostingType[];
 }
@@ -50,6 +51,8 @@ export interface InterviewAiSummary {
 }
 
 export interface InterviewPost {
+  cover_image?: PostingImage | null;
+  images?: PostingImage[];
   id: string;
   founder_id: string;
   created_at?: string;
@@ -113,6 +116,7 @@ export interface InterviewPostView {
 }
 
 export interface CreateInterviewPostInput {
+  image_ids?: string[];
   /** Reused only when retrying the same create request. */
   client_submission_id?: string;
   recruitment_type?: RecruitmentType;
@@ -155,8 +159,9 @@ export interface CreateInterviewPostInput {
 }
 
 export type UpdateInterviewPostInput = Partial<
-  Omit<InterviewPost, "id" | "founder_id" | "founder" | "distance_meters" | "ai_summary" | "status">
+  Omit<InterviewPost, "id" | "founder_id" | "founder" | "distance_meters" | "ai_summary" | "status" | "cover_image" | "images">
 > & {
+  image_ids?: string[];
   status?: "draft" | "open";
 };
 
@@ -190,4 +195,13 @@ export type WithdrawSurveyParticipationInput = Record<string, never>;
 
 export interface ConfirmSurveyParticipationInput {
   participant_id: string;
+}
+
+export interface PostingImage {
+  id: string;
+  url: string | null;
+  url_expires_at: string;
+  width: number;
+  height: number;
+  alt_text: string | null;
 }

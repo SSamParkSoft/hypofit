@@ -4,11 +4,13 @@ import { useUpdateApplicationStatus } from "../applications/useApplicationMutati
 import { useApplications } from "../applications/useApplications";
 import { useAuth } from "../auth/useAuth";
 import { useInterviewPosts } from "../interview-posts/useInterviewPosts";
+import { usePostingDetail } from "../interview-posts/usePostingDetail";
 import { useCreateSession } from "../sessions/useSessionMutations";
 import { useSessions } from "../sessions/useSessions";
 import { buildApplicationReadModels } from "../workflow/readModels";
 import type { CreateSessionInput } from "../../shared/api/sessions";
 import type { Application, AppUser } from "../../shared/api/types";
+import { replacePath } from "../../shared/navigation/appNavigation";
 import type { MyInterviewTab, MyInterviewsTabMeta } from "./types";
 
 interface UseMyInterviewsPageControllerOptions {
@@ -19,12 +21,21 @@ export function useMyInterviewsPageController({
   appUser,
 }: UseMyInterviewsPageControllerOptions) {
   const { accessToken } = useAuth();
-  const [activeTab, setActiveTab] = useState<MyInterviewTab>("applications");
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<MyInterviewTab>(() =>
+    new URLSearchParams(window.location.search).get("tab") === "posts" ? "posts" : "applications",
+  );
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get("application"),
+  );
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get("post"),
+  );
 
   const canManageFounderPosts = Boolean(appUser?.id);
   const { data: posts = [], isError: isPostsError, isLoading: isPostsLoading } = useInterviewPosts();
+  const requestedPostId = activeTab === "posts" && appUser && selectedPostId &&
+    !posts.some((post) => post.id === selectedPostId) ? selectedPostId : null;
+  const { data: requestedPost, isLoading: isRequestedPostLoading } = usePostingDetail(requestedPostId);
   const {
     data: applications = [],
     isError: isApplicationsError,
@@ -48,9 +59,15 @@ export function useMyInterviewsPageController({
   );
 
   const myFounderPosts = useMemo(
-    () =>
-      appUser ? posts.filter((post) => post.founder_id === appUser.id) : [],
-    [appUser, posts],
+    () => {
+      if (!appUser) return [];
+      const ownedPosts = posts.filter((post) => post.founder_id === appUser.id);
+      if (requestedPost?.founder_id === appUser.id && !ownedPosts.some((post) => post.id === requestedPost.id)) {
+        ownedPosts.unshift(requestedPost);
+      }
+      return ownedPosts;
+    },
+    [appUser, posts, requestedPost],
   );
 
   const applicationsByPostId = useMemo(() => {
@@ -79,8 +96,9 @@ export function useMyInterviewsPageController({
   );
 
   const selectedFounderPost = useMemo(
-    () => myFounderPosts.find((post) => post.id === selectedPostId) ?? myFounderPosts[0] ?? null,
-    [myFounderPosts, selectedPostId],
+    () => requestedPostId && isRequestedPostLoading ? null :
+      myFounderPosts.find((post) => post.id === selectedPostId) ?? myFounderPosts[0] ?? null,
+    [isRequestedPostLoading, myFounderPosts, requestedPostId, selectedPostId],
   );
 
   const tabs = useMemo<MyInterviewsTabMeta[]>(() => {
@@ -104,6 +122,7 @@ export function useMyInterviewsPageController({
   }, [myApplicationRows.length, myFounderPosts.length]);
 
   useEffect(() => {
+    if (!appUser || !accessToken || isApplicationsLoading) return;
     if (!myApplicationRows.length) {
       setSelectedApplicationId(null);
       return;
@@ -115,9 +134,10 @@ export function useMyInterviewsPageController({
     ) {
       setSelectedApplicationId(myApplicationRows[0].application.id);
     }
-  }, [myApplicationRows, selectedApplicationId]);
+  }, [accessToken, appUser, isApplicationsLoading, myApplicationRows, selectedApplicationId]);
 
   useEffect(() => {
+    if (!appUser || isPostsLoading || (requestedPostId && isRequestedPostLoading)) return;
     if (!myFounderPosts.length) {
       setSelectedPostId(null);
       return;
@@ -126,7 +146,7 @@ export function useMyInterviewsPageController({
     if (!selectedPostId || !myFounderPosts.some((post) => post.id === selectedPostId)) {
       setSelectedPostId(myFounderPosts[0].id);
     }
-  }, [myFounderPosts, selectedPostId]);
+  }, [appUser, isPostsLoading, isRequestedPostLoading, myFounderPosts, requestedPostId, selectedPostId]);
 
   return {
     activeTab,
@@ -151,6 +171,7 @@ export function useMyInterviewsPageController({
     },
     selectApplication: (applicationId: string) => {
       setSelectedApplicationId(applicationId);
+      replaceSelectionQuery("applications", applicationId);
     },
     selectFounderApplication: (applicationId: string) => {
       updateApplicationStatus.mutate({
@@ -160,12 +181,32 @@ export function useMyInterviewsPageController({
     },
     selectPost: (postId: string) => {
       setSelectedPostId(postId);
+      replaceSelectionQuery("posts", postId);
     },
     selectedApplicationModel,
     selectedFounderPost,
     selectTab: (tab: MyInterviewTab) => {
       setActiveTab(tab);
+      replaceSelectionQuery(
+        tab,
+        (tab === "applications" ? selectedApplicationId : selectedPostId) ?? undefined,
+      );
     },
     tabs,
   };
+}
+
+function replaceSelectionQuery(tab: MyInterviewTab, selectedId?: string) {
+  const params = new URLSearchParams(window.location.search);
+  params.set("tab", tab);
+  params.delete("application");
+  params.delete("post");
+  if (selectedId) {
+    params.set(tab === "applications" ? "application" : "post", selectedId);
+  }
+  replacePath(`${window.location.pathname}?${params.toString()}${window.location.hash}`, {
+    focus: "none",
+    intent: "state",
+    scroll: "preserve",
+  });
 }

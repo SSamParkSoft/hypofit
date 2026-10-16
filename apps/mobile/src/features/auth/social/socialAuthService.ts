@@ -12,7 +12,7 @@ import type {
 } from "@hypofit/contracts";
 import type { Href } from "expo-router";
 import { ApiError, NetworkError } from "@/shared/api/client";
-import { socialAuthApi } from "@/shared/api/socialAuth";
+import { socialAuthApi } from "@/features/auth/social/socialAuthApi";
 import { addAppBreadcrumb, captureAppError } from "@/shared/diagnostics/sentry";
 import { getSafeReturnTo } from "@/shared/navigation/backNavigation";
 import { getSupabaseClient } from "@/shared/api/supabase";
@@ -48,8 +48,8 @@ export type SocialAuthResult =
   | { status: "cancelled"; provider: SocialAuthProvider };
 
 const publicProviderOrderByPlatform = {
-  android: ["kakao", "google", "naver"],
-  ios: ["kakao", "apple", "google", "naver"],
+  android: ["kakao", "google"],
+  ios: ["kakao", "apple", "google"],
 } as const;
 
 type SocialPhase =
@@ -99,6 +99,9 @@ export async function clearPendingSocialAuthAttempt() {
 }
 
 export async function startSocialAuth(provider: SocialAuthProvider, returnPath?: unknown): Promise<SocialAuthResult> {
+  if (provider === "naver") {
+    throw new UserFacingSocialAuthError("social_provider_disabled", "attempt_create");
+  }
   const platform = getSocialAuthPlatform();
   const safeReturnPath = toSafeReturnPath(returnPath);
 
@@ -142,6 +145,9 @@ export async function startSocialIdentityLink(
   accessToken: string,
   returnPath?: unknown,
 ): Promise<SocialAuthResult> {
+  if (provider === "naver") {
+    throw new UserFacingSocialAuthError("social_provider_disabled", "attempt_create");
+  }
   const platform = getSocialAuthPlatform();
   const safeReturnPath = toSafeReturnPath(returnPath);
 
@@ -222,15 +228,27 @@ export async function completeSocialAuthFromCallback(url?: string): Promise<Soci
     throw new UserFacingSocialAuthError("social_callback_expired", "provider_callback");
   }
 
+  if (attempt.provider === "naver") {
+    await clearPendingAttempt();
+    throw new UserFacingSocialAuthError("social_provider_disabled", "provider_callback");
+  }
+
   const params = parseAuthParams(url);
   if (isProviderCancellation(params)) {
     await clearPendingAttempt();
     throw new UserFacingSocialAuthError("social_authorization_cancelled", "provider_callback");
   }
 
+  // Provider failures are not evidence that the local login attempt expired.
+  // Do not expose the callback description or URL, which can contain private data.
+  if (params.error || params.error_code) {
+    await clearPendingAttempt();
+    throw new UserFacingSocialAuthError("social_code_exchange_failed", "provider_callback");
+  }
+
   if (!params.code && !(params.access_token && params.refresh_token)) {
     await clearPendingAttempt();
-    throw new UserFacingSocialAuthError("social_callback_expired", "provider_callback");
+    throw new UserFacingSocialAuthError("social_code_exchange_failed", "provider_callback");
   }
 
   addAppBreadcrumb("social_auth_callback_exchange_start", {
@@ -277,7 +295,7 @@ export function getSocialAuthDiagnosticCode(error: unknown) {
 export function resolveSocialAuthRoute(response: SocialAuthCompleteResponse): Href | null {
   switch (response.next_step) {
     case "signed_in":
-      return getSafeReturnTo(response.return_path) ?? "/(tabs)/home";
+      return getSafeReturnTo(response.return_path) ?? "/(tabs)/interviews";
     case "role_onboarding_required":
     case "legal_consent_required":
     case "profile_completion_required": {
@@ -339,11 +357,14 @@ async function signInWithApple(attempt: SocialAuthAttemptRead): Promise<SocialAu
     throw new UserFacingSocialAuthError("social_unsupported_platform", "provider_authorization");
   }
 
+  let phase: SocialPhase = "provider_authorization";
+
   try {
     const rawNonce = Crypto.randomUUID();
+    const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
     const state = attempt.attempt_id;
     const credential = await AppleAuthentication.signInAsync({
-      nonce: rawNonce,
+      nonce: hashedNonce,
       state,
       requestedScopes: [
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
@@ -359,6 +380,7 @@ async function signInWithApple(attempt: SocialAuthAttemptRead): Promise<SocialAu
       throw new UserFacingSocialAuthError("social_callback_expired", "provider_callback");
     }
 
+    phase = "supabase_token_exchange";
     const supabase = getSupabaseClient();
     const { data, error } = await supabase.auth.signInWithIdToken({
       provider: "apple",
@@ -375,6 +397,7 @@ async function signInWithApple(attempt: SocialAuthAttemptRead): Promise<SocialAu
       .join(" ")
       .trim();
 
+    phase = "supabase_session_persist";
     if (fullName) {
       const { error: metadataError } = await supabase.auth.updateUser({
         data: {
@@ -392,6 +415,7 @@ async function signInWithApple(attempt: SocialAuthAttemptRead): Promise<SocialAu
       }
     }
 
+    phase = "api_identity_resolve";
     return {
       status: "completed",
       response: await finalizeSocialAuthAttempt(
@@ -413,7 +437,7 @@ async function signInWithApple(attempt: SocialAuthAttemptRead): Promise<SocialAu
       return { status: "cancelled", provider: "apple" };
     }
 
-    throw normalizeSocialAuthError(error, "provider_authorization");
+    throw normalizeSocialAuthError(error, phase);
   }
 }
 
@@ -619,6 +643,7 @@ function normalizeSocialAuthError(error: unknown, phase: SocialPhase) {
       code === "social_provider_disabled" ||
       code === "social_provider_review_pending" ||
       code === "social_unsupported_platform" ||
+      code === "social_callback_expired" ||
       code === "social_state_mismatch" ||
       code === "social_email_missing" ||
       code === "social_identity_conflict" ||

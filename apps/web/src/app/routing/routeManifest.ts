@@ -386,7 +386,7 @@ export const APP_ROUTE_MANIFEST: ReadonlyArray<AppRouteManifestEntry> = [
     },
   }),
   createRouteEntry("admin", {
-    getProps: ({ accessToken }) => ({ accessToken }),
+    getProps: ({ accessToken, appUser }) => ({ accessToken, userId: appUser?.id ?? null }),
     getScreen: () => AdminPage,
     layout: "standalone",
     loading: {

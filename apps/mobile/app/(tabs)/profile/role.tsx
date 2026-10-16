@@ -1,1 +1,1 @@
-export { RoleSettingsScreen as default } from "@/screens/profile/RoleSettingsScreen";
+export { RoleSettingsScreen as default } from "@/screens/account/RoleSettingsScreen";

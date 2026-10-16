@@ -11,7 +11,7 @@ import {
 import {
   LandingHeroPhoneStage,
   LandingPhoneScreen,
-  LandingScreenPlaceholder,
+  LandingWebScreen,
 } from "./LandingAppScreens";
 import {
   landingAudienceSections,
@@ -90,7 +90,7 @@ function MobileHero() {
           />
           인터뷰 · 설문조사 · 베타테스트 · 연구 실험
         </p>
-        <h1 className="mt-5 text-[44px] font-bold leading-[1.07] tracking-[-0.058em]">
+        <h1 className="mt-5 text-balance text-[34px] font-bold leading-[1.1] tracking-normal min-[360px]:text-[38px]">
           <span className="block">필요한 사람을 만나,</span>
           <span className="block text-landing-primary">답을 더 빠르게</span>
           <span className="block text-landing-primary">확인하세요.</span>
@@ -199,14 +199,10 @@ function MobileOrganizerStories() {
               {story.body}
             </p>
             <div className="relative mx-auto mt-9 flex h-[430px] items-center justify-center">
-              {story.id === "review" ? (
-                <LandingScreenPlaceholder label="신청 · 참여 관리 화면" />
-              ) : (
-                <LandingPhoneScreen
-                  className="relative z-10 w-[214px]"
-                  kind="detail"
-                />
-              )}
+              <LandingPhoneScreen
+                className="relative z-10 w-[214px]"
+                kind={story.id === "review" ? "applicants" : "create"}
+              />
             </div>
             <ul className="mt-7 space-y-3">
               {story.points.map((point) => (
@@ -239,8 +235,8 @@ function MobileDashboard() {
           title="앱에서도, 웹에서도 같은 Hypofit을 사용하세요"
           body="공고를 만들고 찾고, 신청과 참여를 확인하며 필요한 다음 단계를 이어가는 핵심 기능을 모바일 앱과 웹에서 모두 사용할 수 있어요."
         />
-        <div className="mt-10 flex h-[230px] items-center justify-center border-y border-landing-border">
-          <LandingScreenPlaceholder label="Hypofit Web 화면" />
+        <div className="mt-10">
+          <LandingWebScreen />
         </div>
       </div>
     </section>
@@ -271,7 +267,7 @@ function MobileParticipant() {
           />
           <LandingPhoneScreen
             className="relative z-20 w-[214px] -rotate-[3deg]"
-            kind="interviews"
+            kind="discovery"
           />
           <LandingPhoneScreen
             className="absolute bottom-0 right-[2%] z-10 w-[138px] rotate-[6deg]"
@@ -395,7 +391,7 @@ function MobileContinuity() {
           />
           <LandingPhoneScreen
             className="relative z-10 w-[212px] rotate-[3deg]"
-            kind="home"
+            kind="activity"
           />
         </div>
       </div>

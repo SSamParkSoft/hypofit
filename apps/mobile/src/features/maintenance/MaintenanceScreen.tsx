@@ -1,16 +1,20 @@
-import { Image, Pressable, Text, View } from "react-native";
+import { useState } from "react";
+import { Image, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { NoticeContent } from "@/features/notices/NoticeContent";
 import { useMaintenance } from "./MaintenanceProvider";
 
 export function MaintenanceScreen() {
   const { errorMessage, isRefreshing, refresh, status } = useMaintenance();
+  const [showNotice, setShowNotice] = useState(false);
   const title = status.status === "VERIFYING" ? "정상 동작을 확인하고 있어요" : status.title ?? "서비스 점검 중이에요";
   const message = status.message ?? "안정적인 서비스 제공을 위해 시스템을 점검하고 있어요.";
 
   return (
     <SafeAreaView className="flex-1 bg-hypo-bg" edges={["top", "bottom"]}>
-      <View className="flex-1 justify-between px-6 py-8">
-        <View className="items-center pt-20">
+      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+      <View className="flex-1 justify-between gap-8 px-6 py-8">
+        <View className="items-center pt-8">
           <Image
             accessibilityIgnoresInvertColors
             accessibilityLabel="Hypofit"
@@ -30,7 +34,7 @@ export function MaintenanceScreen() {
               <Text className="mt-1 text-[15px] font-semibold leading-6 text-hypo-text">{formatMaintenanceEnd(status.endsAt)}</Text>
               <Text className="mt-1 text-[13px] leading-5 text-hypo-text-secondary">점검이 일찍 끝나면 바로 이용할 수 있어요.</Text>
             </View>
-          ) : null}
+          ) : <Text className="mt-6 text-center text-[13px] leading-5 text-hypo-text-secondary">종료 시간은 확인되는 대로 안내드릴게요.</Text>}
         </View>
 
         <View className="gap-3">
@@ -47,8 +51,16 @@ export function MaintenanceScreen() {
               {isRefreshing ? "확인 중" : "다시 확인"}
             </Text>
           </Pressable>
+          {status.noticeId ? <Pressable accessibilityRole="button" className="min-h-11 items-center justify-center" onPress={() => setShowNotice(true)}><Text className="text-sm font-medium text-hypo-brand">점검 안내 보기</Text></Pressable> : null}
         </View>
       </View>
+      </ScrollView>
+      <Modal visible={showNotice && Boolean(status.noticeId)} animationType="none" onRequestClose={() => setShowNotice(false)}>
+        <SafeAreaView className="flex-1 bg-hypo-bg" edges={["top", "bottom"]}>
+          <View className="flex-row items-center justify-between px-4 py-2"><Text accessibilityRole="header" className="text-lg font-bold text-hypo-text">점검 안내</Text><Pressable accessibilityRole="button" className="min-h-11 min-w-11 items-center justify-center" onPress={() => setShowNotice(false)}><Text className="text-sm text-hypo-brand">닫기</Text></Pressable></View>
+          <ScrollView className="flex-1 px-4"><NoticeContent noticeId={status.noticeId ?? undefined} /></ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

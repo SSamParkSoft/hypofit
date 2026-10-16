@@ -1,44 +1,9 @@
 import * as Sentry from "@sentry/react-native";
 import * as Application from "expo-application";
+import { sanitizeContext, scrubBreadcrumb, scrubDiagnosticEvent, type DiagnosticContext } from "./privacy";
 
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 const sentryEnabled = Boolean(sentryDsn);
-const allowedContextKeys = new Set([
-  "app_build",
-  "app_version",
-  "build_number",
-  "api_code",
-  "candidate_route",
-  "can_ask_again",
-  "code",
-  "fingerprint",
-  "has_app_user",
-  "has_session",
-  "is_configured",
-  "is_loading",
-  "is_syncing",
-  "kind",
-  "method",
-  "nextRoute",
-  "notification_id",
-  "path",
-  "phase",
-  "permission_status",
-  "platform",
-  "provider_code",
-  "provider_name",
-  "provider_status",
-  "requires_role_onboarding",
-  "request_id",
-  "retryable",
-  "route",
-  "source",
-  "status",
-  "target_id",
-  "target_type",
-  "type",
-  "accuracy",
-]);
 const tagContextKeys = new Set([
   "app_build",
   "app_version",
@@ -52,54 +17,15 @@ const tagContextKeys = new Set([
   "status",
 ]);
 
-type DiagnosticValue = string | number | boolean | null;
-type DiagnosticContext = Record<string, DiagnosticValue>;
-
-function sanitizeContext(context?: DiagnosticContext): DiagnosticContext | undefined {
-  if (!context) {
-    return undefined;
-  }
-
-  const safeContext: DiagnosticContext = {};
-
-  for (const [key, value] of Object.entries(context)) {
-    if (!allowedContextKeys.has(key)) {
-      continue;
-    }
-
-    if (typeof value === "string") {
-      safeContext[key] = value.slice(0, 180);
-      continue;
-    }
-
-    safeContext[key] = value;
-  }
-
-  return Object.keys(safeContext).length ? safeContext : undefined;
-}
-
-function scrubEventText<T extends Sentry.Event>(event: T): T {
-  event.user = undefined;
-  event.message = event.message ? "[redacted]" : event.message;
-
-  if (event.exception?.values?.length) {
-    event.exception.values = event.exception.values.map((value) => ({
-      ...value,
-      value: value.type ? `${value.type} details redacted` : "details redacted",
-    }));
-  }
-
-  return event;
-}
-
 Sentry.init({
   dsn: sentryDsn,
   enabled: sentryEnabled,
   environment: __DEV__ ? "development" : "production",
   tracesSampleRate: 0,
   sendDefaultPii: false,
+  beforeBreadcrumb: scrubBreadcrumb,
   beforeSend(event) {
-    return scrubEventText(event);
+    return scrubDiagnosticEvent(event);
   },
 });
 

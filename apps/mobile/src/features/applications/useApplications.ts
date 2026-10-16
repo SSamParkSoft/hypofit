@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { applicationsApi } from "@/shared/api/applications";
+import { applicationsApi } from "@/features/applications/applicationsApi";
 import { buildAuthQueryKey, resolveAuthUserId } from "@/shared/query/authQuery";
 
 const applicationQueryKeys = {

@@ -1,5 +1,6 @@
 import { apiRequest, type ApiRequestInit } from "./client";
 import { withInterviewPostFeatures } from "./interviewPostFeatures";
+import type { CompensationType, PostingType } from "@hypofit/contracts";
 import type {
   CreateInterviewPostInput,
   InterviewMode,
@@ -10,6 +11,9 @@ import type {
 export interface ListInterviewPostsParams {
   status?: InterviewPostStatus;
   mode?: InterviewMode;
+  q?: string;
+  recruitmentType?: PostingType;
+  compensationType?: CompensationType;
   founderId?: string;
   lat?: number;
   lng?: number;
@@ -29,6 +33,17 @@ function buildInterviewPostsPath(params?: ListInterviewPostsParams): string {
 
   if (params?.mode) {
     searchParams.set("mode", params.mode);
+  }
+
+  if (params?.q?.trim()) {
+    searchParams.set("q", params.q.trim());
+  }
+
+  if (params?.recruitmentType) {
+    searchParams.set("recruitment_type", params.recruitmentType);
+  }
+  if (params?.compensationType) {
+    searchParams.set("compensation_type", params.compensationType);
   }
 
   if (params?.founderId) {

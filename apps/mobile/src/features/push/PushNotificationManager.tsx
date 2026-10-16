@@ -13,6 +13,7 @@ import {
   type PushNotificationResponseSource,
 } from "./pushNotifications";
 import { addAppBreadcrumb, captureAppError } from "@/shared/diagnostics/sentry";
+import { useAppActive } from "@/shared/hooks/useAppActive";
 
 interface PendingPushResponse {
   response: PushNotificationResponse;
@@ -21,6 +22,7 @@ interface PendingPushResponse {
 
 export function PushNotificationManager() {
   const { accessToken, appUser, isLoading, isSyncing, user } = useAuth();
+  const isAppActive = useAppActive();
   const handledFingerprintsRef = useRef(new Set<string>());
   const pendingResponseRef = useRef<PendingPushResponse | null>(null);
   const pushRegistrationUserId = appUser?.id ?? null;
@@ -106,11 +108,12 @@ export function PushNotificationManager() {
   }, [canRouteProtectedNotification, processResponse, responseUserId]);
 
   useEffect(() => {
+    if (!isAppActive) return;
     if (accessToken && user?.id && !appUser) {
       addAppBreadcrumb("push_silent_registration_skipped_until_profile");
     }
     void syncPushRegistrationIfAlreadyAllowed(accessToken, pushRegistrationUserId);
-  }, [accessToken, appUser, pushRegistrationUserId, user?.id]);
+  }, [accessToken, appUser, isAppActive, pushRegistrationUserId, user?.id]);
 
   useEffect(() => {
     if (accessToken && user?.id && !appUser) {

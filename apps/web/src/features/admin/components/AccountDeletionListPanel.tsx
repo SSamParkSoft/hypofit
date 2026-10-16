@@ -24,6 +24,9 @@ interface AccountDeletionListPanelProps {
   search: string;
   selectedRequestId: string | null;
   statusFilter: AdminAccountDeletionRequest["status"] | "all";
+  serverSearch?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export function AccountDeletionListPanel({
@@ -36,8 +39,11 @@ export function AccountDeletionListPanel({
   search,
   selectedRequestId,
   statusFilter,
+  serverSearch,
+  hasMore,
+  onLoadMore,
 }: AccountDeletionListPanelProps) {
-  const visibleRequests = requests.filter((request) => matchesAccountDeletionSearch(request, search));
+  const visibleRequests = serverSearch ? requests : requests.filter((request) => matchesAccountDeletionSearch(request, search));
 
   return (
     <div className="rounded-hypo-xl border border-hypo-border bg-white">
@@ -53,6 +59,7 @@ export function AccountDeletionListPanel({
       <div className="space-y-3 border-b border-hypo-border px-5 py-3">
         <input
           aria-label="삭제 요청 검색"
+          maxLength={200}
           className="w-full rounded-hypo-lg border border-hypo-border px-3 py-2 text-sm outline-none focus:border-hypo-brand"
           placeholder="이메일 참조, 요청 ID, 사용자 ID, 사유 검색"
           value={search}
@@ -69,6 +76,7 @@ export function AccountDeletionListPanel({
                   : "bg-hypo-surface-muted text-hypo-text-muted",
               )}
               type="button"
+              aria-pressed={statusFilter === status}
               onClick={() => onStatusFilterChange(status)}
             >
               {status === "all" ? "전체" : getAccountDeletionStatusLabel(status)}
@@ -91,6 +99,7 @@ export function AccountDeletionListPanel({
               selectedRequestId === request.id && "bg-hypo-brand-soft",
             )}
             type="button"
+            aria-pressed={selectedRequestId === request.id}
             onClick={() => onSelect(request.id)}
           >
             <div className="flex items-start justify-between gap-3">
@@ -119,6 +128,7 @@ export function AccountDeletionListPanel({
             </div>
           </button>
         ))}
+        {hasMore ? <Button className="m-4" variant="secondary" disabled={isLoading} onClick={onLoadMore}>삭제 요청 더 보기</Button> : null}
       </div>
     </div>
   );

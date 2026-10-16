@@ -66,6 +66,12 @@ function ApplicationListRow({
     model.application.status === "completed" ||
     model.application.status === "rejected" ||
     model.session?.status === "completed";
+  const isInterview = model.post
+    ? !model.post.recruitment_type || model.post.recruitment_type === "interview"
+    : Boolean(model.sessionTimeLabel);
+  const showSchedule = isInterview && (
+    Boolean(model.sessionTimeLabel) || (Boolean(model.post) && model.application.status === "selected")
+  );
 
   return (
     <button
@@ -92,7 +98,8 @@ function ApplicationListRow({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <ApplicationStatusBadge status={model.application.status} />
-          {model.session ? <SessionStatusBadge status={model.session.status} /> : null}
+          {model.session && model.session.status !== model.application.status
+            ? <SessionStatusBadge status={model.session.status} /> : null}
         </div>
       </div>
 
@@ -101,14 +108,14 @@ function ApplicationListRow({
           <MessageSquareText size={14} />
           답변 {model.answerCount}개
         </span>
-        <span className="inline-flex items-center gap-1.5">
+        {showSchedule ? <span className="inline-flex items-center gap-1.5">
           <CalendarDays size={14} />
           {model.sessionTimeLabel ?? "일정 대기"}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
+        </span> : null}
+        {isInterview ? <span className="inline-flex items-center gap-1.5">
           <ClipboardList size={14} />
           가능 시간 {model.availableTimeCount}개
-        </span>
+        </span> : null}
       </div>
     </button>
   );

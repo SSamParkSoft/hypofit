@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   },
   navigateTo: vi.fn(),
   navigateToInterviewDetail: vi.fn(),
+  replacePath: vi.fn(),
   applicationsQuery: {
     data: [] as Application[],
     isError: false,
@@ -43,6 +44,10 @@ vi.mock("../features/interview-posts/useInterviewPosts", () => ({
   useInterviewPosts: () => mocks.postsQuery,
 }));
 
+vi.mock("../features/interview-posts/usePostingDetail", () => ({
+  usePostingDetail: () => ({ data: null, isLoading: false }),
+}));
+
 vi.mock("../features/applications/useApplications", () => ({
   useApplications: () => mocks.applicationsQuery,
 }));
@@ -62,6 +67,7 @@ vi.mock("../features/sessions/useSessionMutations", () => ({
 vi.mock("../shared/navigation/appNavigation", () => ({
   navigateTo: mocks.navigateTo,
   navigateToInterviewDetail: mocks.navigateToInterviewDetail,
+  replacePath: mocks.replacePath,
 }));
 
 import { MyInterviewsPage } from "./MyInterviewsPage";
@@ -153,8 +159,10 @@ const baseSession: Session = {
 
 describe("MyInterviewsPage", () => {
   beforeEach(() => {
+    window.history.replaceState(null, "", "/my-interviews");
     mocks.navigateTo.mockReset();
     mocks.navigateToInterviewDetail.mockReset();
+    mocks.replacePath.mockReset();
     mocks.postsQuery.data = [basePost];
     mocks.postsQuery.isError = false;
     mocks.postsQuery.isLoading = false;
@@ -189,6 +197,10 @@ describe("MyInterviewsPage", () => {
     await user.click(postsTab);
 
     expect(screen.getAllByText("아직 만든 모집글이 없습니다.")).toHaveLength(2);
+    expect(mocks.replacePath).toHaveBeenCalledWith(
+      "/my-interviews?tab=posts",
+      { focus: "none", intent: "state", scroll: "preserve" },
+    );
 
     await user.click(screen.getAllByRole("button", { name: "모집글 만들기" })[0]);
 

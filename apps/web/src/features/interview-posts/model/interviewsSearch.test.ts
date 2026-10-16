@@ -2,10 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildInterviewsSearchParams,
+  postingTypeFilters,
+  compensationFilters,
   readInterviewsSearchStateFromUrl,
 } from "./interviewsSearch";
 
 describe("interviewsSearch", () => {
+  it("offers supported web types without retired categories or unimplemented research UI", () => {
+    expect(postingTypeFilters.map((filter) => filter.value)).toEqual(["all", "interview", "survey", "beta_test"]);
+    expect(compensationFilters.some((filter) => filter.value === "other")).toBe(true);
+  });
+
   it("serializes active search state into URL params", () => {
     expect(
       buildInterviewsSearchParams({

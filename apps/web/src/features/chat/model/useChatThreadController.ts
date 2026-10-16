@@ -1,14 +1,16 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import type { ChatRoom } from "../../../shared/api/types";
 import { useChatMessages } from "../useChatMessages";
 import { useMarkChatRoomRead } from "../useMarkChatRoomRead";
 import { useSendChatMessage } from "../useSendChatMessage";
+import { useChatHistory } from "../useChatHistory";
 
 interface UseChatThreadControllerArgs {
   accessToken: string | null;
   isBlocked: boolean;
   room: ChatRoom;
+  appUserId: string | null;
 }
 
 function createClientMessageId() {
@@ -27,10 +29,13 @@ export function useChatThreadController({
   accessToken,
   isBlocked,
   room,
+  appUserId,
 }: UseChatThreadControllerArgs) {
   const [message, setMessage] = useState("");
   const [isInterviewDetailOpen, setIsInterviewDetailOpen] = useState(false);
-  const { data: messages = [], isLoading } = useChatMessages(room.id, accessToken);
+  const sendAttempt = useRef<{ body: string; clientMessageId: string; roomId: string } | null>(null);
+  const { data: latestMessages, isLoading } = useChatMessages(room.id, accessToken);
+  const history = useChatHistory(room.id, appUserId, accessToken, latestMessages);
   const { mutate: markRoomRead } = useMarkChatRoomRead(accessToken);
   const sendMessage = useSendChatMessage(accessToken);
 
@@ -43,13 +48,25 @@ export function useChatThreadController({
         return;
       }
 
+      const clientMessageId =
+        sendAttempt.current?.roomId === room.id && sendAttempt.current.body === body
+          ? sendAttempt.current.clientMessageId
+          : createClientMessageId();
+      sendAttempt.current = { body, clientMessageId, roomId: room.id };
+      const submittedMessage = message;
+
       sendMessage.mutate(
         {
           roomId: room.id,
-          input: { body, client_message_id: createClientMessageId() },
+          input: { body, client_message_id: clientMessageId },
         },
         {
-          onSuccess: () => setMessage(""),
+          onSuccess: () => {
+            if (sendAttempt.current?.clientMessageId === clientMessageId) {
+              sendAttempt.current = null;
+            }
+            setMessage((current) => (current === submittedMessage ? "" : current));
+          },
         },
       );
     },
@@ -69,7 +86,7 @@ export function useChatThreadController({
     isLoading,
     isSendError: sendMessage.isError,
     message,
-    messages,
+    ...history,
     setIsInterviewDetailOpen,
     setMessage,
   };

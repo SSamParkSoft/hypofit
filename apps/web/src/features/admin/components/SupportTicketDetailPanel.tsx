@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { adminApi } from "../../../shared/api/admin";
 import type {
@@ -15,7 +15,8 @@ import {
   formatDate,
   getErrorMessage,
   kindLabels,
-  moderationActions,
+  availableModerationActions,
+  moderationLabels,
   statusIntents,
   statusLabels,
 } from "../adminViewModel";
@@ -25,7 +26,10 @@ interface SupportTicketDetailPanelProps {
   onAction: (message: string) => void;
   onError: (message: string) => void;
   targetPreview: AdminTargetPreview | null;
+  targetError?: string | null;
   ticket: AdminSupportTicket | null;
+  onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 export function SupportTicketDetailPanel({
@@ -33,23 +37,32 @@ export function SupportTicketDetailPanel({
   onAction,
   onError,
   targetPreview,
+  targetError,
   ticket,
+  onDirtyChange,
+  onBusyChange,
 }: SupportTicketDetailPanelProps) {
-  const [nextStatus, setNextStatus] = useState<SupportTicketStatus>("in_review");
+  const [nextStatus, setNextStatus] = useState<SupportTicketStatus>(ticket?.status === "open" ? "in_review" : "resolved");
+  const savedNextStatus = useRef(nextStatus);
   const [statusReason, setStatusReason] = useState("");
   const [replyBody, setReplyBody] = useState("");
   const [moderationReason, setModerationReason] = useState("");
   const [moderationAction, setModerationAction] = useState<AdminModerationActionCreateInput["action"]>("close_report");
   const [lastModerationResult, setLastModerationResult] = useState<AdminModerationAction | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const mounted = useRef(true);
+  const submitting = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const dirty = Boolean(statusReason || replyBody || moderationReason || nextStatus !== savedNextStatus.current);
+  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(isSubmitting); return () => onBusyChange?.(false); }, [isSubmitting, onBusyChange]);
 
   useEffect(() => {
     setStatusReason("");
     setReplyBody("");
     setModerationReason("");
     setLastModerationResult(null);
-    setNextStatus(ticket?.status === "open" ? "in_review" : "resolved");
-  }, [ticket?.id, ticket?.status]);
+  }, [ticket?.id]);
 
   if (!ticket) {
     return (
@@ -62,40 +75,51 @@ export function SupportTicketDetailPanel({
   const currentTicket = ticket;
 
   async function submitStatus() {
+    if (submitting.current) return;
+    submitting.current = true;
     setIsSubmitting(true);
     try {
       await adminApi.updateTicketStatus(
         currentTicket.id,
-        { status: nextStatus, reason: statusReason || null },
+        { status: nextStatus, reason: statusReason || null, expected_status: currentTicket.status as SupportTicketStatus },
         accessToken,
       );
+      if (!mounted.current) return;
+      savedNextStatus.current = nextStatus;
+      setStatusReason("");
       onAction("티켓 상태를 변경했습니다.");
     } catch (error) {
-      onError(getErrorMessage(error, "상태를 변경하지 못했습니다."));
+      if (mounted.current) onError(getErrorMessage(error, "상태를 변경하지 못했습니다."));
     } finally {
-      setIsSubmitting(false);
+      submitting.current = false;
+      if (mounted.current) setIsSubmitting(false);
     }
   }
 
   async function submitReply() {
+    if (submitting.current) return;
     if (replyBody.trim().length < 2) {
       onError("답변을 2자 이상 입력해 주세요.");
       return;
     }
 
+    submitting.current = true;
     setIsSubmitting(true);
     try {
       await adminApi.replyToTicket(currentTicket.id, { body: replyBody, visible_to_user: true }, accessToken);
+      if (!mounted.current) return;
       setReplyBody("");
       onAction("사용자에게 답변을 보냈습니다.");
     } catch (error) {
-      onError(getErrorMessage(error, "답변을 보내지 못했습니다."));
+      if (mounted.current) onError(getErrorMessage(error, "답변을 보내지 못했습니다."));
     } finally {
-      setIsSubmitting(false);
+      submitting.current = false;
+      if (mounted.current) setIsSubmitting(false);
     }
   }
 
   async function submitModeration() {
+    if (submitting.current) return;
     if (!currentTicket.target_type || !currentTicket.target_id) {
       onError("조치할 대상이 없는 티켓입니다.");
       return;
@@ -107,12 +131,13 @@ export function SupportTicketDetailPanel({
     }
 
     if (
-      ["hide", "remove", "block", "restore"].includes(moderationAction) &&
-      !window.confirm("대상 상태가 바뀝니다. 진행할까요?")
+      moderationAction !== "warn" &&
+      !window.confirm(`${targetPreview?.title ?? currentTicket.target_id}: ${moderationLabels[moderationAction]} 조치를 진행할까요?`)
     ) {
       return;
     }
 
+    submitting.current = true;
     setIsSubmitting(true);
     try {
       const result = await adminApi.createModerationAction(
@@ -125,17 +150,20 @@ export function SupportTicketDetailPanel({
         },
         accessToken,
       );
+      if (!mounted.current) return;
       setLastModerationResult(result);
+      setModerationReason("");
       onAction("운영 조치를 기록했습니다.");
     } catch (error) {
-      onError(getErrorMessage(error, "운영 조치를 기록하지 못했습니다."));
+      if (mounted.current) onError(getErrorMessage(error, "운영 조치를 기록하지 못했습니다."));
     } finally {
-      setIsSubmitting(false);
+      submitting.current = false;
+      if (mounted.current) setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="space-y-4">
+    <fieldset disabled={isSubmitting} className="min-w-0 space-y-4">
       <section className="rounded-hypo-xl border border-hypo-border bg-white p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -164,7 +192,7 @@ export function SupportTicketDetailPanel({
             <p className="font-black">
               {targetPreview?.title ?? `${currentTicket.target_type} ${currentTicket.target_id}`}
             </p>
-            <p className="mt-1 text-hypo-text-muted">{targetPreview?.summary ?? "대상 요약을 불러오는 중입니다."}</p>
+            <p className="mt-1 text-hypo-text-muted">{targetError ?? targetPreview?.summary ?? "대상 요약을 불러오는 중입니다."}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge>{currentTicket.target_type}</Badge>
               {targetPreview?.status ? <Badge intent="info">{targetPreview.status}</Badge> : null}
@@ -234,7 +262,7 @@ export function SupportTicketDetailPanel({
       {currentTicket.kind === "report" && currentTicket.target_type && currentTicket.target_id ? (
         <section className="rounded-hypo-xl border border-hypo-border bg-white p-5">
           <h3 className="text-base font-black">운영 조치</h3>
-          <div className="mt-3 grid grid-cols-[160px_minmax(0,1fr)] gap-3">
+          <div className="mt-3 grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)]">
             <select
               aria-label="운영 조치"
               className="rounded-hypo-lg border border-hypo-border px-3 py-2 text-sm font-bold"
@@ -243,9 +271,9 @@ export function SupportTicketDetailPanel({
                 setModerationAction(event.target.value as AdminModerationActionCreateInput["action"])
               }
             >
-              {moderationActions.map((action) => (
+              {availableModerationActions(currentTicket.target_type).map((action) => (
                 <option key={action} value={action}>
-                  {action}
+                  {moderationLabels[action]}
                 </option>
               ))}
             </select>
@@ -263,7 +291,7 @@ export function SupportTicketDetailPanel({
           {lastModerationResult ? (
             <div className="mt-4 rounded-hypo-lg bg-hypo-surface-muted p-3 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge intent="warning">{lastModerationResult.action}</Badge>
+                <Badge intent="warning">{moderationLabels[lastModerationResult.action as keyof typeof moderationLabels] ?? lastModerationResult.action}</Badge>
                 <span className="font-mono text-xs text-hypo-text-muted">
                   {lastModerationResult.id.slice(0, 8)}
                 </span>
@@ -293,6 +321,6 @@ export function SupportTicketDetailPanel({
           ))}
         </div>
       </section>
-    </div>
+    </fieldset>
   );
 }

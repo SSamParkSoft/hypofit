@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AuthBootstrapGate } from "../features/auth/AuthBootstrapGate";
 import { AuthScreen } from "../features/auth/AuthScreen";
-import { MaintenanceScreen } from "../features/maintenance/MaintenanceScreen";
+import { MaintenanceOverlay } from "../features/maintenance/MaintenanceOverlay";
 import { useMaintenance } from "../features/maintenance/MaintenanceProvider";
 import { buildRequestedPath } from "../features/auth/authEntryState";
 import { useAuth } from "../features/auth/useAuth";
@@ -131,9 +131,20 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (blocksMobileWebProductAccess) {
-      replacePath("/", { intent: "replace", scroll: "top" });
+    if (!blocksMobileWebProductAccess) {
+      return;
     }
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        replacePath("/", { intent: "replace", scroll: "top" });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [blocksMobileWebProductAccess]);
 
   useEffect(() => {
@@ -174,10 +185,6 @@ export function App() {
     return null;
   }
 
-  if (maintenance.isActive && !isAdminRoute && routeAccess !== "public") {
-    return <MaintenanceScreen />;
-  }
-
   if (routeAccess === "public") {
     return (
       <RouteRenderer
@@ -193,6 +200,7 @@ export function App() {
 
   if (!user && (isLoading || !isOnline || Boolean(bootstrapError))) {
     return (
+      <MaintenanceOverlay active={maintenance.isActive && !isAdminRoute}>
       <AuthBootstrapGate
         authErrorMessage={bootstrapError}
         isChecking={isLoading}
@@ -205,18 +213,20 @@ export function App() {
           window.location.assign(requestedPath);
         }}
       />
+      </MaintenanceOverlay>
     );
   }
 
   if (!user) {
-    return <AuthScreen />;
+    return <MaintenanceOverlay active={maintenance.isActive && !isAdminRoute}><AuthScreen /></MaintenanceOverlay>;
   }
 
   if (requestsAccountChoice) {
-    return <AuthScreen />;
+    return <MaintenanceOverlay active={maintenance.isActive && !isAdminRoute}><AuthScreen /></MaintenanceOverlay>;
   }
 
   return (
+    <MaintenanceOverlay active={maintenance.isActive && !isAdminRoute}>
     <RouteRenderer
       accessToken={accessToken}
       appUser={appUser}
@@ -225,5 +235,6 @@ export function App() {
       onNavigateDestination={navigateToDestination}
       usesDesktopProfileLayout={usesDesktopProfileLayout}
     />
+    </MaintenanceOverlay>
   );
 }

@@ -7,10 +7,12 @@ const MAX_QUERY_RETRIES = 2;
 const MAX_QUERY_RETRY_DELAY_MS = 4_000;
 
 export const protectedQueryKeyRoots = [
+  "admin",
   "applications",
   "chat-messages",
   "chat-rooms",
   "interview-post-views",
+  "posting-details",
   "notifications",
   "sessions",
   "social-identities",

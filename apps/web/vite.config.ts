@@ -25,6 +25,8 @@ export default defineConfig(({ mode }) => {
                 proxy.on("proxyReq", (proxyRequest) => {
                   // The dev proxy is the API caller; forwarding the browser origin triggers production CORS.
                   proxyRequest.removeHeader("origin");
+                  // API authentication uses Bearer tokens, not localhost cookies from other apps.
+                  proxyRequest.removeHeader("cookie");
                 });
               },
               target: apiProxyTarget,

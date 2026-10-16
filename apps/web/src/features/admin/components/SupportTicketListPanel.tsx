@@ -29,6 +29,9 @@ interface SupportTicketListPanelProps {
   selectedTicketId: string | null;
   statusFilter: SupportTicketStatus | "all";
   tickets: AdminSupportTicket[];
+  serverSearch?: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export function SupportTicketListPanel({
@@ -44,8 +47,11 @@ export function SupportTicketListPanel({
   selectedTicketId,
   statusFilter,
   tickets,
+  serverSearch,
+  hasMore,
+  onLoadMore,
 }: SupportTicketListPanelProps) {
-  const visibleTickets = tickets.filter((ticket) => matchesSupportTicketSearch(ticket, search));
+  const visibleTickets = serverSearch ? tickets : tickets.filter((ticket) => matchesSupportTicketSearch(ticket, search));
 
   return (
     <div className="rounded-hypo-xl border border-hypo-border bg-white">
@@ -64,6 +70,7 @@ export function SupportTicketListPanel({
           className="w-full rounded-hypo-lg border border-hypo-border px-3 py-2 text-sm outline-none focus:border-hypo-brand"
           placeholder="제목, 이메일, 대상 ID, 사용자 ID 검색"
           value={search}
+          maxLength={200}
           onChange={(event) => onSearchChange(event.target.value)}
         />
         <div className="flex flex-wrap gap-2">
@@ -77,6 +84,7 @@ export function SupportTicketListPanel({
                   : "bg-hypo-surface-muted text-hypo-text-muted",
               )}
               type="button"
+              aria-pressed={statusFilter === status}
               onClick={() => onStatusFilterChange(status)}
             >
               {status === "all" ? "전체" : statusLabels[status]}
@@ -92,9 +100,10 @@ export function SupportTicketListPanel({
                   : "bg-hypo-surface-muted text-hypo-text-muted",
               )}
               type="button"
+              aria-pressed={deletedFilter === value}
               onClick={() => onDeletedFilterChange(value)}
             >
-              {value === "active" ? "활성" : value === "deleted" ? "삭제 요청 포함" : "삭제 전체"}
+              {value === "active" ? "삭제되지 않음" : value === "deleted" ? "사용자가 삭제함" : "삭제 여부 전체"}
             </button>
           ))}
         </div>
@@ -114,6 +123,7 @@ export function SupportTicketListPanel({
               selectedTicketId === ticket.id && "bg-hypo-brand-soft",
             )}
             type="button"
+            aria-pressed={selectedTicketId === ticket.id}
             onClick={() => onSelect(ticket.id)}
           >
             <div className="flex items-start justify-between gap-3">
@@ -141,6 +151,7 @@ export function SupportTicketListPanel({
           </button>
         ))}
       </div>
+      {hasMore ? <Button className="m-4" variant="secondary" disabled={isLoading} onClick={onLoadMore}>더 불러오기</Button> : null}
     </div>
   );
 }

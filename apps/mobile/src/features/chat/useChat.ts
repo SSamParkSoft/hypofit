@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import type { ChatMessage, ChatRoom, ChatWorkflow } from "@hypofit/contracts";
 import { useAuth } from "@/features/auth/AuthProvider";
 import {
@@ -6,7 +7,7 @@ import {
   type MarkChatRoomReadInput,
   type SendChatMessageInput,
   type UpdateChatRoomSettingsInput,
-} from "@/shared/api/chat";
+} from "@/features/chat/chatApi";
 import { buildAuthQueryKey, resolveAuthUserId } from "@/shared/query/authQuery";
 
 interface ChatRoomsOptions {
@@ -41,7 +42,7 @@ export function useChatRooms(accessToken?: string | null, options?: ChatRoomsOpt
   return useQuery({
     enabled: Boolean(accessToken && stableUserId),
     queryKey: chatQueryKeys.roomList(stableUserId),
-    queryFn: () => chatApi.listRooms(accessToken),
+    queryFn: ({ signal }) => chatApi.listRooms(accessToken, signal),
     refetchInterval: options?.pollingEnabled ? pollingIntervalMs : false,
     refetchIntervalInBackground: false,
     retry: false,
@@ -56,7 +57,7 @@ export function useChatRoom(roomId?: string | null, accessToken?: string | null)
   return useQuery({
     enabled: Boolean(accessToken && roomId && stableUserId),
     queryKey: chatQueryKeys.roomDetail(stableUserId, roomId),
-    queryFn: () => chatApi.getRoom(roomId as string, accessToken),
+    queryFn: ({ signal }) => chatApi.getRoom(roomId as string, accessToken, signal),
     retry: false,
     staleTime: 15_000,
   });
@@ -66,13 +67,26 @@ export function useChatWorkflow(roomId?: string | null, accessToken?: string | n
   const { appUser, user } = useAuth();
   const stableUserId = resolveAuthUserId(appUser?.id, user?.id);
 
-  return useQuery({
+  const query = useQuery({
     enabled: Boolean(accessToken && roomId && stableUserId),
     queryKey: chatQueryKeys.workflowDetail(stableUserId, roomId),
-    queryFn: () => chatApi.getWorkflow(roomId as string, accessToken),
+    queryFn: ({ signal }) => chatApi.getWorkflow(roomId as string, accessToken, signal),
     retry: false,
     staleTime: 5_000,
   });
+  const scheduledAt = query.data?.step === "scheduled" ? query.data.session?.scheduled_at : null;
+  const { refetch, dataUpdatedAt } = query;
+
+  useEffect(() => {
+    if (!scheduledAt || !accessToken || !roomId || !stableUserId) return;
+    const remaining = Date.parse(scheduledAt) - Date.now();
+    if (!Number.isFinite(remaining)) return;
+    // Refresh server-owned actions at the scheduled time, within the native timer limit.
+    const timer = setTimeout(() => { void refetch(); }, Math.min(Math.max(remaining, 1_000), 2_147_483_647));
+    return () => clearTimeout(timer);
+  }, [scheduledAt, accessToken, roomId, stableUserId, refetch, dataUpdatedAt]);
+
+  return query;
 }
 
 export function invalidateChatWorkflowQueries(
@@ -104,7 +118,7 @@ export function useChatMessages(roomId?: string | null, accessToken?: string | n
   return useQuery({
     enabled: Boolean(accessToken && roomId && stableUserId),
     queryKey: chatQueryKeys.messageList(stableUserId, roomId),
-    queryFn: () => chatApi.listMessages(roomId as string, accessToken),
+    queryFn: ({ signal }) => chatApi.listMessages(roomId as string, accessToken, signal),
     refetchInterval: options?.pollingEnabled ? pollingIntervalMs : false,
     refetchIntervalInBackground: false,
     retry: false,

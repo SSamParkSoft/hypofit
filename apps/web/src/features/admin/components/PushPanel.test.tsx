@@ -1,0 +1,42 @@
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, expect, it, vi } from "vitest";
+import { adminApi } from "../../../shared/api/admin";
+import type { AdminTestNotificationResult } from "../../../shared/api/types";
+import { PushPanel } from "./PushPanel";
+
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+const result: AdminTestNotificationResult = { notification: { id: "notification-1", user_id: "user-1", type: "support_replied", title: "테스트", body: "테스트 알림", target_type: "support_ticket", target_id: null, metadata: {}, read_at: null, created_at: "2026-10-05T00:00:00Z" }, dispatch_result: { processed: 1, sent: 0, failed: 1, invalid: 0, skipped: 0 } };
+it("asks for confirmation even without immediate dispatch and reports actual failure counts", async () => {
+  const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const send = vi.spyOn(adminApi, "sendTestNotification").mockResolvedValue(result);
+  const globalDispatch = vi.spyOn(adminApi, "dispatchPendingPushDeliveries");
+  const onAction = vi.fn();
+  render(<PushPanel accessToken="token" onAction={onAction} onError={vi.fn()} />);
+  await user.type(screen.getByLabelText("테스트 수신 이메일"), "test@example.com");
+  await user.click(screen.getByRole("button", { name: "테스트 알림 만들기" }));
+  expect(send).not.toHaveBeenCalled();
+  confirm.mockReturnValue(true);
+  await user.click(screen.getByLabelText("이 테스트 알림만 즉시 발송"));
+  await user.click(screen.getByRole("button", { name: "테스트 알림 만들기" }));
+  await waitFor(() => expect(onAction).toHaveBeenCalledWith(expect.stringContaining("발송 0, 실패 1")));
+  expect(send).toHaveBeenCalledWith(expect.objectContaining({ email: "test@example.com", dispatch: true }), "token");
+  expect(globalDispatch).not.toHaveBeenCalled();
+});
+it("locks the form while sending and preserves input after failure", async () => {
+  const user = userEvent.setup();
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  let reject: (error: Error) => void = () => {};
+  const send = vi.spyOn(adminApi, "sendTestNotification").mockImplementation(() => new Promise((_, failure) => { reject = failure; }));
+  const onError = vi.fn();
+  render(<PushPanel accessToken="token" onAction={vi.fn()} onError={onError} />);
+  await user.type(screen.getByLabelText("테스트 수신 이메일"), "test@example.com");
+  await user.click(screen.getByRole("button", { name: "테스트 알림 만들기" }));
+  expect(screen.getByLabelText("테스트 수신 이메일")).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "테스트 알림 만들기" }));
+  expect(send).toHaveBeenCalledTimes(1);
+  reject(new Error("offline"));
+  await waitFor(() => expect(onError).toHaveBeenCalled());
+  expect(screen.getByLabelText("테스트 수신 이메일")).toHaveValue("test@example.com");
+});

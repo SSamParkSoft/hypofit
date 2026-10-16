@@ -14,6 +14,7 @@ import { formatAnswerLabel } from "../../workflow/readModels";
 
 interface ApplicantReviewCardProps {
   application: Application;
+  supportsInterviewSession: boolean;
   disabled?: boolean;
   isUpdating?: boolean;
   isCreatingSession?: boolean;
@@ -32,6 +33,7 @@ export function ApplicantReviewCard({
   onReject,
   onSelect,
   sessionErrorMessage,
+  supportsInterviewSession,
 }: ApplicantReviewCardProps) {
   const answers = Object.entries(application.answers);
   const respondentLabel = formatUserDisplayName(application.respondent);
@@ -64,7 +66,9 @@ export function ApplicantReviewCard({
           />
           <ConfirmActionButton
             confirmLabel="선정"
-            description="선정 후에는 지원자와 합의한 시간으로 인터뷰 일정을 생성할 수 있습니다."
+            description={supportsInterviewSession
+              ? "선정 후에는 지원자와 합의한 시간으로 인터뷰 일정을 생성할 수 있습니다."
+              : "선정 후에는 공고에 안내한 참여 절차를 진행할 수 있습니다."}
             disabled={disabled || isUpdating || application.status !== "applied"}
             size="sm"
             title="지원자를 선정할까요?"
@@ -114,7 +118,7 @@ export function ApplicantReviewCard({
         </p>
       ) : null}
 
-      {application.status === "selected" ? (
+      {supportsInterviewSession && application.status === "selected" ? (
         <SessionCreationForm
           applicationId={application.id}
           disabled={disabled}

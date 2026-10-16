@@ -1,12 +1,14 @@
 import { useContext, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InterviewPost, SurveyParticipation } from "@hypofit/contracts";
+import { getSurveyProviderLabel, isExternalSurveyUrl } from "@hypofit/contracts";
 import { AuthContext } from "../../auth/AuthProvider";
 import { surveyParticipationsApi } from "../../../shared/api/surveyParticipations";
 import { getProtectedQueryUserId, PROTECTED_QUERY_SCOPE, resolveStableAuthUserId } from "../../../shared/api/queryAuth";
 import { getApiErrorMessage } from "../../../shared/api/errorPresentation";
 import { Button } from "../../../shared/ui/button";
 import { ConfirmActionButton } from "../../../shared/ui/confirm-action";
+import { getPostingDetailStatus } from "../model/postingDetailStatus";
 
 export function SurveyParticipationPanel({ post }: { post: InterviewPost }) {
   const auth = useContext(AuthContext);
@@ -26,10 +28,8 @@ export function SurveyParticipationPanel({ post }: { post: InterviewPost }) {
       setLinkError(null);
       if (action === "open") {
         try {
-          const target = new URL(url);
-          if (target.protocol !== "https:" || !(target.hostname === "forms.gle" ||
-            (target.hostname === "docs.google.com" && target.pathname.startsWith("/forms/")))) throw new Error();
-          window.location.assign(target.href);
+          if (!isExternalSurveyUrl(url)) throw new Error();
+          window.location.assign(new URL(url.trim()).href);
         } catch { setLinkError("설문 링크를 열 수 없어요. 다시 시도해 주세요."); }
       }
     },
@@ -39,22 +39,24 @@ export function SurveyParticipationPanel({ post }: { post: InterviewPost }) {
   if (current.isPending) return <p role="status">참여 상태를 불러오는 중이에요.</p>;
   if (current.isError) return <div role="alert"><p>참여 상태를 불러오지 못했어요.</p><Button onClick={() => void current.refetch()}>다시 시도</Button></div>;
   const state = current.data?.status;
-  const unavailable = post.status !== "open" || post.external_action_available === false;
+  const status = getPostingDetailStatus(post);
+  const unavailable = status !== "open" || post.external_action_available === false;
   return <section className="grid gap-3">
-    <p className="text-sm text-hypo-text-muted">Google Forms에서 진행돼요. 설문 답변은 Hypofit에 저장되지 않아요.</p>
+    <p className="text-sm">설문 종류 · {getSurveyProviderLabel(post.external_provider)}</p>
+    <p className="text-sm text-hypo-text-muted">외부 설문 서비스에서 진행돼요. 설문 답변은 Hypofit에 저장되지 않아요.</p>
     {mutation.isError && <p role="alert">{getApiErrorMessage(mutation.error, "처리하지 못했어요. 다시 시도해 주세요.")}</p>}
     {linkError && <p role="alert">{linkError}</p>}
     {state === "confirmed" ? <p>참여 완료</p> : state === "withdrawn" ? <p>참여 취소</p> : <>
       {state === "submitted" ? <p>제출을 알렸어요. 모집자가 확인하고 있어요.</p> : <>
         <Button disabled={unavailable || mutation.isPending} onClick={() => mutation.mutate("open")}>
-          {post.status !== "open" ? "모집 종료" : post.external_action_available === false ? "설문 링크 준비 중" : state === "opened" ? "설문 다시 열기" : "설문 참여하기"}
+          {status !== "open" ? "모집 종료" : post.external_action_available === false ? "설문 링크 준비 중" : state === "opened" ? "설문 다시 열기" : "설문 참여하기"}
         </Button>
         {state === "opened" && <ConfirmActionButton disabled={unavailable || mutation.isPending} title="설문을 제출했나요?"
-          description="Google Forms에서 답변을 제출한 뒤 알려주세요." confirmLabel="제출 알리기" onConfirm={() => mutation.mutate("submit")}>
+          description="외부 설문에서 답변을 제출한 뒤 알려주세요." confirmLabel="제출 알리기" onConfirm={() => mutation.mutate("submit")}>
           제출 알리기
         </ConfirmActionButton>}
       </>}
-      {(state === "opened" || state === "submitted") && <ConfirmActionButton disabled={mutation.isPending}
+      {state === "submitted" && <ConfirmActionButton disabled={mutation.isPending}
         title="설문 참여를 취소할까요?" description="취소한 설문에는 다시 참여할 수 없어요."
         confirmLabel="참여 취소" onConfirm={() => mutation.mutate("withdraw")}>
         참여 취소

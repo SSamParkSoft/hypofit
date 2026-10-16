@@ -1,5 +1,6 @@
 import { LogOut, Trash2 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { getPhoneValidationError } from "@hypofit/contracts";
 
 import { useAuth } from "../../auth/useAuth";
 import { useSignOutToLanding } from "../../auth/useSignOutToLanding";
@@ -190,6 +191,7 @@ function AccountInfoForm({
   const [name, setName] = useState(appUser?.name ?? "");
   const [bio, setBio] = useState(appUser?.bio ?? "");
   const [phone, setPhone] = useState(appUser?.phone ?? "");
+  const phoneError = getPhoneValidationError(phone);
   const [organizationType, setOrganizationType] = useState<OrganizationType | null>(
     appUser?.organization_type ?? null,
   );
@@ -245,6 +247,8 @@ function AccountInfoForm({
       setLocalError("이름을 입력해주세요.");
       return;
     }
+
+    if (phoneError) return;
 
     const normalizedOrganization = normalizeOrganizationInput({
       canEditOrganization,
@@ -334,7 +338,7 @@ function AccountInfoForm({
             />
           </Field>
 
-          <Field label="전화번호" hint="숫자만 입력해도 010-1234-5678 형식으로 저장됩니다.">
+          <Field label="전화번호" error={phoneError} hint="숫자만 입력해도 010-1234-5678 형식으로 저장됩니다.">
             <TextInput
               autoComplete="tel"
               inputMode="tel"
@@ -422,7 +426,7 @@ function AccountInfoForm({
             >
               취소
             </Button>
-            <Button className="min-h-10 sm:min-w-[128px]" disabled={isSavingProfile} type="submit">
+            <Button className="min-h-10 sm:min-w-[128px]" disabled={isSavingProfile || Boolean(phoneError)} type="submit">
               {isSavingProfile ? "저장 중" : "저장하기"}
             </Button>
           </ProfileSettingsFormActionRow>

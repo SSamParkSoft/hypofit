@@ -20,6 +20,7 @@ import type {
   AdminMaintenance,
   AdminEmergencyMaintenanceInput,
   AdminMaintenanceInput,
+  AdminMaintenanceEvent,
 } from "./types";
 
 function buildTicketQuery(params?: AdminTicketListParams) {
@@ -31,6 +32,10 @@ function buildTicketQuery(params?: AdminTicketListParams) {
     search.set("deleted_by_user", String(params.deleted_by_user));
   }
   if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.offset) search.set("offset", String(params.offset));
+  if (params?.q) search.set("q", params.q);
+  if (params?.exclude_reports) search.set("exclude_reports", "true");
+  if (typeof params?.include_events === "boolean") search.set("include_events", String(params.include_events));
 
   const value = search.toString();
   return value ? `?${value}` : "";
@@ -41,41 +46,44 @@ function buildAccountDeletionQuery(params?: AdminAccountDeletionListParams) {
 
   if (params?.status) search.set("status", params.status);
   if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.page !== undefined) search.set("page", String(params.page));
+  if (params?.q) search.set("q", params.q);
 
   const value = search.toString();
   return value ? `?${value}` : "";
 }
 
 export const adminApi = {
-  getMe(accessToken?: string | null) {
-    return apiRequest<AdminMe>("/api/v1/admin/me", { accessToken });
+  getMe(accessToken?: string | null, signal?: AbortSignal) {
+    return apiRequest<AdminMe>("/api/v1/admin/me", { accessToken, signal });
   },
 
-  getSummary(accessToken?: string | null) {
-    return apiRequest<AdminSummary>("/api/v1/admin/summary", { accessToken });
+  getSummary(accessToken?: string | null, signal?: AbortSignal) {
+    return apiRequest<AdminSummary>("/api/v1/admin/summary", { accessToken, signal });
   },
 
-  listTickets(params?: AdminTicketListParams, accessToken?: string | null) {
+  listTickets(params?: AdminTicketListParams, accessToken?: string | null, signal?: AbortSignal) {
     return apiRequest<AdminSupportTicket[]>(
       `/api/v1/admin/support/tickets${buildTicketQuery(params)}`,
-      { accessToken },
+      { accessToken, signal },
     );
   },
 
   listAccountDeletionRequests(
     params?: AdminAccountDeletionListParams,
     accessToken?: string | null,
+    signal?: AbortSignal,
   ) {
     return apiRequest<AdminAccountDeletionRequest[]>(
       `/api/v1/admin/account-deletion-requests${buildAccountDeletionQuery(params)}`,
-      { accessToken },
+      { accessToken, signal },
     );
   },
 
-  getTicket(ticketId: string, accessToken?: string | null) {
+  getTicket(ticketId: string, accessToken?: string | null, signal?: AbortSignal) {
     return apiRequest<AdminSupportTicket>(
       `/api/v1/admin/support/tickets/${encodeURIComponent(ticketId)}`,
-      { accessToken },
+      { accessToken, signal },
     );
   },
 
@@ -113,10 +121,10 @@ export const adminApi = {
     });
   },
 
-  getTargetPreview(targetType: AdminTargetType, targetId: string, accessToken?: string | null) {
+  getTargetPreview(targetType: AdminTargetType, targetId: string, accessToken?: string | null, signal?: AbortSignal) {
     return apiRequest<AdminTargetPreview>(
       `/api/v1/admin/targets/${encodeURIComponent(targetType)}/${encodeURIComponent(targetId)}`,
-      { accessToken },
+      { accessToken, signal },
     );
   },
 
@@ -145,12 +153,18 @@ export const adminApi = {
     });
   },
 
-  listNotices(accessToken?: string | null) {
-    return apiRequest<AdminNotice[]>("/api/v1/admin/notices", { accessToken });
+  listNotices(accessToken?: string | null, signal?: AbortSignal) {
+    return apiRequest<AdminNotice[]>("/api/v1/admin/notices", { accessToken, signal });
   },
 
   createNotice(input: AdminNoticeInput, accessToken?: string | null) {
     return apiRequest<AdminNotice>("/api/v1/admin/notices", { accessToken, method: "POST", body: JSON.stringify(input) });
+  },
+
+  updateNotice(id: string, input: AdminNoticeInput, accessToken?: string | null) {
+    return apiRequest<AdminNotice>(`/api/v1/admin/notices/${encodeURIComponent(id)}`, {
+      accessToken, method: "PATCH", body: JSON.stringify(input),
+    });
   },
 
   publishNotice(id: string, accessToken?: string | null) {
@@ -161,12 +175,26 @@ export const adminApi = {
     return apiRequest<AdminNotice>(`/api/v1/admin/notices/${encodeURIComponent(id)}/archive`, { accessToken, method: "POST" });
   },
 
-  listMaintenances(accessToken?: string | null) {
-    return apiRequest<AdminMaintenance[]>("/api/v1/admin/maintenances", { accessToken });
+  deleteNotice(id: string, accessToken?: string | null) {
+    return apiRequest<void>(`/api/v1/admin/notices/${encodeURIComponent(id)}`, { accessToken, method: "DELETE" });
+  },
+
+  listMaintenances(accessToken?: string | null, signal?: AbortSignal) {
+    return apiRequest<AdminMaintenance[]>("/api/v1/admin/maintenances", { accessToken, signal });
   },
 
   createMaintenance(input: AdminMaintenanceInput, accessToken?: string | null) {
     return apiRequest<AdminMaintenance>("/api/v1/admin/maintenances", { accessToken, method: "POST", body: JSON.stringify(input) });
+  },
+
+  updateMaintenance(id: string, input: AdminMaintenanceInput, accessToken?: string | null) {
+    return apiRequest<AdminMaintenance>(`/api/v1/admin/maintenances/${encodeURIComponent(id)}`, {
+      accessToken, method: "PATCH", body: JSON.stringify(input),
+    });
+  },
+
+  listMaintenanceEvents(id: string, accessToken?: string | null, signal?: AbortSignal) {
+    return apiRequest<AdminMaintenanceEvent[]>(`/api/v1/admin/maintenances/${encodeURIComponent(id)}/events`, { accessToken, signal });
   },
 
   emergencyStartMaintenance(input: AdminEmergencyMaintenanceInput, accessToken?: string | null) {

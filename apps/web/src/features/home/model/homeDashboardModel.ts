@@ -1,7 +1,9 @@
 import {
   formatCompensationSummary,
+  formatPostingDuration,
   formatUserDisplayName,
   normalizeCompensations,
+  postingTypeLabels,
 } from "@hypofit/contracts";
 
 import type {
@@ -11,6 +13,7 @@ import type {
   Session,
 } from "../../../shared/api/types";
 import { buildChatRoomPath } from "../../chat/model/chatRoomLocation";
+import { getPostingDetailStatus } from "../../interview-posts/model/postingDetailStatus";
 
 export interface HomeDashboardAction {
   href: string;
@@ -141,7 +144,7 @@ export function buildHomeDashboardData({
       })
     : null;
 
-  const openPosts = posts.filter((post) => post.status === "open");
+  const openPosts = posts.filter((post) => getPostingDetailStatus(post, now) === "open");
   const recentInterviews = openPosts.slice(0, 4).map((post) => ({
     post,
     secondaryMeta: buildPostMeta(post),
@@ -203,16 +206,17 @@ function buildFocus({
       (left, right) => right[1].length - left[1].length,
     )[0];
     const post = postById.get(postId);
+    const isInterview = Boolean(post && (!post.recruitment_type || post.recruitment_type === "interview"));
     return withUnreadSecondary(
       {
         badgeLabel: "진행 중",
         body: `새 지원자 ${pending.length}명의 신청 내용을 확인하고 다음 단계를 정해보세요.`,
-        currentStep: 1,
+        currentStep: isInterview ? 1 : -1,
         primaryAction: { href: "/my-interviews", label: `지원자 ${pending.length}명 보기` },
         secondaryAction: null,
         stageLabel: "지원자 확인 단계",
-        steps: ["모집글 등록", "지원자 확인", "선정", "인터뷰"],
-        title: post?.title ?? "새 인터뷰 신청이 도착했어요",
+        steps: isInterview ? ["모집글 등록", "지원자 확인", "선정", "인터뷰"] : [],
+        title: post?.title ?? "새 공고 신청이 도착했어요",
       },
       unreadCount,
       unreadRoom,
@@ -228,19 +232,34 @@ function buildFocus({
   if (selectedApplication) {
     const room = roomByApplicationId.get(selectedApplication.id);
     const post = postById.get(selectedApplication.interview_post_id);
+    const isInterview = Boolean(post && (!post.recruitment_type || post.recruitment_type === "interview"));
+    const isSurvey = post?.recruitment_type === "survey";
+    const isGuidanceChat = post?.recruitment_type === "beta_test" || post?.recruitment_type === "research_experiment";
     return withUnreadSecondary(
       {
         badgeLabel: "선정",
-        body: "선정된 인터뷰예요. 채팅에서 가능한 일정과 진행 방식을 조율해보세요.",
-        currentStep: 2,
+        body: isInterview
+          ? "선정된 인터뷰예요. 채팅에서 가능한 일정과 진행 방식을 조율해보세요."
+          : isSurvey
+            ? "설문 참여가 승인됐어요. 공고 상세에서 외부 설문 참여 방법과 진행 상태를 확인하세요."
+            : isGuidanceChat
+              ? post?.recruitment_type === "beta_test"
+                ? "선정됐어요. 채팅에서 테스트 준비와 진행 안내를 확인하세요."
+                : "선정됐어요. 채팅에서 연구 일정과 준비 사항을 조율하세요."
+              : "선정됐어요. 내 참여에서 공고와 참여 방법을 확인하세요.",
+        currentStep: isInterview ? 2 : -1,
         primaryAction: {
-          href: room ? buildChatRoomPath(room.id) : "/chat",
-          label: "일정 조율하기",
+          href: isSurvey
+            ? `/interviews/${selectedApplication.interview_post_id}`
+            : isInterview || isGuidanceChat
+              ? room ? buildChatRoomPath(room.id) : "/chat"
+              : "/my-interviews?tab=applications",
+          label: isInterview ? "일정 조율하기" : isSurvey ? "설문 참여 안내 보기" : isGuidanceChat ? "진행 안내 확인하기" : "내 참여 보기",
         },
         secondaryAction: null,
-        stageLabel: "일정 조율 단계",
-        steps: ["신청", "선정", "일정 조율", "인터뷰"],
-        title: post?.title ?? "선정된 인터뷰가 있어요",
+        stageLabel: isInterview ? "일정 조율 단계" : isSurvey ? "설문 참여 안내" : isGuidanceChat ? "선정 후 안내" : "참여 안내",
+        steps: isInterview ? ["신청", "선정", "일정 조율", "인터뷰"] : [],
+        title: post?.title ?? "선정된 공고가 있어요",
       },
       unreadCount,
       unreadRoom,
@@ -252,15 +271,16 @@ function buildFocus({
   );
   if (pendingApplication) {
     const post = postById.get(pendingApplication.interview_post_id);
+    const isInterview = Boolean(post && (!post.recruitment_type || post.recruitment_type === "interview"));
     return withUnreadSecondary(
       {
         badgeLabel: "신청",
-        body: "신청이 전달됐어요. 결과가 오면 알림과 채팅에서 바로 확인할 수 있어요.",
-        currentStep: 0,
-        primaryAction: { href: "/my-interviews", label: "신청 상태 보기" },
+        body: "신청이 전달됐어요. 결과는 내 참여와 알림에서 확인할 수 있어요.",
+        currentStep: isInterview ? 0 : -1,
+        primaryAction: { href: "/my-interviews?tab=applications", label: "신청 상태 보기" },
         secondaryAction: null,
         stageLabel: "선정 대기 단계",
-        steps: ["신청", "선정", "일정 조율", "인터뷰"],
+        steps: isInterview ? ["신청", "선정", "일정 조율", "인터뷰"] : [],
         title: post?.title ?? "결과를 기다리는 신청이 있어요",
       },
       unreadCount,
@@ -269,15 +289,17 @@ function buildFocus({
   }
 
   if (unreadRoom) {
+    const post = postById.get(unreadRoom.interview_post_id);
+    const isInterview = Boolean(post && (!post.recruitment_type || post.recruitment_type === "interview"));
     return {
       badgeLabel: "새 대화",
       body: `읽지 않은 메시지가 ${unreadCount}개 있어요. 필요한 일정과 진행 내용을 확인해보세요.`,
-      currentStep: 2,
+      currentStep: isInterview ? 2 : -1,
       primaryAction: { href: buildChatRoomPath(unreadRoom.id), label: "채팅 확인하기" },
       secondaryAction: null,
       stageLabel: "채팅 확인 단계",
-      steps: ["신청", "선정", "일정 조율", "인터뷰"],
-      title: unreadRoom.interview_post?.title ?? "새 메시지가 도착했어요",
+      steps: isInterview ? ["신청", "선정", "일정 조율", "인터뷰"] : [],
+      title: post?.title ?? "새 메시지가 도착했어요",
     };
   }
 
@@ -367,7 +389,7 @@ function buildSchedule({
 function buildPostMap(posts: InterviewPost[], chatRooms: ChatRoom[]) {
   const map = new Map(posts.map((post) => [post.id, post]));
   chatRooms.forEach((room) => {
-    if (room.interview_post) {
+    if (room.interview_post && !map.has(room.interview_post.id)) {
       map.set(room.interview_post.id, room.interview_post);
     }
   });
@@ -375,8 +397,11 @@ function buildPostMap(posts: InterviewPost[], chatRooms: ChatRoom[]) {
 }
 
 function buildPostMeta(post: InterviewPost) {
-  const type = post.recruitment_type === "survey" ? "설문조사" : post.recruitment_type === "beta_test" ? "베타테스트" : "인터뷰";
-  return `${type} · ${formatCompensationSummary(normalizeCompensations(post.compensations, post.reward_amount))} · ${post.duration_minutes}분`;
+  return [
+    postingTypeLabels[post.recruitment_type ?? "interview"],
+    formatCompensationSummary(normalizeCompensations(post.compensations, post.reward_amount)),
+    formatPostingDuration(post),
+  ].filter(Boolean).join(" · ");
 }
 
 function formatScheduleWhen(value: string, now: number) {

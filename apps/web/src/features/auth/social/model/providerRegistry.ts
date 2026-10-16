@@ -29,7 +29,6 @@ export const PUBLIC_WEB_SOCIAL_AUTH_PROVIDER_ORDER = [
   "kakao",
   "apple",
   "google",
-  "naver",
 ] as const satisfies ReadonlyArray<SocialProviderId>;
 
 export const SOCIAL_PROVIDER_REGISTRY: Record<SocialProviderId, SocialProviderDefinition> = {

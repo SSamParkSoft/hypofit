@@ -81,7 +81,6 @@ describe("useSocialAuthEntry", () => {
       "kakao",
       "apple",
       "google",
-      "naver",
     ]);
 
     await act(async () => {
@@ -105,6 +104,19 @@ describe("useSocialAuthEntry", () => {
     const storedAttempt = window.sessionStorage.getItem(SOCIAL_AUTH_STORAGE_KEY);
     expect(storedAttempt).toContain("\"attemptId\":\"attempt-1\"");
     expect(storedAttempt).toContain("\"provider\":\"kakao\"");
+  });
+
+  it.each(["false", "true"])("rejects Naver before any request with local direct auth %s", async (localDirect) => {
+    vi.stubEnv("VITE_LOCAL_DIRECT_SUPABASE_AUTH", localDirect);
+    const { result } = renderHook(() => useSocialAuthEntry(), { wrapper: createWrapper() });
+    await act(async () => {
+      await result.current.startSocialAuth("naver", "sign_in");
+    });
+    expect(result.current.feedback?.tone).toBe("error");
+    expect(mocks.createSocialAuthAttempt).not.toHaveBeenCalled();
+    expect(mocks.getSupabaseClientOrThrow).not.toHaveBeenCalled();
+    expect(mocks.signInWithOAuth).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(SOCIAL_AUTH_STORAGE_KEY)).toBeNull();
   });
 
   it("starts Apple web sign-in with the Apple provider identifier and social callback redirect", async () => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { adminApi } from "../../../shared/api/admin";
 import type { AdminNotificationTargetType, AdminTestNotificationType } from "../../../shared/api/types";
@@ -13,40 +13,49 @@ interface PushPanelProps {
   accessToken: string;
   onAction: (message: string) => void;
   onError: (message: string) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
 }
 
-export function PushPanel({ accessToken, onAction, onError }: PushPanelProps) {
+export function PushPanel({ accessToken, onAction, onError, onDirtyChange, onBusyChange }: PushPanelProps) {
   const [email, setEmail] = useState("");
   const [type, setType] = useState<AdminTestNotificationType>("support_replied");
   const [targetId, setTargetId] = useState("");
   const [targetType, setTargetType] = useState<AdminNotificationTargetType>("support_ticket");
   const [dispatch, setDispatch] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const lock = useRef(false);
+  const dirty = Boolean(email || targetId || dispatch || type !== "support_replied" || targetType !== "support_ticket");
+  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(isSubmitting); return () => onBusyChange?.(false); }, [isSubmitting, onBusyChange]);
 
   async function dispatchPending() {
+    if (lock.current) return;
     if (!window.confirm("대기 중인 푸시 발송을 처리할까요?")) return;
 
-    setIsSubmitting(true);
+    lock.current = true; setIsSubmitting(true);
     try {
       const result = await adminApi.dispatchPendingPushDeliveries(accessToken);
       onAction(`푸시 처리 완료: sent ${result.sent}, failed ${result.failed}`);
     } catch (error) {
       onError(getErrorMessage(error, "푸시 발송을 처리하지 못했습니다."));
     } finally {
+      lock.current = false;
       setIsSubmitting(false);
     }
   }
 
   async function sendTest() {
+    if (lock.current) return;
     if (!email.trim()) {
       onError("테스트 받을 이메일을 입력해 주세요.");
       return;
     }
-    if (dispatch && !window.confirm("실제 기기 알림을 발송할까요?")) return;
+    if (!window.confirm(`${email.trim()} 계정에 테스트 알림을 생성할까요? 등록된 기기에 실제 푸시가 전달될 수 있습니다.`)) return;
 
-    setIsSubmitting(true);
+    lock.current = true; setIsSubmitting(true);
     try {
-      await adminApi.sendTestNotification(
+      const result = await adminApi.sendTestNotification(
         {
           email,
           type,
@@ -56,10 +65,12 @@ export function PushPanel({ accessToken, onAction, onError }: PushPanelProps) {
         },
         accessToken,
       );
-      onAction(dispatch ? "테스트 알림을 만들고 발송했습니다." : "테스트 알림을 만들었습니다.");
+      const outcome = result.dispatch_result;
+      onAction(outcome ? `테스트 알림 생성: 발송 ${outcome.sent}, 실패 ${outcome.failed}, 무효 토큰 ${outcome.invalid}, 건너뜀 ${outcome.skipped}. 처리 0건이면 푸시 설정·기기 등록 또는 worker 처리 여부를 확인해 주세요.` : "테스트 알림을 만들었습니다. 실제 푸시는 worker 설정에 따라 처리됩니다.");
     } catch (error) {
       onError(getErrorMessage(error, "테스트 알림을 만들지 못했습니다."));
     } finally {
+      lock.current = false;
       setIsSubmitting(false);
     }
   }
@@ -79,11 +90,13 @@ export function PushPanel({ accessToken, onAction, onError }: PushPanelProps) {
         </Button>
       </div>
 
-      <div className="mt-4 rounded-hypo-lg border border-hypo-border p-4">
+      <fieldset disabled={isSubmitting} className="mt-4 rounded-hypo-lg border border-hypo-border p-4">
         <h3 className="font-black">테스트 알림</h3>
-        <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <input
             aria-label="테스트 수신 이메일"
+            type="email"
+            autoComplete="email"
             className="rounded-hypo-lg border border-hypo-border px-3 py-2 text-sm"
             placeholder="user@example.com"
             value={email}
@@ -123,12 +136,12 @@ export function PushPanel({ accessToken, onAction, onError }: PushPanelProps) {
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm font-bold">
           <input checked={dispatch} type="checkbox" onChange={(event) => setDispatch(event.target.checked)} />
-          실제 푸시까지 발송
+          이 테스트 알림만 즉시 발송
         </label>
         <Button className="mt-3" disabled={isSubmitting} size="sm" onClick={sendTest}>
           테스트 알림 만들기
         </Button>
-      </div>
+      </fieldset>
     </section>
   );
 }

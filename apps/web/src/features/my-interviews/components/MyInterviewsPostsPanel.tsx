@@ -92,7 +92,7 @@ export function MyInterviewsPostsPanel({
             />
             {selectedFounderPost
               ? renderDetailContent(
-                  "선택한 모집글의 지원자 검토와 일정 생성을 아래에서 이어가세요.",
+                  "선택한 공고의 지원 내용을 확인하고 신청 상태를 관리하세요.",
                 )
               : null}
           </div>
@@ -107,7 +107,7 @@ export function MyInterviewsPostsPanel({
             detail={
               <ContextPanel className="border-none bg-transparent shadow-none">
                 {renderDetailContent(
-                  "선택한 모집글의 지원자 검토와 일정 생성을 오른쪽에서 이어가세요.",
+                  "선택한 공고의 지원 내용을 확인하고 신청 상태를 관리하세요.",
                 )}
               </ContextPanel>
             }

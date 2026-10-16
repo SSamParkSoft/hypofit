@@ -41,16 +41,18 @@ describe("apiRequest", () => {
         }),
       );
 
-    await expect(apiRequest<void>("/api/v1/empty")).resolves.toBeUndefined();
+    await expect(apiRequest<void>("/api/v1/empty", { accessToken: "test-access-token" })).resolves.toBeUndefined();
     await expect(apiRequest<string>("/api/v1/plain-text")).resolves.toBe("ready");
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${apiBaseUrl}/api/v1/empty`,
-      expect.objectContaining({ method: "GET" }),
+      expect.objectContaining({ method: "GET", credentials: "omit" }),
     );
 
     const secondHeaders = new Headers(fetchMock.mock.calls[1][1].headers);
+    const firstHeaders = new Headers(fetchMock.mock.calls[0][1].headers);
+    expect(firstHeaders.get("Authorization")).toBe("Bearer test-access-token");
     expect(secondHeaders.get("Accept")).toBe("application/json");
     expect(secondHeaders.get("X-Request-ID")).toMatch(/^req_/);
   });
@@ -111,6 +113,23 @@ describe("apiRequest", () => {
       kind: "invalid_response",
       requestId: "req_broken_1",
       status: 200,
+    });
+  });
+
+  it.each(["text/html;charset=utf-8", "text/plain"])("does not expose HTML errors with content type %s", async (contentType) => {
+    fetchMock.mockResolvedValue(createResponse({
+      body: "<!doctype html><html><head><title>HTTP Status 400 – Bad Request</title></head><body>internal detail</body></html>",
+      headers: { "Content-Type": contentType, "X-Request-ID": "req_header_400" },
+      status: 400,
+    }));
+    await expect(apiRequest("/api/v1/admin/support/tickets")).rejects.toMatchObject({
+      code: "http_400",
+      message: "서버 요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      details: null,
+      debugMessage: null,
+      requestId: "req_header_400",
+      status: 400,
+      isRetryable: false,
     });
   });
 

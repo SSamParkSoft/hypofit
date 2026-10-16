@@ -31,15 +31,29 @@ export function NotificationIcon({
 }
 
 export function getNotificationHref(notification: NotificationRecord) {
-  if (notification.target_type === "chat_room" && notification.target_id) {
-    return `/chat?room=${encodeURIComponent(notification.target_id)}`;
+  const roomId = getNotificationRoomId(notification);
+  if (roomId) {
+    return `/chat?room=${encodeURIComponent(roomId)}`;
   }
 
   if (notification.target_type === "interview_post" && notification.target_id) {
     return `/interviews/${encodeURIComponent(notification.target_id)}`;
   }
 
-  if (notification.target_type === "application" || notification.target_type === "interview_session") {
+  if (notification.target_type === "application") {
+    const postId = notification.metadata.interview_post_id;
+    if (
+      (notification.type === "application_created" || notification.type === "application_withdrawn") &&
+      typeof postId === "string" && postId.trim()
+    ) {
+      return `/my-interviews?tab=posts&post=${encodeURIComponent(postId.trim())}`;
+    }
+    return notification.target_id
+      ? `/my-interviews?tab=applications&application=${encodeURIComponent(notification.target_id)}`
+      : "/my-interviews";
+  }
+
+  if (notification.target_type === "interview_session") {
     return "/my-interviews";
   }
 
@@ -77,8 +91,12 @@ export function getNotificationCategoryLabel(notification: NotificationRecord) {
 }
 
 export function getNotificationDestinationLabel(notification: NotificationRecord) {
-  if (notification.target_type === "chat_room" || notification.type.includes("chat")) {
+  if (getNotificationRoomId(notification) || notification.type.includes("chat")) {
     return "채팅으로 이동";
+  }
+
+  if (notification.type === "application_created" || notification.type === "application_withdrawn") {
+    return "지원자 관리에서 확인";
   }
 
   if (
@@ -97,6 +115,12 @@ export function getNotificationDestinationLabel(notification: NotificationRecord
   }
 
   return "알림만 확인";
+}
+
+function getNotificationRoomId(notification: NotificationRecord): string | null {
+  const value = notification.target_type === "chat_room"
+    ? notification.target_id : notification.metadata.chat_room_id;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 export function groupNotificationsByDate(notifications: NotificationRecord[]): NotificationGroup[] {

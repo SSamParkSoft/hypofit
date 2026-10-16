@@ -11,7 +11,7 @@ export function AdminSectionNavigation({
   section,
 }: AdminSectionNavigationProps) {
   return (
-    <aside className="space-y-2">
+    <nav aria-label="운영 메뉴" className="flex flex-wrap gap-2 lg:block lg:space-y-2">
       {adminSections.map((item) => (
         <button
           key={item.id}
@@ -22,11 +22,12 @@ export function AdminSectionNavigation({
               : "text-hypo-text-muted hover:bg-white hover:text-hypo-text",
           )}
           type="button"
+          aria-current={section === item.id ? "page" : undefined}
           onClick={() => onSectionChange(item.id)}
         >
           {item.label}
         </button>
       ))}
-    </aside>
+    </nav>
   );
 }

@@ -28,7 +28,10 @@ export const chatQueryKeys = {
   },
 } as const;
 
-export function useChatRooms(accessToken?: string | null) {
+export function useChatRooms(
+  accessToken?: string | null,
+  { pollWhileActive = false }: { pollWhileActive?: boolean } = {},
+) {
   const authContext = useContext(AuthContext);
   const stableUserId = resolveStableAuthUserId(authContext?.appUser?.id, authContext?.user?.id);
   const effectiveAccessToken = accessToken ?? authContext?.accessToken ?? null;
@@ -37,6 +40,7 @@ export function useChatRooms(accessToken?: string | null) {
     enabled: Boolean(effectiveAccessToken),
     queryFn: ({ signal }) => chatApi.listRooms(effectiveAccessToken, { signal }),
     queryKey: chatQueryKeys.rooms(stableUserId),
+    refetchInterval: pollWhileActive ? 10_000 : false,
     staleTime: 15_000,
   });
 }

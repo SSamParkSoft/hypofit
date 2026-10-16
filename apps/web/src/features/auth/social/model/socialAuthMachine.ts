@@ -50,5 +50,16 @@ export function resolveSocialAuthNavigationTarget(
     return sanitizeSocialReturnTo(returnTo);
   }
 
-  return DEFAULT_POST_AUTH_PATH;
+  if (
+    normalizedNextStep === "legal_consent" ||
+    normalizedNextStep === "legal_consent_required" ||
+    normalizedNextStep === "profile_completion" ||
+    normalizedNextStep === "profile_completion_required" ||
+    normalizedNextStep === "role_onboarding" ||
+    normalizedNextStep === "role_onboarding_required"
+  ) {
+    return DEFAULT_POST_AUTH_PATH;
+  }
+
+  return null;
 }

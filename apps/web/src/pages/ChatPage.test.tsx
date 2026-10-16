@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,7 @@ import type {
   ChatMessage,
   ChatRoom,
   InterviewPost,
+  Session,
   UserSummary,
 } from "../shared/api/types";
 
@@ -35,6 +36,9 @@ const mocks = vi.hoisted(() => ({
     isError: false,
     isLoading: false,
   },
+  sessionsQuery: {
+    data: [] as Session[],
+  },
   sendMessageMutation: {
     isError: false,
     isPending: false,
@@ -48,6 +52,10 @@ vi.mock("../features/auth/useAuth", () => ({
 
 vi.mock("../features/chat/useChatRooms", () => ({
   useChatRooms: () => mocks.roomsQuery,
+}));
+
+vi.mock("../features/sessions/useSessions", () => ({
+  useSessions: () => mocks.sessionsQuery,
 }));
 
 vi.mock("../features/chat/useChatMessages", () => ({
@@ -190,6 +198,7 @@ describe("ChatPage", () => {
     mocks.roomsQuery.data = [];
     mocks.roomsQuery.isError = false;
     mocks.roomsQuery.isLoading = false;
+    mocks.sessionsQuery.data = [];
     mocks.messagesByRoom = {};
     mocks.markReadMutate.mockReset();
     mocks.sendMessageMutation.isError = false;
@@ -256,6 +265,88 @@ describe("ChatPage", () => {
     expect(mocks.markReadMutate).toHaveBeenCalledWith("room-2");
   });
 
+  it("shows a quiet date label only when the message day changes", async () => {
+    const user = userEvent.setup();
+    mocks.roomsQuery.data = [buildRoom()];
+    mocks.messagesByRoom["room-1"] = [
+      buildMessage({ body: "첫날 첫 메시지", id: "message-1" }),
+      buildMessage({
+        body: "첫날 두 번째 메시지",
+        created_at: "2026-07-16T05:00:00.000Z",
+        id: "message-2",
+      }),
+      buildMessage({
+        body: "다음날 메시지",
+        created_at: "2026-07-17T04:00:00.000Z",
+        id: "message-3",
+      }),
+    ];
+
+    render(<ChatPage />);
+    await user.click(screen.getByText("박지민").closest("button")!);
+
+    expect(screen.getAllByText(/2026년 7월 16일/)).toHaveLength(1);
+    expect(screen.getAllByText(/2026년 7월 17일/)).toHaveLength(1);
+    expect(screen.getByText("첫날 두 번째 메시지")).toBeInTheDocument();
+  });
+
+  it("opens at the latest message without pulling readers away from older messages", async () => {
+    const user = userEvent.setup();
+    mocks.roomsQuery.data = [buildRoom()];
+    const { rerender } = render(<ChatPage />);
+    await user.click(screen.getByText("박지민").closest("button")!);
+
+    const viewport = screen.getByRole("region", { name: "대화 내용" });
+    let scrollHeight = 400;
+    Object.defineProperty(viewport, "scrollHeight", { configurable: true, get: () => scrollHeight });
+    Object.defineProperty(viewport, "clientHeight", { configurable: true, value: 200 });
+
+    mocks.messagesByRoom["room-1"] = [buildMessage({ body: "기존 메시지" })];
+    rerender(<ChatPage />);
+    expect(viewport.scrollTop).toBe(400);
+
+    viewport.scrollTop = 0;
+    fireEvent.scroll(viewport);
+    scrollHeight = 500;
+    mocks.messagesByRoom["room-1"] = [
+      buildMessage({ body: "기존 메시지" }),
+      buildMessage({ body: "새 메시지", id: "chat-message-2" }),
+    ];
+    rerender(<ChatPage />);
+    expect(viewport.scrollTop).toBe(0);
+    expect(screen.getByText("새 메시지")).toBeInTheDocument();
+
+    viewport.scrollTop = 300;
+    fireEvent.scroll(viewport);
+    scrollHeight = 600;
+    mocks.messagesByRoom["room-1"] = [
+      ...mocks.messagesByRoom["room-1"],
+      buildMessage({ body: "최신 메시지", id: "chat-message-3" }),
+    ];
+    rerender(<ChatPage />);
+    expect(viewport.scrollTop).toBe(600);
+  });
+
+  it("grows the composer for multiline drafts and shrinks it when cleared", async () => {
+    const user = userEvent.setup();
+    mocks.roomsQuery.data = [buildRoom()];
+    render(<ChatPage />);
+    await user.click(screen.getByText("박지민").closest("button")!);
+
+    const composer = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "메시지" });
+    Object.defineProperty(composer, "scrollHeight", {
+      configurable: true,
+      get: () => (composer.value ? 86 : 42),
+    });
+
+    fireEvent.change(composer, { target: { value: "첫 줄\n둘째 줄\n셋째 줄" } });
+    expect(composer.style.height).toBe("86px");
+    expect(composer).toHaveClass("max-h-32", "overflow-y-auto");
+
+    fireEvent.change(composer, { target: { value: "" } });
+    expect(composer.style.height).toBe("42px");
+  });
+
   it("hydrates the selected room from the URL and returns to the list when back is pressed", async () => {
     const user = userEvent.setup();
     const targetRoom = buildRoom({
@@ -319,5 +410,70 @@ describe("ChatPage", () => {
 
     await user.click(within(roomRow as HTMLElement).getByRole("button", { name: "채팅방 메뉴" }));
     expect(screen.getByRole("button", { name: "알림 켜기" })).toBeInTheDocument();
+  });
+
+  it("does not carry a draft into another room", async () => {
+    const user = userEvent.setup();
+    mocks.roomsQuery.data = [buildRoom(), buildRoom({ id: "room-2", respondent: respondentB })];
+    render(<ChatPage />);
+    await user.click(screen.getByText("박지민").closest("button")!);
+    await user.type(screen.getByRole("textbox", { name: "메시지" }), "private draft");
+    await user.click(screen.getByText("이서준").closest("button")!);
+    expect(screen.getByRole("textbox", { name: "메시지" })).toHaveValue("");
+    expect(screen.getByRole("button", { name: "메시지 보내기" })).toBeDisabled();
+    expect(mocks.sendMessageMutation.mutate).not.toHaveBeenCalled();
+  });
+
+  it("shows only the selected interview room's confirmed schedule", async () => {
+    const user = userEvent.setup();
+    mocks.roomsQuery.data = [
+      buildRoom({ id: "room-1", status: "selected" }),
+      buildRoom({
+        application: {
+          ...baseApplication,
+          id: "application-2",
+          respondent: respondentB,
+          respondent_id: respondentB.id,
+        },
+        application_id: "application-2",
+        id: "room-2",
+        interview_post: { ...basePost, id: "post-2", recruitment_type: "beta_test" },
+        interview_post_id: "post-2",
+        respondent: respondentB,
+        respondent_id: respondentB.id,
+        status: "selected",
+      }),
+    ];
+    mocks.sessionsQuery.data = [
+      {
+        application_id: "application-1",
+        id: "session-1",
+        meeting_type: "online",
+        meeting_url: "https://meet.example.com/qa",
+        place: null,
+        scheduled_at: "2026-10-15T08:00:00Z",
+        status: "scheduled",
+      },
+      {
+        application_id: "application-2",
+        id: "session-2",
+        meeting_type: "offline",
+        meeting_url: null,
+        place: "베타 장소",
+        scheduled_at: "2026-10-16T08:00:00Z",
+        status: "scheduled",
+      },
+    ];
+
+    render(<ChatPage />);
+    await user.click(screen.getByText("박지민").closest("button")!);
+    expect(screen.getByText("확정된 일정 · 화상")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "화상 링크 열기" })).toHaveAttribute(
+      "href", "https://meet.example.com/qa",
+    );
+
+    await user.click(screen.getByText("이서준").closest("button")!);
+    expect(screen.queryByText("확정된 일정 · 화상")).not.toBeInTheDocument();
+    expect(screen.queryByText("베타 장소")).not.toBeInTheDocument();
   });
 });

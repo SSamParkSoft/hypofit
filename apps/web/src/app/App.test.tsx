@@ -1,7 +1,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { StrictMode, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import * as appNavigation from "../shared/navigation/appNavigation";
 
 const mockUseAuth = vi.fn();
 const originalMatchMedia = window.matchMedia;
@@ -124,6 +126,7 @@ describe("App route/auth entry handling", () => {
       value: originalMatchMedia,
     });
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("keeps the app shell around the notification center without a false active tab", async () => {
@@ -208,7 +211,55 @@ describe("App route/auth entry handling", () => {
     expect(screen.queryByText("MockAuthScreen")).not.toBeInTheDocument();
   });
 
-  it("redirects mobile web product routes to the store-focused landing page", async () => {
+  it.each(["/app", "/chat?room=room-123#unread"])("defers the mobile web redirect from %s without lifecycle flushSync warnings", async (path) => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        addEventListener: vi.fn(),
+        matches: query === "(max-width: 767px)",
+        media: query,
+        removeEventListener: vi.fn(),
+      })),
+    });
+    window.history.pushState(null, "", path);
+    const historyLength = window.history.length;
+    const replace = vi.spyOn(appNavigation, "replacePath");
+    const consoleError = vi.spyOn(console, "error");
+    mockUseAuth.mockReturnValue({
+      accessToken: null,
+      appUser: null,
+      errorMessage: null,
+      isLoading: false,
+      user: null,
+    });
+
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+
+    expect(
+      window.location.pathname + window.location.search + window.location.hash,
+    ).toBe(path);
+    expect(replace).not.toHaveBeenCalled();
+
+    expect(await screen.findByText("MockWorkflowSection")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/");
+    expect(window.location.search).toBe("");
+    expect(window.location.hash).toBe("");
+    expect(window.history.length).toBe(historyLength);
+    expect(replace).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith("/", { intent: "replace", scroll: "top" });
+    expect(
+      consoleError.mock.calls.filter((args) =>
+        args.some((arg) => String(arg).includes("flushSync")),
+      ),
+    ).toEqual([]);
+    expect(screen.queryByText("MockAuthScreen")).not.toBeInTheDocument();
+  });
+
+  it("cancels a queued mobile web redirect on unmount", () => {
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -219,19 +270,19 @@ describe("App route/auth entry handling", () => {
       })),
     });
     window.history.pushState(null, "", "/app");
-    mockUseAuth.mockReturnValue({
-      accessToken: null,
-      appUser: null,
-      errorMessage: null,
-      isLoading: false,
-      user: null,
+    const pendingTasks: VoidFunction[] = [];
+    vi.spyOn(globalThis, "queueMicrotask").mockImplementation((task) => {
+      pendingTasks.push(task);
     });
+    const replace = vi.spyOn(appNavigation, "replacePath");
 
-    render(<App />);
+    const view = render(<App />);
+    expect(pendingTasks).toHaveLength(1);
+    view.unmount();
+    pendingTasks.forEach((task) => task());
 
-    expect(await screen.findByText("MockWorkflowSection")).toBeInTheDocument();
-    expect(window.location.pathname).toBe("/");
-    expect(screen.queryByText("MockAuthScreen")).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe("/app");
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("renders the public support hub without waiting for auth bootstrap", async () => {

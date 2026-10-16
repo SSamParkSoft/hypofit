@@ -1,1 +1,1 @@
-export { CreateInterviewScreen as default } from "@/screens/interviews/CreateInterviewScreen";
+export { CreatePostingScreen as default } from "@/screens/postings/CreatePostingScreen";

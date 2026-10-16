@@ -13,12 +13,13 @@ const brandDirectory = path.join(publicDirectory, "brand");
 const iconDirectory = path.join(publicDirectory, "icons");
 const mobileAssetDirectory = path.join(repositoryRoot, "apps/mobile/assets");
 const storeBrandDirectory = path.join(repositoryRoot, "docs/store-assets/brand");
+const iconSource = path.join(storeBrandDirectory, "source/hypofit-icon-2026-09-29.png");
 
 const colors = {
-  brand: "#176B5D",
-  text: "#1D2522",
-  warmWhite: "#F7F5EF",
-  signal: "#F5A623",
+  brand: "#0F7A4D",
+  splash: "#58C96B",
+  text: "#18211C",
+  warmWhite: "#F6F7F8",
 };
 
 const expectedOutputs = [];
@@ -45,6 +46,8 @@ async function renderSquare(source, output, size, options = {}) {
 
   if (options.opaque) {
     pipeline = pipeline.flatten({ background: options.background ?? colors.brand }).removeAlpha();
+  } else if (options.alpha) {
+    pipeline = pipeline.ensureAlpha();
   }
 
   await pipeline.png({ compressionLevel: 9, palette: false }).toFile(output);
@@ -77,7 +80,76 @@ async function renderFixed(source, output, width, height, options = {}) {
   });
 }
 
-async function createSocialImage() {
+async function extractSymbol(source) {
+  const sourceMetadata = await sharp(source).metadata();
+  if (
+    sourceMetadata.format !== "png" ||
+    sourceMetadata.width !== sourceMetadata.height ||
+    sourceMetadata.width < 1024 ||
+    sourceMetadata.hasAlpha
+  ) {
+    throw new Error("The source app icon must be an opaque square PNG of at least 1024px.");
+  }
+
+  const { data, info } = await sharp(source).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const color = Buffer.from(data);
+  const white = Buffer.from(data);
+  const green = Buffer.from(data);
+
+  for (let pixel = 0; pixel < info.width * info.height; pixel += 1) {
+    const offset = pixel * info.channels;
+    // The source has a green background (red channel below 120) and a near-white symbol.
+    const alpha = Math.max(0, Math.min(255, Math.round((data[offset] - 120) * 2.7)));
+
+    for (const output of [color, white, green]) {
+      output[offset + 3] = alpha;
+    }
+    white[offset] = 255;
+    white[offset + 1] = 255;
+    white[offset + 2] = 255;
+    green[offset] = 15;
+    green[offset + 1] = 122;
+    green[offset + 2] = 77;
+  }
+
+  const toPng = (buffer) => sharp(buffer, { raw: info }).png().toBuffer();
+  return {
+    color: await toPng(color),
+    white: await toPng(white),
+    green: await toPng(green),
+  };
+}
+
+async function writeRasterSvg(output, source, size = 512) {
+  const image = await sharp(source).resize(size, size).png().toBuffer();
+  await writeFile(
+    output,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><image width="1024" height="1024" href="data:image/png;base64,${image.toString("base64")}"/></svg>\n`,
+  );
+}
+
+async function createSplashWordmark() {
+  const fontPath = path.join(mobileAssetDirectory, "fonts/SpoqaHanSansNeo-Bold.ttf");
+  const fontData = (await readFile(fontPath)).toString("base64");
+  const svg = `<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+    <style>@font-face { font-family: Hypofit; src: url(data:font/ttf;base64,${fontData}); font-weight: 700; }</style>
+    <text x="512" y="567" text-anchor="middle" fill="#0B5C3A" font-family="Hypofit" font-size="172" font-weight="700">Hypofit</text>
+  </svg>`;
+  return Buffer.from(svg);
+}
+
+async function createBrandLogo(symbol) {
+  const mark = (await sharp(symbol).resize(280).png().toBuffer()).toString("base64");
+  const svg = `<svg width="1000" height="280" viewBox="0 0 1000 280" xmlns="http://www.w3.org/2000/svg">
+    <image width="280" height="280" href="data:image/png;base64,${mark}"/>
+    <text x="260" y="198" fill="${colors.text}" font-family="Spoqa Han Sans Neo, Arial, sans-serif" font-size="165" font-weight="700">Hypofit</text>
+  </svg>`;
+  const output = path.join(brandDirectory, "hypofit-logo.svg");
+  await writeFile(output, svg);
+  await renderFixed(Buffer.from(svg), path.join(brandDirectory, "hypofit-logo-preview.png"), 1000, 280, { alpha: true });
+}
+
+async function createSocialImage(symbol) {
   const fontPath = path.join(repositoryRoot, "apps/mobile/assets/fonts/SpoqaHanSansNeo-Bold.ttf");
   const fontData = (await readFile(fontPath)).toString("base64");
   const svg = `
@@ -90,14 +162,10 @@ async function createSocialImage() {
         }
       </style>
       <rect width="1200" height="630" fill="${colors.warmWhite}"/>
-      <rect x="54" y="54" width="1092" height="522" rx="44" fill="${colors.brand}"/>
-      <g transform="translate(90 59) scale(1)">
-        <path d="M124 119H169C180 119 185 123 192 133L226 180C236 194 236 209 227 221C216 236 209 244 209 256C209 268 216 276 227 291C236 303 236 318 226 332L192 379C185 389 180 393 169 393H124C110 393 102 385 102 371V141C102 127 110 119 124 119Z" fill="${colors.warmWhite}"/>
-        <path d="M388 119H343C332 119 327 123 320 133L286 180C276 194 276 209 285 221C296 236 303 244 303 256C303 268 296 276 285 291C276 303 276 318 286 332L320 379C327 389 332 393 343 393H388C402 393 410 385 410 371V141C410 127 402 119 388 119Z" fill="${colors.warmWhite}"/>
-        <circle cx="256" cy="256" r="33" fill="${colors.signal}"/>
-      </g>
+      <rect x="54" y="54" width="1092" height="522" rx="44" fill="${colors.splash}"/>
+      <image x="92" y="76" width="440" height="440" href="data:image/png;base64,${(await sharp(symbol).resize(440).png().toBuffer()).toString("base64")}"/>
       <text x="570" y="286" fill="${colors.warmWhite}" font-family="Hypofit, Arial, sans-serif" font-size="96" font-weight="700">Hypofit</text>
-      <text x="574" y="350" fill="#D7E6E1" font-family="Hypofit, Arial, sans-serif" font-size="34" font-weight="700">실제 고객과 시작하는 검증 인터뷰</text>
+      <text x="574" y="350" fill="#FFFFFF" font-family="Hypofit, Arial, sans-serif" font-size="34" font-weight="700">실제 고객과 시작하는 검증 인터뷰</text>
     </svg>
   `;
   const output = path.join(brandDirectory, "hypofit-social-1200x630.png");
@@ -164,39 +232,43 @@ async function validateOutputs() {
 
 async function main() {
   await ensureDirectories();
+  const symbol = await extractSymbol(iconSource);
+  const splashWordmark = await createSplashWordmark();
 
-  const mark = path.join(brandDirectory, "hypofit-mark.svg");
-  const inverseMark = path.join(brandDirectory, "hypofit-mark-inverse.svg");
-  const logo = path.join(brandDirectory, "hypofit-logo.svg");
-  const appIcon = path.join(iconDirectory, "icon.svg");
-  const maskableIcon = path.join(iconDirectory, "icon-maskable.svg");
-  const favicon = path.join(iconDirectory, "favicon.svg");
-  const adaptiveForeground = path.join(brandDirectory, "hypofit-app-foreground.svg");
-  const adaptiveMonochrome = path.join(brandDirectory, "hypofit-app-monochrome.svg");
+  await writeRasterSvg(path.join(brandDirectory, "hypofit-mark.svg"), symbol.green);
+  await writeRasterSvg(path.join(brandDirectory, "hypofit-mark-inverse.svg"), symbol.white);
+  await writeRasterSvg(path.join(brandDirectory, "hypofit-mark-mono.svg"), symbol.green);
+  await writeRasterSvg(path.join(brandDirectory, "hypofit-mark-small.svg"), symbol.green);
+  await writeRasterSvg(path.join(brandDirectory, "hypofit-app-foreground.svg"), symbol.color);
+  await writeRasterSvg(path.join(brandDirectory, "hypofit-app-monochrome.svg"), symbol.white);
+  await writeRasterSvg(path.join(iconDirectory, "icon.svg"), iconSource);
+  await writeRasterSvg(path.join(iconDirectory, "icon-maskable.svg"), iconSource);
+  await writeRasterSvg(path.join(iconDirectory, "favicon.svg"), iconSource, 256);
 
-  await renderSquare(mark, path.join(brandDirectory, "hypofit-mark-preview.png"), 1024, { alpha: true });
-  await renderFixed(logo, path.join(brandDirectory, "hypofit-logo-preview.png"), 1000, 280, { alpha: true });
+  await renderSquare(symbol.green, path.join(brandDirectory, "hypofit-mark-preview.png"), 1024, { alpha: true });
+  await createBrandLogo(symbol.green);
 
   const favicon16 = path.join(iconDirectory, "favicon-16.png");
   const favicon32 = path.join(iconDirectory, "favicon-32.png");
-  await renderSquare(favicon, favicon16, 16, { alpha: true });
-  await renderSquare(favicon, favicon32, 32, { alpha: true });
+  await renderSquare(iconSource, favicon16, 16, { opaque: true });
+  await renderSquare(iconSource, favicon32, 32, { opaque: true });
   await writeFile(path.join(iconDirectory, "favicon.ico"), await pngToIco([favicon16, favicon32]));
 
-  await renderSquare(appIcon, path.join(iconDirectory, "apple-touch-icon.png"), 180, { opaque: true });
-  await renderSquare(appIcon, path.join(iconDirectory, "icon-192.png"), 192, { opaque: true });
-  await renderSquare(appIcon, path.join(iconDirectory, "icon-512.png"), 512, { opaque: true });
-  await renderSquare(maskableIcon, path.join(iconDirectory, "icon-maskable-192.png"), 192, { opaque: true });
-  await renderSquare(maskableIcon, path.join(iconDirectory, "icon-maskable-512.png"), 512, { opaque: true });
+  await renderSquare(iconSource, path.join(iconDirectory, "apple-touch-icon.png"), 180, { opaque: true });
+  await renderSquare(iconSource, path.join(iconDirectory, "icon-192.png"), 192, { opaque: true });
+  await renderSquare(iconSource, path.join(iconDirectory, "icon-512.png"), 512, { opaque: true });
+  await renderSquare(iconSource, path.join(iconDirectory, "icon-maskable-192.png"), 192, { opaque: true });
+  await renderSquare(iconSource, path.join(iconDirectory, "icon-maskable-512.png"), 512, { opaque: true });
 
-  await renderSquare(appIcon, path.join(mobileAssetDirectory, "icon.png"), 1024, { opaque: true });
-  await renderSquare(adaptiveForeground, path.join(mobileAssetDirectory, "adaptive-icon.png"), 1024, { alpha: true });
-  await renderSquare(adaptiveMonochrome, path.join(mobileAssetDirectory, "adaptive-icon-monochrome.png"), 1024, { alpha: true });
-  await renderSquare(adaptiveMonochrome, path.join(mobileAssetDirectory, "notification-icon.png"), 96, { alpha: true });
-  await renderSquare(mark, path.join(mobileAssetDirectory, "hypofit-mark.png"), 1024, { alpha: true });
-  await renderSquare(inverseMark, path.join(mobileAssetDirectory, "hypofit-mark-inverse.png"), 1024, { alpha: true });
-  await renderSquare(inverseMark, path.join(mobileAssetDirectory, "splash-static.png"), 1024, { alpha: true });
-  await renderSquare(inverseMark, path.join(mobileAssetDirectory, "splash.png"), 1024, { alpha: true });
+  await renderSquare(iconSource, path.join(mobileAssetDirectory, "icon.png"), 1024, { opaque: true });
+  await renderSquare(iconSource, path.join(mobileAssetDirectory, "ios-icon.png"), 1024, { opaque: true });
+  await renderSquare(symbol.color, path.join(mobileAssetDirectory, "adaptive-icon.png"), 1024, { alpha: true });
+  await renderSquare(symbol.white, path.join(mobileAssetDirectory, "adaptive-icon-monochrome.png"), 1024, { alpha: true });
+  await renderSquare(symbol.white, path.join(mobileAssetDirectory, "notification-icon.png"), 96, { alpha: true });
+  await renderSquare(symbol.green, path.join(mobileAssetDirectory, "hypofit-mark.png"), 1024, { alpha: true });
+  await renderSquare(symbol.white, path.join(mobileAssetDirectory, "hypofit-mark-inverse.png"), 1024, { alpha: true });
+  await renderSquare(splashWordmark, path.join(mobileAssetDirectory, "splash-static.png"), 1024, { alpha: true });
+  await renderSquare(splashWordmark, path.join(mobileAssetDirectory, "splash.png"), 1024, { alpha: true });
 
   const appleStoreIcon = path.join(storeBrandDirectory, "export/apple/hypofit-app-icon-1024.png");
   const playStoreIcon = path.join(storeBrandDirectory, "export/google-play/hypofit-play-icon-512.png");
@@ -204,10 +276,10 @@ async function main() {
     storeBrandDirectory,
     "export/social-login/hypofit-kakao-service-logo-128.png",
   );
-  await renderSquare(appIcon, appleStoreIcon, 1024, { opaque: true });
-  await renderSquare(appIcon, playStoreIcon, 512, { alpha: true, maxBytes: 1024 * 1024 });
-  await renderSquare(appIcon, kakaoServiceLogo, 128, { opaque: true, maxBytes: 250 * 1024 });
-  await createSocialImage();
+  await renderSquare(iconSource, appleStoreIcon, 1024, { opaque: true });
+  await renderSquare(iconSource, playStoreIcon, 512, { alpha: true, maxBytes: 1024 * 1024 });
+  await renderSquare(iconSource, kakaoServiceLogo, 128, { opaque: true, maxBytes: 250 * 1024 });
+  await createSocialImage(symbol.white);
 
   await validateOutputs();
   console.log(`Generated and validated ${expectedOutputs.length} Hypofit brand assets.`);

@@ -87,7 +87,7 @@ export function MyInterviewsApplicationsPanel({
             detail={
               <ContextPanel className="border-none bg-transparent shadow-none">
                 {renderDetailContent(
-                  "신청 상태와 답변 내용을 확인하고 필요한 경우 인터뷰 상세로 이동하세요.",
+                  "신청 상태와 답변 내용을 확인하고 필요한 경우 공고 상세로 이동하세요.",
                 )}
               </ContextPanel>
             }

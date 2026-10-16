@@ -320,6 +320,19 @@ function buildApiError(input: {
   requestId: string | null;
   response: Response;
 }): ApiError {
+  const isHtml = input.response.headers.get("Content-Type")?.toLowerCase().includes("text/html")
+    || (typeof input.body === "string" && /^\s*(?:<!doctype\s+html\b|<html\b)/i.test(input.body));
+  if (isHtml) {
+    return new ApiError({
+      code: `http_${input.response.status}`,
+      kind: "http",
+      message: "서버 요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.",
+      method: input.method,
+      path: input.path,
+      requestId: input.requestId,
+      status: input.response.status,
+    });
+  }
   const fallbackMessage = buildDefaultHttpErrorMessage(input.response.status);
   const envelope = input.body as ApiErrorEnvelope;
   const errorPayload = envelope && typeof envelope === "object" ? envelope.error : null;
@@ -391,6 +404,7 @@ export async function apiRequest<T>(path: string, init?: ApiRequestInit): Promis
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
+      credentials: "omit",
       ...requestInit,
       headers: requestHeaders,
       method,

@@ -1,4 +1,5 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render as testingRender, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   getTargetPreview: vi.fn(),
   listAccountDeletionRequests: vi.fn(),
   listTickets: vi.fn(),
+  listMaintenances: vi.fn(),
+  listNotices: vi.fn(),
 }));
 
 vi.mock("../features/admin/components", () => ({
@@ -124,17 +127,26 @@ vi.mock("../shared/api/admin", () => ({
     getSummary: (...args: unknown[]) => mocks.getSummary(...args),
     getTargetPreview: (...args: unknown[]) => mocks.getTargetPreview(...args),
     listAccountDeletionRequests: (...args: unknown[]) => mocks.listAccountDeletionRequests(...args),
-    listMaintenances: vi.fn().mockResolvedValue([]),
-    listNotices: vi.fn().mockResolvedValue([]),
+    listMaintenances: (...args: unknown[]) => mocks.listMaintenances(...args),
+    listNotices: (...args: unknown[]) => mocks.listNotices(...args),
     listTickets: (...args: unknown[]) => mocks.listTickets(...args),
   },
 }));
 
-vi.mock("../shared/api/client", () => ({
+vi.mock("../features/admin/components/MaintenancePanel", () => ({ MaintenancePanel: ({ maintenances = [] }: { maintenances?: unknown[] }) => <div>{`maintenances:${maintenances.length}`}</div> }));
+vi.mock("../features/admin/components/NoticePanel", () => ({ NoticePanel: ({ notices = [] }: { notices?: unknown[] }) => <div>{`notices:${notices.length}`}</div> }));
+
+vi.mock("../shared/api/client", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../shared/api/client")>(),
   apiRequest: (...args: unknown[]) => mocks.apiRequest(...args),
 }));
 
 import { AdminPage } from "./AdminPage";
+import { ApiError } from "../shared/api/client";
+
+function render(ui: Parameters<typeof testingRender>[0]) {
+  return testingRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
+}
 
 const admin = {
   email: "admin@example.com",
@@ -160,6 +172,7 @@ const summary = {
 
 describe("AdminPage", () => {
   beforeEach(() => {
+    window.history.replaceState({}, "", "/admin");
     vi.resetAllMocks();
 
     mocks.getMe.mockResolvedValue(admin);
@@ -167,6 +180,8 @@ describe("AdminPage", () => {
     mocks.getTargetPreview.mockResolvedValue(null);
     mocks.listAccountDeletionRequests.mockResolvedValue([]);
     mocks.listTickets.mockResolvedValue([]);
+    mocks.listMaintenances.mockResolvedValue([]);
+    mocks.listNotices.mockResolvedValue([]);
     mocks.apiRequest.mockResolvedValue({
       database: "ok",
       ready: true,
@@ -182,9 +197,19 @@ describe("AdminPage", () => {
 
     render(<AdminPage accessToken="token" />);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "관리자 권한이 필요합니다." })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "관리자 확인을 다시 시도해 주세요." })).toBeInTheDocument();
     expect(screen.getByText("관리자 권한이 없어요.")).toBeInTheDocument();
     expect(mocks.listTickets).not.toHaveBeenCalled();
+  });
+
+  it("does not fetch protected sections when the API rejects admin access with 403", async () => {
+    mocks.getMe.mockRejectedValueOnce(new ApiError({ code: "admin_required", message: "권한이 없어요.", kind: "http", status: 403, method: "GET", path: "/api/v1/admin/me" }));
+    render(<AdminPage accessToken="token" userId="user-1" />);
+    expect(await screen.findByRole("heading", { name: "관리자 권한이 필요합니다." })).toBeInTheDocument();
+    expect(mocks.listTickets).not.toHaveBeenCalled();
+    expect(mocks.listNotices).not.toHaveBeenCalled();
+    expect(mocks.listMaintenances).not.toHaveBeenCalled();
+    expect(mocks.getSummary).not.toHaveBeenCalled();
   });
 
   it("loads readiness data when the health section becomes active and refreshes it on demand", async () => {
@@ -223,10 +248,8 @@ describe("AdminPage", () => {
     await user.click(screen.getByRole("button", { name: "푸시 액션" }));
 
     expect(await screen.findByText("테스트 알림을 만들었습니다.")).toBeInTheDocument();
-    await waitFor(() => expect(mocks.getMe).toHaveBeenCalledTimes(getMeCallsBeforeAction + 1));
-    await waitFor(() =>
-      expect(mocks.listTickets).toHaveBeenCalledTimes(listTicketCallsBeforeAction + 1),
-    );
+    expect(mocks.getMe).toHaveBeenCalledTimes(getMeCallsBeforeAction);
+    expect(mocks.listTickets).toHaveBeenCalledTimes(listTicketCallsBeforeAction);
   });
 
   it("loads the service operations section", async () => {

@@ -67,8 +67,19 @@ export function MaintenanceProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const timeout = window.setTimeout(() => void refresh(), refreshDelayMs + Math.floor(Math.random() * 5_000));
-    return () => window.clearTimeout(timeout);
+    let disposed = false;
+    let timeout: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      timeout = setTimeout(async () => {
+        await refresh();
+        if (!disposed) schedule();
+      }, refreshDelayMs + Math.floor(Math.random() * 5_000));
+    };
+    schedule();
+    return () => {
+      disposed = true;
+      clearTimeout(timeout);
+    };
   }, [isActive, refresh, status.endsAt, status.status]);
 
   const value = useMemo<MaintenanceContextValue>(() => ({

@@ -8,6 +8,7 @@ import { SOCIAL_AUTH_STORAGE_KEY } from "../features/auth/social/lib/socialAuthS
 const mocks = vi.hoisted(() => ({
   completeSocialAuth: vi.fn(),
   replacePath: vi.fn(),
+  signOut: vi.fn(),
   useAuth: vi.fn(),
 }));
 
@@ -44,9 +45,11 @@ describe("AuthCallbackBridgePage", () => {
     mocks.completeSocialAuth.mockReset();
     mocks.replacePath.mockReset();
     mocks.useAuth.mockReset();
+    mocks.signOut.mockReset().mockResolvedValue(undefined);
     mocks.useAuth.mockReturnValue({
       accessToken: "social-access-token",
       isLoading: false,
+      signOut: mocks.signOut,
     });
   });
 
@@ -57,6 +60,45 @@ describe("AuthCallbackBridgePage", () => {
     window.sessionStorage.clear();
     window.localStorage.clear();
   });
+
+  it.each(["sign_in", "link"])("rejects a pending Naver %s even with an existing session", (intent) => {
+    window.sessionStorage.setItem(SOCIAL_AUTH_STORAGE_KEY, JSON.stringify({
+      approvedReturnTo: "/app", attemptId: "old-naver-attempt",
+      attemptSecret: "test-secret", createdAt: new Date().toISOString(),
+      expiresAt: "2099-01-01T00:00:00Z", intent,
+      provider: "naver", providerIdentifier: "custom:naver",
+    }));
+    window.history.replaceState(null, "", "/auth/social/callback?code=provider-code");
+    render(<AuthCallbackBridgePage />);
+    expect(screen.getByRole("heading", { name: "지원하지 않는 로그인 방법이에요" })).toBeInTheDocument();
+    expect(mocks.completeSocialAuth).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(SOCIAL_AUTH_STORAGE_KEY)).toBeNull();
+    expect(window.location.search).toBe("");
+  });
+
+  it.each(["email_required", "email_verification", "account_reactivation_blocked", "future_step", null])(
+    "stops blocked completion %s without recording login success",
+    async (nextStep) => {
+      window.sessionStorage.setItem(SOCIAL_AUTH_STORAGE_KEY, JSON.stringify({
+        approvedReturnTo: "/chat", attemptId: "blocked-attempt",
+        attemptSecret: "test-secret", createdAt: new Date().toISOString(),
+        expiresAt: "2099-01-01T00:00:00Z", intent: "sign_in",
+        provider: "google", providerIdentifier: "google",
+      }));
+      window.history.replaceState(null, "", "/auth/social/callback?code=secret#access_token=secret");
+      mocks.completeSocialAuth.mockResolvedValue({ nextStep, returnTo: "/chat" });
+      render(<AuthCallbackBridgePage />);
+      await screen.findByRole("heading", { name: "로그인을 완료하지 못했어요" });
+      expect(mocks.signOut).toHaveBeenCalledTimes(1);
+      expect(mocks.replacePath).not.toHaveBeenCalled();
+      expect(window.sessionStorage.getItem(SOCIAL_AUTH_STORAGE_KEY)).toBeNull();
+      expect(window.localStorage.getItem(LAST_USED_SOCIAL_PROVIDER_STORAGE_KEY)).toBeNull();
+      expect(window.location.search).toBe("");
+      expect(window.location.hash).toBe("");
+      await userEvent.setup().click(screen.getByRole("button", { name: "로그인으로 돌아가기" }));
+      expect(mocks.replacePath).toHaveBeenCalledWith("/app?account=choose", { intent: "auth" });
+    },
+  );
 
   it("retries completion after a fresh callback lock expires instead of waiting forever", async () => {
     vi.useFakeTimers();
@@ -184,8 +226,8 @@ describe("AuthCallbackBridgePage", () => {
         expiresAt: "2099-07-20T10:10:00Z",
         intent: "sign_in",
         navigationTarget: null,
-        provider: "naver",
-        providerIdentifier: "custom:naver",
+        provider: "kakao",
+        providerIdentifier: "kakao",
       }),
     );
     window.history.replaceState(

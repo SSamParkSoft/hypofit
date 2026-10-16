@@ -4,7 +4,7 @@ import {
   applicationsApi,
   type CreateApplicationInput,
   type UpdateApplicationStatusInput,
-} from "@/shared/api/applications";
+} from "@/features/applications/applicationsApi";
 
 export function useCreateApplication(accessToken?: string | null) {
   const queryClient = useQueryClient();

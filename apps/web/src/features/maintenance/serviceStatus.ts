@@ -10,6 +10,7 @@ export interface ServiceStatus {
   startsAt: string | null;
   status: ServiceOperationStatus;
   title: string | null;
+  noticeId?: string | null;
 }
 
 const maintenanceModes = new Set<MaintenanceMode>(["FEATURE", "FULL", "NONE", "READ_ONLY"]);
@@ -55,6 +56,7 @@ export function parseServiceStatus(payload: unknown): ServiceStatus {
     startsAt: readNullableString(value.starts_at),
     status,
     title: readNullableString(value.title),
+    noticeId: readNullableString(value.notice_id),
   };
 }
 

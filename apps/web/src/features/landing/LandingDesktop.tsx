@@ -12,7 +12,7 @@ import {
 import {
   LandingHeroPhoneStage,
   LandingPhoneScreen,
-  LandingScreenPlaceholder,
+  LandingWebScreen,
 } from "./LandingAppScreens";
 import {
   landingAudienceSections,
@@ -275,14 +275,10 @@ function OrganizerStoryBand({
         <div
           className={`relative mx-auto flex min-h-[570px] w-full items-center justify-center ${reverse ? "lg:order-1" : ""}`}
         >
-          {isReview ? (
-            <LandingScreenPlaceholder label="신청 · 참여 관리 화면" />
-          ) : (
-            <LandingPhoneScreen
-              className="relative z-10 w-[min(294px,88vw)]"
-              kind="detail"
-            />
-          )}
+          <LandingPhoneScreen
+            className="relative z-10 w-[min(294px,88vw)]"
+            kind={isReview ? "applicants" : "create"}
+          />
         </div>
       </div>
     </section>
@@ -299,8 +295,8 @@ function DashboardSection() {
           body="공고를 만들고 찾고, 신청과 참여를 확인하며 필요한 다음 단계를 이어가는 핵심 기능을 모바일 앱과 웹에서 모두 사용할 수 있어요."
           className="xl:max-w-none"
         />
-        <div className="mt-14 flex min-h-[310px] items-center justify-center border-y border-landing-border">
-          <LandingScreenPlaceholder label="Hypofit Web 화면" />
+        <div className="mt-14">
+          <LandingWebScreen />
         </div>
       </div>
     </section>
@@ -321,7 +317,7 @@ function ParticipantSection() {
           />
           <LandingPhoneScreen
             className="relative z-20 w-[min(294px,88vw)] -rotate-[3deg]"
-            kind="interviews"
+            kind="discovery"
           />
           <LandingPhoneScreen
             className="absolute bottom-0 right-[7%] z-10 w-[190px] rotate-[6deg]"
@@ -473,7 +469,7 @@ function ContinuitySection() {
           />
           <LandingPhoneScreen
             className="relative z-10 w-[286px] rotate-[4deg]"
-            kind="home"
+            kind="activity"
           />
         </div>
       </div>

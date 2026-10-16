@@ -24,12 +24,13 @@ import { replacePath } from "../shared/navigation/appNavigation";
 import { Button } from "../shared/ui/button";
 
 export function AuthCallbackBridgePage() {
-  const { accessToken, isLoading } = useAuth();
+  const { accessToken, isLoading, signOut } = useAuth();
   const storedSocialAttempt = useMemo(readStoredSocialAuthAttempt, []);
   const [callbackError, setCallbackError] = useState<{
     actionLabel: string;
     message: string;
     title: string;
+    returnTo?: string;
   } | null>(null);
   const [completionLockEpoch, setCompletionLockEpoch] = useState(0);
   const completionStartedRef = useRef(false);
@@ -56,6 +57,17 @@ export function AuthCallbackBridgePage() {
 
   useEffect(() => {
     if (!storedSocialAttempt) {
+      return;
+    }
+
+    if (storedSocialAttempt.provider === "naver" || storedSocialAttempt.providerIdentifier === "custom:naver") {
+      scrubSocialCallbackUrl();
+      clearStoredSocialAuthAttempt();
+      setCallbackError({
+        actionLabel: "로그인으로 돌아가기",
+        message: "네이버 로그인은 더 이상 지원하지 않아요. 다른 로그인 방법을 이용해 주세요.",
+        title: "지원하지 않는 로그인 방법이에요",
+      });
       return;
     }
 
@@ -106,11 +118,25 @@ export function AuthCallbackBridgePage() {
       attemptId: storedSocialAttempt.attemptId,
       attemptSecret: storedSocialAttempt.attemptSecret,
     })
-      .then((result) => {
+      .then(async (result) => {
         const navigationTarget = resolveSocialAuthNavigationTarget(
           result.nextStep,
           result.returnTo ?? storedSocialAttempt.approvedReturnTo,
         );
+        if (navigationTarget === null) {
+          scrubSocialCallbackUrl();
+          clearStoredSocialAuthAttempt();
+          setCallbackError({
+            actionLabel: "로그인으로 돌아가기",
+            message: result.nextStep === "email_required" || result.nextStep === "email_verification"
+              ? "소셜 계정에서 인증된 이메일을 확인하지 못했어요. 다른 로그인 방법을 이용해 주세요."
+              : "소셜 로그인을 완료하지 못했어요. 다시 로그인해 주세요.",
+            title: "로그인을 완료하지 못했어요",
+            returnTo: "/app?account=choose",
+          });
+          await signOut();
+          return;
+        }
         markStoredSocialAuthCompleted(navigationTarget);
         if (storedSocialAttempt.intent !== "link") {
           writeLastUsedSocialProvider(storedSocialAttempt.provider);
@@ -121,9 +147,9 @@ export function AuthCallbackBridgePage() {
       .catch((error) => {
         scrubSocialCallbackUrl();
         clearStoredSocialAuthAttempt();
-        setCallbackError(normalizeSocialCallbackError(error));
+        setCallbackError((current) => current ?? normalizeSocialCallbackError(error));
       });
-  }, [accessToken, authCallbackParams, completionLockEpoch, isLoading, storedSocialAttempt]);
+  }, [accessToken, authCallbackParams, completionLockEpoch, isLoading, signOut, storedSocialAttempt]);
 
   if (storedSocialAttempt) {
     return (
@@ -145,7 +171,7 @@ export function AuthCallbackBridgePage() {
           {callbackError ? (
             <Button
               className="mt-6 min-h-12 w-full"
-              onClick={() => replacePath(storedSocialAttempt.approvedReturnTo, { intent: "auth" })}
+              onClick={() => replacePath(callbackError.returnTo ?? storedSocialAttempt.approvedReturnTo, { intent: "auth" })}
             >
               <ArrowRight aria-hidden="true" size={16} />
               {callbackError.actionLabel}
