@@ -12,6 +12,7 @@ public class JacksonConfiguration {
 
     @Bean
     ObjectMapper objectMapper() {
+        // Why: MVC explicitly selects this mapper until the Jackson 2 DTO contracts migrate together.
         return JsonMapper.builder()
                 .findAndAddModules()
                 .serializationInclusion(JsonInclude.Include.ALWAYS)

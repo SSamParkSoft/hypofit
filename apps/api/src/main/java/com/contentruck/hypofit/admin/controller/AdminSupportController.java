@@ -48,14 +48,22 @@ public class AdminSupportController {
             @RequestParam(value = "kind", required = false) String kind,
             @Parameter(schema = @Schema(type = "integer", minimum = "1", maximum = "200", defaultValue = "100"))
             @RequestParam(value = "limit", required = false) String limit,
-            @RequestParam(value = "status", required = false) String status
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "offset", defaultValue = "0") int offset,
+            @RequestParam(value = "q", required = false) String search,
+            @RequestParam(value = "exclude_reports", defaultValue = "false") boolean excludeReports,
+            @RequestParam(value = "include_events", defaultValue = "true") boolean includeEvents
     ) {
         adminAccessService.requireAdmin(jwt);
+        if (offset < 0 || (search != null && search.length() > 200)) {
+            throw new com.contentruck.hypofit.common.error.HypofitException(
+                    "validation_failed", "입력값을 확인해 주세요.", 422, "Invalid support list parameters");
+        }
         return adminSupportService.listTickets(
                         AdminSupportRequestParser.parseKindFilter(kind),
                         AdminSupportRequestParser.parseStatusFilter(status),
                         AdminSupportRequestParser.parseDeletedByUserFilter(deletedByUser),
-                        AdminSupportRequestParser.parseLimit(limit)
+                        AdminSupportRequestParser.parseLimit(limit), offset, search, excludeReports, includeEvents
                 ).stream()
                 .map(AdminSupportWebModels.AdminSupportTicketResponse::from)
                 .toList();

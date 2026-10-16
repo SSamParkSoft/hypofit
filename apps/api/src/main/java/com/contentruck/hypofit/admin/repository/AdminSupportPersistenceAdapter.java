@@ -40,7 +40,8 @@ public class AdminSupportPersistenceAdapter implements AdminSupportRepository {
     }
 
     @Override
-    public List<SupportTicketRecord> listTickets(String kind, String status, Boolean deletedByUser, int limit) {
+    public List<SupportTicketRecord> listTickets(String kind, String status, Boolean deletedByUser, int limit,
+                                                int offset, String search, boolean excludeReports) {
         StringBuilder sql = new StringBuilder("""
                 select
                   id,
@@ -61,6 +62,14 @@ public class AdminSupportPersistenceAdapter implements AdminSupportRepository {
                 where id is not null
                 """);
         MapSqlParameterSource parameters = new MapSqlParameterSource();
+        if (excludeReports) {
+            sql.append(" and kind <> 'report'");
+        }
+        if (search != null && !search.isBlank()) {
+            sql.append(" and (coalesce(subject, '') ilike :search or body ilike :search or contact_email ilike :search"
+                    + " or id::text ilike :search or user_id::text ilike :search or target_id::text ilike :search or category ilike :search)");
+            parameters.addValue("search", "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
+        }
         if (kind != null) {
             sql.append(" and kind = :kind");
             parameters.addValue("kind", kind);
@@ -74,8 +83,9 @@ public class AdminSupportPersistenceAdapter implements AdminSupportRepository {
         } else if (Boolean.FALSE.equals(deletedByUser)) {
             sql.append(" and deleted_by_user_at is null");
         }
-        sql.append(" order by created_at desc limit :limit");
+        sql.append(" order by created_at desc, id desc limit :limit offset :offset");
         parameters.addValue("limit", limit);
+        parameters.addValue("offset", offset);
         return jdbcTemplate.query(sql.toString(), parameters, SUPPORT_TICKET_ROW_MAPPER);
     }
 
@@ -138,16 +148,21 @@ public class AdminSupportPersistenceAdapter implements AdminSupportRepository {
         OffsetDateTime updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime eventCreatedAt = updatedAt;
 
-        jdbcTemplate.update("""
+        int changed = jdbcTemplate.update("""
                         update support_tickets
                         set status = :status,
                             updated_at = :updatedAt
-                        where id = :ticketId
+                        where id = :ticketId and status = :fromStatus
                         """, Map.of(
                         "status", status,
                         "updatedAt", updatedAt,
-                        "ticketId", ticketId
+                        "ticketId", ticketId,
+                        "fromStatus", fromStatus
                 ));
+        if (changed == 0) {
+            throw new com.contentruck.hypofit.common.error.HypofitException(
+                    "support_state_conflict", "다른 운영자가 상태를 변경했어요. 새로고침해 주세요.", 409, "Support status conflict");
+        }
 
         jdbcTemplate.update("""
                         insert into support_ticket_events (
@@ -173,16 +188,15 @@ public class AdminSupportPersistenceAdapter implements AdminSupportRepository {
                           cast(:metadata as jsonb),
                           :createdAt
                         )
-                        """, Map.of(
-                        "id", UUID.randomUUID(),
-                        "ticketId", ticketId,
-                        "actorUserId", actorUserId,
-                        "fromStatus", fromStatus,
-                        "toStatus", status,
-                        "message", reason,
-                        "metadata", writeJson(Map.of()),
-                        "createdAt", eventCreatedAt
-                ));
+                        """, new MapSqlParameterSource()
+                        .addValue("id", UUID.randomUUID())
+                        .addValue("ticketId", ticketId)
+                        .addValue("actorUserId", actorUserId)
+                        .addValue("fromStatus", fromStatus)
+                        .addValue("toStatus", status)
+                        .addValue("message", reason)
+                        .addValue("metadata", writeJson(Map.of()))
+                        .addValue("createdAt", eventCreatedAt));
 
         return findTicket(ticketId).orElseThrow();
     }
@@ -271,16 +285,15 @@ public class AdminSupportPersistenceAdapter implements AdminSupportRepository {
                           :reason,
                           cast(:metadata as jsonb)
                         )
-                        """, Map.of(
-                        "id", UUID.randomUUID(),
-                        "actorUserId", actorUserId,
-                        "actorType", actorType,
-                        "eventType", eventType,
-                        "targetType", targetType,
-                        "targetId", targetId,
-                        "reason", reason,
-                        "metadata", writeJson(metadata == null ? Map.of() : metadata)
-                ));
+                        """, new MapSqlParameterSource()
+                        .addValue("id", UUID.randomUUID())
+                        .addValue("actorUserId", actorUserId)
+                        .addValue("actorType", actorType)
+                        .addValue("eventType", eventType)
+                        .addValue("targetType", targetType)
+                        .addValue("targetId", targetId)
+                        .addValue("reason", reason)
+                        .addValue("metadata", writeJson(metadata == null ? Map.of() : metadata)));
     }
 
     private static SupportTicketRecord mapSupportTicket(ResultSet resultSet, int rowNum) throws SQLException {

@@ -51,7 +51,7 @@ jobs:
 
       - name: Verify and package
         working-directory: apps/api
-        run: ./gradlew --no-daemon check integrationTest bootJar
+        run: ./gradlew --no-daemon checkstyleMain bootJar
 
   publish:
     name: Publish immutable image

@@ -4,8 +4,6 @@ import com.contentruck.hypofit.common.config.HypofitProperties;
 import com.contentruck.hypofit.common.error.HypofitException;
 import com.contentruck.hypofit.socialauth.config.AppleSignInNotificationProperties;
 import com.contentruck.hypofit.socialauth.entity.SocialAuthIdentityEntity;
-import com.contentruck.hypofit.socialauth.dto.AppleSignInNotificationAccepted;
-import com.contentruck.hypofit.socialauth.dto.AppleSignInNotificationReceive;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSVerifier;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
@@ -70,8 +68,8 @@ public class AppleSignInNotificationService {
     }
 
     @Transactional
-    public AppleSignInNotificationAccepted processNotification(AppleSignInNotificationReceive request) {
-        String payload = request == null || request.payload() == null ? "" : request.payload().trim();
+    public void processNotification(String signedPayload) {
+        String payload = signedPayload == null ? "" : signedPayload.trim();
         VerifiedAppleNotification notification = decodeAndValidateSignedPayload(payload);
         String subjectHash = hashIdentityValue(notification.subject());
         String eventIdHash = hashIdentityValue(notification.jti());
@@ -85,15 +83,13 @@ public class AppleSignInNotificationService {
                 identity == null ? null : identity.getId()
         );
         if (!created) {
-            return accepted();
+            return;
         }
 
         if (identity != null) {
             applyNotificationToIdentity(identity, notification);
             recordAuditEvent(identity.getId(), notification);
         }
-
-        return accepted();
     }
 
     VerifiedAppleNotification decodeAndValidateSignedPayload(String payload) {
@@ -325,10 +321,6 @@ public class AppleSignInNotificationService {
                 HttpStatus.SERVICE_UNAVAILABLE.value(),
                 debugMessage
         );
-    }
-
-    private AppleSignInNotificationAccepted accepted() {
-        return AppleSignInNotificationAccepted.accepted();
     }
 
     record VerifiedAppleNotification(

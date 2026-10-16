@@ -20,6 +20,8 @@ public interface AccountDeletionRepository {
 
     List<AccountDeletionRequestRecord> listRequestsForAdmin(String status, int limit);
 
+    List<AccountDeletionRequestRecord> listRequestsForAdmin(String status, int limit, int page, String search);
+
     Optional<UserAccountRecord> findUserAccount(UUID userId);
 
     Optional<UserAccountRecord> findUserByEmail(String email);

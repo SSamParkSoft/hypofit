@@ -73,11 +73,13 @@ public final class AdminSupportRequestParser {
 
         String status = requiredEnum(object, "status", STATUSES, errors);
         String reason = optionalReason(object, "reason", errors);
+        String expectedStatus = object.hasNonNull("expected_status")
+                ? requiredEnum(object, "expected_status", STATUSES, errors) : null;
 
         if (!errors.isEmpty()) {
             throw new HypofitValidationException("Admin support validation failed", errors);
         }
-        return new AdminSupportService.AdminSupportStatusUpdateCommand(status, reason);
+        return new AdminSupportService.AdminSupportStatusUpdateCommand(status, reason, expectedStatus);
     }
 
     public static AdminSupportService.AdminSupportReplyCommand parseReply(AdminSupportTicketReplyCreateRequest payload) {

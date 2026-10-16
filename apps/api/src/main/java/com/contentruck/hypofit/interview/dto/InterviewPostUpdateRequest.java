@@ -17,6 +17,9 @@ public record InterviewPostUpdateRequest(Object rawBody) {
 
     @Schema(name = "InterviewPostUpdate")
     public record OpenApiSchema(
+            @JsonProperty("image_ids")
+            @ArraySchema(maxItems = 3, schema = @Schema(format = "uuid"))
+            List<java.util.UUID> imageIds,
             @JsonProperty("recruitment_type")
             @Schema(nullable = true, allowableValues = {"interview", "survey", "beta_test"})
             String recruitmentType,
@@ -43,7 +46,7 @@ public record InterviewPostUpdateRequest(Object rawBody) {
             @Schema(nullable = true, allowableValues = {"offline", "online", "both"})
             String interviewMode,
             @JsonProperty("external_provider")
-            @Schema(nullable = true, allowableValues = {"google_forms"})
+            @Schema(nullable = true, allowableValues = {"google_forms", "naver_forms", "microsoft_forms", "typeform", "tally", "external"})
             String externalProvider,
             @JsonProperty("external_url")
             @Schema(nullable = true, maxLength = 2000)

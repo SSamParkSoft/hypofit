@@ -12,10 +12,11 @@ public final class NoticeResponses {
             UUID id, String type, String title, String body, String status,
             @JsonProperty("published_at") OffsetDateTime publishedAt,
             @JsonProperty("created_at") OffsetDateTime createdAt,
-            @JsonProperty("updated_at") OffsetDateTime updatedAt
+            @JsonProperty("updated_at") OffsetDateTime updatedAt,
+            @JsonProperty("managed_by_maintenance") boolean managedByMaintenance
     ) {
         public static NoticeResponse from(NoticeRepository.NoticeRecord value) {
-            return new NoticeResponse(value.id(), value.type(), value.title(), value.body(), value.status(), value.publishedAt(), value.createdAt(), value.updatedAt());
+            return new NoticeResponse(value.id(), value.type(), value.title(), value.body(), value.status(), value.publishedAt(), value.createdAt(), value.updatedAt(), value.managedByMaintenance());
         }
     }
 }

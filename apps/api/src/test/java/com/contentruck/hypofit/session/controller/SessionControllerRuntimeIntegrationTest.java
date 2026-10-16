@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.contentruck.hypofit.HypofitApplication;
 import com.contentruck.hypofit.common.observability.RequestIdFilter;
 import com.contentruck.hypofit.session.service.SessionReadModels;
-import com.contentruck.hypofit.session.service.SessionWorkflowService;
+import com.contentruck.hypofit.session.service.SessionSchedulingService;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +43,7 @@ class SessionControllerRuntimeIntegrationTest {
     private RequestIdFilter requestIdFilter;
 
     @MockitoBean
-    private SessionWorkflowService sessionWorkflowService;
+    private SessionSchedulingService schedulingService;
 
     private MockMvc mockMvc;
 
@@ -60,7 +60,7 @@ class SessionControllerRuntimeIntegrationTest {
         UUID founderId = UUID.randomUUID();
         UUID applicationId = UUID.randomUUID();
         OffsetDateTime scheduledAt = OffsetDateTime.parse("2026-08-08T10:00:00Z");
-        when(sessionWorkflowService.createSession(
+        when(schedulingService.createSession(
                 eq(founderId),
                 eq(applicationId),
                 eq(scheduledAt),

@@ -17,9 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class PushService {
 
     private final PushRepository pushRepository;
+    private final PushDispatchRepository dispatchRepository;
 
-    public PushService(PushRepository pushRepository) {
+    public PushService(PushRepository pushRepository, PushDispatchRepository dispatchRepository) {
         this.pushRepository = pushRepository;
+        this.dispatchRepository = dispatchRepository;
     }
 
     @Transactional
@@ -69,20 +71,7 @@ public class PushService {
                 now
         ));
 
-        PushRepository.NotificationPreferenceRecord preference = pushRepository.getOrCreatePreferences(userId, now);
-        if (!preference.pushEnabled()) {
-            pushRepository.savePreferences(new PushRepository.NotificationPreferenceMutation(
-                    preference.userId(),
-                    true,
-                    preference.chatPushEnabled(),
-                    preference.applicationPushEnabled(),
-                    preference.sessionPushEnabled(),
-                    preference.supportPushEnabled(),
-                    preference.marketingPushEnabled(),
-                    preference.createdAt(),
-                    now
-            ));
-        }
+        pushRepository.getOrCreatePreferences(userId, now);
         return device;
     }
 
@@ -136,7 +125,7 @@ public class PushService {
             throw new PushMarketingNotSupportedException();
         }
 
-        return pushRepository.savePreferences(new PushRepository.NotificationPreferenceMutation(
+        NotificationPreferenceReadModel updated = pushRepository.savePreferences(new PushRepository.NotificationPreferenceMutation(
                 preference.userId(),
                 command.pushEnabledPresent() ? bool(command.pushEnabled()) : preference.pushEnabled(),
                 command.chatPushEnabledPresent() ? bool(command.chatPushEnabled()) : preference.chatPushEnabled(),
@@ -151,6 +140,8 @@ public class PushService {
                 preference.createdAt(),
                 now
         ));
+        dispatchRepository.skipPendingDeliveriesForPreferences(userId, now);
+        return updated;
     }
 
     private void requireActiveUser(UUID userId, boolean pushSpecificMissing) {

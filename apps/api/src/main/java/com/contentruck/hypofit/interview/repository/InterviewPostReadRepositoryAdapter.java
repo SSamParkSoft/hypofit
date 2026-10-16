@@ -78,9 +78,32 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
             parameters.addValue("status", criteria.status());
         }
 
+        if (!criteria.supportsResearchRecruitment()) {
+            whereClauses.add("p.recruitment_type <> 'research_experiment'");
+        }
         if (!criteria.supportsRecruitmentTypes()) {
             whereClauses.add("p.recruitment_type = :legacy_recruitment_type");
             parameters.addValue("legacy_recruitment_type", INTERVIEW_RECRUITMENT_TYPE);
+        }
+
+        if (criteria.recruitmentType() != null) {
+            whereClauses.add("p.recruitment_type = :recruitment_type");
+            parameters.addValue("recruitment_type", criteria.recruitmentType());
+        }
+        if (criteria.compensationType() != null) {
+            // Empty legacy arrays use reward_amount; explicit compensations take precedence.
+            whereClauses.add("""
+                    (
+                      p.compensations @> jsonb_build_array(
+                        jsonb_build_object('type', cast(:compensation_type as text))
+                      )
+                      or (
+                        coalesce(p.compensations, '[]'::jsonb) = '[]'::jsonb
+                        and case when p.reward_amount > 0 then 'cash' else 'none' end = :compensation_type
+                      )
+                    )
+                    """);
+            parameters.addValue("compensation_type", criteria.compensationType());
         }
 
         if (criteria.admin()) {

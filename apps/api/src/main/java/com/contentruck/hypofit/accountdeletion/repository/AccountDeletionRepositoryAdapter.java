@@ -77,10 +77,13 @@ public class AccountDeletionRepositoryAdapter implements AccountDeletionReposito
 
     @Override
     public List<AccountDeletionRequestRecord> listRequestsForAdmin(String status, int limit) {
-        PageRequest pageRequest = PageRequest.of(0, limit);
-        List<AccountDeletionRequestEntity> rows = status == null
-                ? requestJpaRepository.findAllByOrderByUpdatedAtDesc(pageRequest)
-                : requestJpaRepository.findByStatusOrderByUpdatedAtDesc(status, pageRequest);
+        return listRequestsForAdmin(status, limit, 0, "");
+    }
+
+    @Override
+    public List<AccountDeletionRequestRecord> listRequestsForAdmin(String status, int limit, int page, String search) {
+        PageRequest pageRequest = PageRequest.of(page, limit);
+        List<AccountDeletionRequestEntity> rows = requestJpaRepository.searchForAdmin(status, search, pageRequest);
         return rows.stream().map(this::toRecord).toList();
     }
 
@@ -146,6 +149,9 @@ public class AccountDeletionRepositoryAdapter implements AccountDeletionReposito
         entity.setRole(mutation.role());
         entity.setProfileImagePath(mutation.profileImagePath());
         entity.setProfileImageUrl(mutation.profileImageUrl());
+        if (mutation.deletionCompletedAt() != null) {
+            entity.clearOrganization();
+        }
         entity.setDeactivatedAt(mutation.deactivatedAt());
         entity.setDeletedAt(mutation.deletedAt());
         entity.setAnonymizedAt(mutation.anonymizedAt());

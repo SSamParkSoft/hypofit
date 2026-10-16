@@ -11,6 +11,7 @@ public record InterviewPostCreationCapabilitiesResponse(
         @JsonProperty("enabled_recruitment_types")
         List<String> enabledRecruitmentTypes,
         @JsonProperty("direct_participation_recruitment_types")
-        List<String> directParticipationRecruitmentTypes
+        List<String> directParticipationRecruitmentTypes,
+        @JsonProperty("posting_images_enabled") boolean postingImagesEnabled
 ) {
 }

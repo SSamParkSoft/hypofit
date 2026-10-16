@@ -8,7 +8,7 @@ import java.util.UUID;
 
 public interface AdminSupportRepository {
 
-    List<SupportTicketRecord> listTickets(String kind, String status, Boolean deletedByUser, int limit);
+    List<SupportTicketRecord> listTickets(String kind, String status, Boolean deletedByUser, int limit, int offset, String search, boolean excludeReports);
 
     Optional<SupportTicketRecord> findTicket(UUID ticketId);
 

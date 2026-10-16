@@ -1,10 +1,7 @@
 package com.contentruck.hypofit.socialauth.controller;
 
-import com.contentruck.hypofit.socialauth.dto.AppleSignInNotificationAccepted;
-import com.contentruck.hypofit.socialauth.dto.AppleSignInNotificationReceive;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -81,9 +78,6 @@ class AppleSignInNotificationRouteIntegrationTest {
 
     @Test
     void routeIsPublicAndReturnsAcceptedEnvelope() throws Exception {
-        when(notificationService.processNotification(any(AppleSignInNotificationReceive.class)))
-                .thenReturn(AppleSignInNotificationAccepted.accepted());
-
         mockMvc.perform(post("/api/v1/auth/social/apple/notifications")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -96,13 +90,12 @@ class AppleSignInNotificationRouteIntegrationTest {
 
     @Test
     void routeUsesStandardErrorEnvelopeForInvalidNotifications() throws Exception {
-        when(notificationService.processNotification(any(AppleSignInNotificationReceive.class)))
-                .thenThrow(new HypofitException(
-                        "social_provider_notification_invalid",
-                        "Apple 로그인 알림을 확인하지 못했어요.",
-                        400,
-                        "Invalid Apple notification signature or claims"
-                ));
+        doThrow(new HypofitException(
+                "social_provider_notification_invalid",
+                "Apple 로그인 알림을 확인하지 못했어요.",
+                400,
+                "Invalid Apple notification signature or claims"
+        )).when(notificationService).processNotification(anyString());
 
         mockMvc.perform(post("/api/v1/auth/social/apple/notifications")
                         .contentType(MediaType.APPLICATION_JSON)

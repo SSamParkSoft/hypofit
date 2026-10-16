@@ -67,6 +67,8 @@ public class ChatService {
         ChatRoomReadModel room = chatRepository.findRoom(roomId, currentUserId)
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         ensureRoomAccess(room.founderId(), room.respondentId(), currentUserId);
+        ensureSelectedInterview(room.interviewPost() == null ? null : room.interviewPost().recruitmentType(),
+                room.application() == null ? null : room.application().status());
         return maskHiddenLastMessage(room);
     }
 
@@ -82,10 +84,25 @@ public class ChatService {
         if (context.application() == null || context.interviewPostId() == null) {
             return closedWorkflow("진행 상태를 확인할 수 없어요");
         }
+        ensureSelectedInterview(context.recruitmentType(), context.application().status());
 
         String actorRole = Objects.equals(room.getFounderId(), currentUserId) ? "founder" : "respondent";
         String applicationStatus = context.application().status();
         ChatWorkflowModels.InterviewSessionReadModel latestSession = context.latestSession();
+
+        if (Set.of("beta_test", "research_experiment").contains(context.recruitmentType())) {
+            if (!"selected".equals(applicationStatus)) {
+                return closedWorkflow("종료된 참여예요");
+            }
+            return new ChatWorkflowReadModel(
+                    "selected", "선정 후 안내",
+                    "research_experiment".equals(context.recruitmentType())
+                            ? "채팅에서 연구 일정과 준비 사항을 조율해 주세요."
+                            : "채팅에서 테스트 준비와 진행 방법을 확인해 주세요.",
+                    null, null, action("open_support_report", "문제 신고", "danger"),
+                    null, null, null, null, false
+            );
+        }
 
         if ("applied".equals(applicationStatus) && "founder".equals(actorRole)) {
             return new ChatWorkflowReadModel(
@@ -153,8 +170,9 @@ public class ChatService {
 
         ChatWorkflowModels.AttendanceRecordReadModel attendance = workflowQueryRepository.findAttendanceRecord(latestSession.id())
                 .orElse(null);
-        ChatWorkflowModels.RewardConfirmationReadModel reward = workflowQueryRepository.findRewardConfirmation(latestSession.id())
-                .orElse(null);
+        boolean hasReward = context.hasReward();
+        ChatWorkflowModels.RewardConfirmationReadModel reward = hasReward
+                ? workflowQueryRepository.findRewardConfirmation(latestSession.id()).orElse(null) : null;
         List<ChatWorkflowModels.InterviewReviewReadModel> reviews = workflowQueryRepository.findReviews(latestSession.id());
         ChatWorkflowModels.InterviewReviewReadModel myReview = reviews.stream()
                 .filter(review -> Objects.equals(review.reviewerId(), currentUserId))
@@ -191,6 +209,12 @@ public class ChatService {
         }
 
         if ("scheduled".equals(latestSession.status())) {
+            if (latestSession.scheduledAt().isAfter(OffsetDateTime.now(ZoneOffset.UTC))) {
+                return new ChatWorkflowReadModel(
+                        "scheduled", "일정이 확정됐어요", null,
+                        null, null, null, latestSession, attendance, null, null, false
+                );
+            }
             boolean myConfirmed = "founder".equals(actorRole)
                     ? attendance != null && attendance.founderConfirmed()
                     : attendance != null && attendance.respondentConfirmed();
@@ -219,7 +243,7 @@ public class ChatService {
                     "만남을 확인하면 상대에게도 확인 요청이 보내져요.",
                     action("confirm_attendance", "만남 확인", "primary"),
                     null,
-                    action("mark_no_show", "문제 신고", "danger"),
+                    action("mark_no_show", "노쇼 기록", "danger"),
                     latestSession,
                     attendance,
                     null,
@@ -229,7 +253,7 @@ public class ChatService {
         }
 
         if ("completed".equals(latestSession.status())) {
-            if (reward == null || "pending".equals(reward.status())) {
+            if (hasReward && (reward == null || "pending".equals(reward.status()))) {
                 if ("founder".equals(actorRole)) {
                     return new ChatWorkflowReadModel(
                             "reward_payment_needed",
@@ -259,7 +283,7 @@ public class ChatService {
                         false
                 );
             }
-            if ("founder_marked_paid".equals(reward.status())) {
+            if (reward != null && "founder_marked_paid".equals(reward.status())) {
                 if ("respondent".equals(actorRole)) {
                     return new ChatWorkflowReadModel(
                             "reward_confirmation_needed",
@@ -289,7 +313,7 @@ public class ChatService {
                         false
                 );
             }
-            if ("disputed".equals(reward.status())) {
+            if (reward != null && "disputed".equals(reward.status())) {
                 return problemWorkflowWithDangerAction(
                         "사례비 확인 문제가 접수됐어요",
                         "채팅에서 상황을 확인하고 필요하면 신고를 이어가 주세요.",
@@ -316,7 +340,7 @@ public class ChatService {
                 );
             }
             return new ChatWorkflowReadModel(
-                    "reward_confirmed",
+                    hasReward ? "reward_confirmed" : "completed",
                     "인터뷰가 마무리됐어요",
                     null,
                     null,
@@ -345,6 +369,7 @@ public class ChatService {
         ChatRoomEntity room = chatRepository.findRoomEntity(roomId)
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         ensureRoomAccess(room.getFounderId(), room.getRespondentId(), currentUserId);
+        ensureRoomReadable(room);
         return chatMessageRepository.findMessages(roomId, limit, before, beforeId)
                 .stream()
                 .filter(message -> isVisibleToUser(message, room, currentUserId))
@@ -416,7 +441,7 @@ public class ChatService {
             notificationWriteService.createNotification(
                     recipientId,
                     "chat_message",
-                    "새 메시지가 도착했어요",
+                    senderName == null ? "새 메시지가 도착했어요" : senderName + "님이 메시지를 보냈어요",
                     normalizedBody == null ? null : normalizedBody.substring(0, Math.min(normalizedBody.length(), 120)),
                     "chat_room",
                     room.getId(),
@@ -438,6 +463,7 @@ public class ChatService {
         ChatRoomEntity room = chatRepository.findRoomEntity(roomId)
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         ensureRoomAccess(room.getFounderId(), room.getRespondentId(), currentUserId);
+        ensureRoomReadable(room);
         ChatRoomParticipantSettingEntity setting = chatRepository.updateRoomSettings(roomId, currentUserId, isMuted, isHidden);
         return toSettingsModel(setting);
     }
@@ -452,6 +478,7 @@ public class ChatService {
         ChatRoomEntity room = chatRepository.findRoomEntity(roomId)
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         ensureRoomAccess(room.getFounderId(), room.getRespondentId(), currentUserId);
+        ensureRoomReadable(room);
 
         OffsetDateTime readAt = OffsetDateTime.now(ZoneOffset.UTC);
         if (lastReadMessageId != null) {
@@ -485,6 +512,17 @@ public class ChatService {
         }
     }
 
+    private void ensureSelectedInterview(String recruitmentType, String applicationStatus) {
+        if ((recruitmentType == null || "interview".equals(recruitmentType)) && "applied".equals(applicationStatus)) {
+            throw forbidden("Chat is available after selection");
+        }
+    }
+
+    private void ensureRoomReadable(ChatRoomEntity room) {
+        workflowQueryRepository.findApplicationMessageability(room.getApplicationId())
+                .ifPresent(application -> ensureSelectedInterview(application.recruitmentType(), application.status()));
+    }
+
     private void ensureRoomMessageable(ChatRoomEntity room) {
         if (!List.of("open", "selected").contains(room.getStatus())) {
             throw conflict(ROOM_CLOSED_DETAIL);
@@ -492,6 +530,7 @@ public class ChatService {
 
         ChatWorkflowQueryRepository.ApplicationMessageabilityRecord application = workflowQueryRepository.findApplicationMessageability(room.getApplicationId())
                 .orElseThrow(() -> conflict(APPLICATION_NOT_MESSAGEABLE_DETAIL));
+        ensureSelectedInterview(application.recruitmentType(), application.status());
         if (!List.of("applied", "selected", "completed").contains(application.status())) {
             throw conflict(APPLICATION_NOT_MESSAGEABLE_DETAIL);
         }

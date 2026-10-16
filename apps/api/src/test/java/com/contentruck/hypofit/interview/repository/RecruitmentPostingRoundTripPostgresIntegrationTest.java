@@ -5,11 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.contentruck.hypofit.applicant.service.ApplicationWorkflowService;
 import com.contentruck.hypofit.chat.service.ChatService;
+import com.contentruck.hypofit.common.config.HypofitProperties;
 import com.contentruck.hypofit.common.error.HypofitException;
 import com.contentruck.hypofit.interview.dto.InterviewPostRequestParser;
 import com.contentruck.hypofit.interview.dto.InterviewPostResponse;
 import com.contentruck.hypofit.interview.service.InterviewPostClientUpgradeRequiredException;
 import com.contentruck.hypofit.interview.service.InterviewPostQueryService;
+import com.contentruck.hypofit.interview.service.InterviewPostRecruitmentTypeNotSupportedException;
 import com.contentruck.hypofit.interview.service.InterviewPostWriteRepository;
 import com.contentruck.hypofit.interview.service.InterviewPostWriteService;
 import com.contentruck.hypofit.testsupport.PostgresIntegrationTestSupport;
@@ -20,7 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.server.ResponseStatusException;
@@ -48,6 +50,9 @@ class RecruitmentPostingRoundTripPostgresIntegrationTest extends PostgresIntegra
 
     @Autowired
     private SurveyParticipationService surveyService;
+
+    @Autowired
+    private HypofitProperties properties;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -110,8 +115,8 @@ class RecruitmentPostingRoundTripPostgresIntegrationTest extends PostgresIntegra
                   "recruitment_type": "beta_test",
                   "entry_mode": "application_required",
                   "title": "모바일 일정 앱 베타테스트",
-                  "service_summary": "일주일간 일정을 기록하고 사용 경험을 알려 주세요.",
-                  "target_description": "스마트폰으로 매일 일정을 관리하는 참여자",
+                  "service_summary": "일주일간 일정을 기록해 주세요.\\n사용 경험을 알려 주세요.",
+                  "target_description": "스마트폰으로 매일 일정을 관리하는 참여자\\n최근 사용 경험이 있는 분",
                   "participant_requirements": ["스마트폰 일정 관리 경험"],
                   "reward_amount": 0,
                   "compensations": [{"type": "coupon_or_access", "label": "프리미엄 이용권"}],
@@ -140,6 +145,8 @@ class RecruitmentPostingRoundTripPostgresIntegrationTest extends PostgresIntegra
 
         assertThat(replayed.id()).isEqualTo(created.id());
         assertThat(detail.recruitmentType()).isEqualTo("beta_test");
+        assertThat(detail.serviceSummary()).isEqualTo(command.serviceSummary());
+        assertThat(detail.targetDescription()).isEqualTo(command.targetDescription());
         assertThat(detail.entryMode()).isEqualTo("application_required");
         assertThat(detail.durationValue()).isEqualTo(7);
         assertThat(detail.durationUnit()).isEqualTo("days");
@@ -168,6 +175,10 @@ class RecruitmentPostingRoundTripPostgresIntegrationTest extends PostgresIntegra
         assertThat(rooms).hasSize(1);
         UUID roomId = rooms.getFirst().id();
         assertThat(chatService.getRoom(ownerId, roomId).applicationId()).isEqualTo(application.id());
+        var workflow = chatService.getRoomWorkflow(ownerId, roomId);
+        assertThat(workflow.primaryAction()).isNull();
+        assertThat(workflow.session()).isNull();
+        assertThat(workflow.description()).contains("테스트 준비");
         chatService.sendMessage(participantId, roomId, "테스트 준비가 됐어요.", UUID.randomUUID().toString());
         assertThatThrownBy(() -> chatService.getRoom(outsiderId, roomId))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
@@ -175,11 +186,39 @@ class RecruitmentPostingRoundTripPostgresIntegrationTest extends PostgresIntegra
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from interview_sessions where application_id = ?", Integer.class, application.id()
         )).isZero();
+
+        properties.setBetaTestRecruitmentCreationEnabled(false);
+        try {
+            assertThat(writeService.enabledRecruitmentTypesForCreation()).doesNotContain("beta_test");
+            assertThatThrownBy(() -> writeService.createPost(ownerId, command))
+                    .isInstanceOf(InterviewPostRecruitmentTypeNotSupportedException.class);
+            writeService.updatePost(ownerId, created.id(), InterviewPostRequestParser.parseUpdate(
+                    objectMapper.readTree("{\"title\":\"베타 생성 중지 후 기존 공고 수정\"}")));
+            var afterDisable = InterviewPostResponse.from(queryService.getVisiblePost(created.id(), participantId, false, true));
+            assertThat(afterDisable.title()).isEqualTo("베타 생성 중지 후 기존 공고 수정");
+            assertThat(afterDisable.betaTestEnvironment()).isEqualTo(detail.betaTestEnvironment());
+            assertThat(chatService.getRoom(participantId, roomId).applicationId()).isEqualTo(application.id());
+            chatService.sendMessage(ownerId, roomId, "기존 테스트는 계속 진행해요.", UUID.randomUUID().toString());
+            assertThatThrownBy(() -> chatService.getRoom(outsiderId, roomId))
+                    .isInstanceOfSatisfying(ResponseStatusException.class,
+                            error -> assertThat(error.getStatusCode().value()).isEqualTo(403));
+        } finally {
+            properties.setBetaTestRecruitmentCreationEnabled(true);
+        }
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"direct", "application_required"})
-    void surveyCreateFetchPreservesEntryAndMasksPrivateLink(String entryMode) throws Exception {
+    @CsvSource({
+            "direct,google_forms,https://docs.google.com/forms/d/e/fixture/viewform",
+            "application_required,google_forms,https://forms.gle/fixture",
+            "direct,external,https://tally.so/r/fixture",
+            "direct,naver_forms,https://naver.me/fixture",
+            "application_required,microsoft_forms,https://forms.office.com/r/fixture",
+            "direct,typeform,https://research.typeform.com/to/fixture",
+            "application_required,tally,https://tally.so/r/fixture",
+            "application_required,external,https://research.example.org/form"
+    })
+    void surveyCreateFetchPreservesEntryAndMasksPrivateLink(String entryMode, String provider, String url) throws Exception {
         UUID ownerId = insertOwner();
         var command = InterviewPostRequestParser.parseCreate(objectMapper.readTree("""
                 {
@@ -197,13 +236,13 @@ class RecruitmentPostingRoundTripPostgresIntegrationTest extends PostgresIntegra
                   "recruitment_limit_mode": "unlimited",
                   "interview_mode": "online",
                   "schedule_mode": "none",
-                  "external_provider": "google_forms",
-                  "external_url": "https://docs.google.com/forms/d/e/fixture/viewform",
+                  "external_provider": "%s",
+                  "external_url": "%s",
                   "external_data_notice": "응답은 외부 설문 서비스에서 처리해요.",
                   "participation_deadline_at": "2099-09-20T14:59:59Z",
                   "status": "open"
                 }
-                """.formatted(entryMode)));
+                """.formatted(entryMode, provider, url)));
 
         var created = writeService.createPost(ownerId, command);
         var publicDetail = InterviewPostResponse.from(queryService.getVisiblePost(created.id(), null, false, true));
@@ -214,7 +253,7 @@ class RecruitmentPostingRoundTripPostgresIntegrationTest extends PostgresIntegra
         assertThat(publicDetail.externalUrl()).isNull();
         assertThat(ownerDetail.externalUrl()).isNull();
         assertThat(stored.externalUrl()).isEqualTo(command.externalUrl());
-        assertThat(publicDetail.externalProvider()).isEqualTo("google_forms");
+        assertThat(publicDetail.externalProvider()).isEqualTo(provider);
         assertThat(publicDetail.durationValue()).isEqualTo(10);
         assertThat(publicDetail.recruitmentLimitMode()).isEqualTo("unlimited");
         assertThat(publicDetail.participationDeadlineAt()).isEqualTo(command.participationDeadlineAt());
@@ -223,8 +262,26 @@ class RecruitmentPostingRoundTripPostgresIntegrationTest extends PostgresIntegra
                 objectMapper.readTree("{\"title\":\"설문 제목만 수정\"}")));
         var afterEdit = writeRepository.findPost(created.id()).orElseThrow();
         assertThat(afterEdit.externalUrl()).isEqualTo(command.externalUrl());
+        assertThat(afterEdit.externalProvider()).isEqualTo(provider);
         assertThat(afterEdit.participationDeadlineAt()).isEqualTo(command.participationDeadlineAt());
         assertThat(InterviewPostResponse.from(queryService.getVisiblePost(created.id(), ownerId, false, true)).externalUrl()).isNull();
+
+        var invalidLink = objectMapper.createObjectNode().put("external_url", "javascript:alert(1)");
+        assertThatThrownBy(() -> writeService.updatePost(ownerId, created.id(), InterviewPostRequestParser.parseUpdate(invalidLink)))
+                .isInstanceOf(com.contentruck.hypofit.common.error.HypofitValidationException.class);
+        assertThat(writeRepository.findPost(created.id()).orElseThrow().externalUrl()).isEqualTo(url);
+        String updatedUrl = "https://forms.office.com/r/fixture";
+        writeService.updatePost(ownerId, created.id(), InterviewPostRequestParser.parseUpdate(objectMapper.createObjectNode()
+                .put("external_provider", "microsoft_forms").put("external_url", updatedUrl)));
+        assertThat(writeRepository.findPost(created.id()).orElseThrow().externalProvider()).isEqualTo("microsoft_forms");
+        assertThat(writeRepository.findPost(created.id()).orElseThrow().externalUrl()).isEqualTo(updatedUrl);
+
+        writeService.updatePost(ownerId, created.id(), InterviewPostRequestParser.parseUpdate(
+                objectMapper.createObjectNode().put("external_provider", "external")));
+        assertThat(writeRepository.findPost(created.id()).orElseThrow().externalUrl()).isEqualTo(updatedUrl);
+        var relabeled = InterviewPostResponse.from(queryService.getVisiblePost(created.id(), null, false, true));
+        assertThat(relabeled.externalProvider()).isEqualTo("external");
+        assertThat(relabeled.externalUrl()).isNull();
 
         UUID participantId = insertOwner();
         if ("application_required".equals(entryMode)) {
@@ -239,9 +296,23 @@ class RecruitmentPostingRoundTripPostgresIntegrationTest extends PostgresIntegra
                     "select count(*) from interview_sessions where application_id = ?", Integer.class, application.id()
             )).isZero();
         }
-        assertThat(surveyService.open(participantId, created.id()).externalUrl()).isEqualTo(command.externalUrl());
-        assertThat(surveyService.submit(participantId, created.id()).participation().status()).isEqualTo("submitted");
-        assertThat(surveyService.confirm(ownerId, created.id(), participantId).participation().status()).isEqualTo("confirmed");
+        properties.setSurveyRecruitmentCreationEnabled(false);
+        try {
+            assertThat(writeService.enabledRecruitmentTypesForCreation()).doesNotContain("survey");
+            assertThat(writeService.directParticipationRecruitmentTypesForCreation()).isEmpty();
+            assertThatThrownBy(() -> writeService.createPost(ownerId, command))
+                    .isInstanceOf(InterviewPostRecruitmentTypeNotSupportedException.class);
+            writeService.updatePost(ownerId, created.id(), InterviewPostRequestParser.parseUpdate(
+                    objectMapper.readTree("{\"title\":\"설문 생성 중지 후 기존 공고 수정\"}")));
+            var afterDisable = InterviewPostResponse.from(queryService.getVisiblePost(created.id(), participantId, false, true));
+            assertThat(afterDisable.title()).isEqualTo("설문 생성 중지 후 기존 공고 수정");
+            assertThat(afterDisable.externalUrl()).isNull();
+            assertThat(surveyService.open(participantId, created.id()).externalUrl()).isEqualTo(updatedUrl);
+            assertThat(surveyService.submit(participantId, created.id()).participation().status()).isEqualTo("submitted");
+            assertThat(surveyService.confirm(ownerId, created.id(), participantId).participation().status()).isEqualTo("confirmed");
+        } finally {
+            properties.setSurveyRecruitmentCreationEnabled(true);
+        }
     }
 
     private UUID insertOwner() {

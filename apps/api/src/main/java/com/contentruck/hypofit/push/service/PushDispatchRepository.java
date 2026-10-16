@@ -13,6 +13,12 @@ public interface PushDispatchRepository {
 
     List<ClaimedPushDeliveryRecord> claimPendingDeliveries(OffsetDateTime now, int limit);
 
+    List<ClaimedPushDeliveryRecord> claimNotificationDeliveries(OffsetDateTime now, int limit, UUID notificationId);
+
+    boolean isDeliveryEligible(ClaimedPushDeliveryRecord delivery);
+
+    void skipPendingDeliveriesForPreferences(UUID userId, OffsetDateTime now);
+
     void markDeliverySent(
             OffsetDateTime now,
             UUID deliveryId,

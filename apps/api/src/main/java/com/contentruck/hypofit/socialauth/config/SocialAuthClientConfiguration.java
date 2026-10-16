@@ -21,8 +21,12 @@ public class SocialAuthClientConfiguration {
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
         if (StringUtils.hasText(properties.getSupabaseServiceRoleKey())) {
             builder = builder
-                    .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + properties.getSupabaseServiceRoleKey())
                     .defaultHeader("apikey", properties.getSupabaseServiceRoleKey());
+            if (!properties.getSupabaseServiceRoleKey().startsWith("sb_secret_")) {
+                builder = builder.defaultHeader(
+                        HttpHeaders.AUTHORIZATION, "Bearer " + properties.getSupabaseServiceRoleKey()
+                );
+            }
         }
         return builder.build();
     }

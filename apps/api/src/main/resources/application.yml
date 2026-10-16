@@ -13,6 +13,10 @@ spring:
       add-mappings: false
   jackson:
     default-property-inclusion: always
+  http:
+    converters:
+      # Existing DTOs use Jackson 2 JsonNaming and the shared ObjectMapper.
+      preferred-json-mapper: jackson2
   datasource:
     hikari:
       initialization-fail-timeout: 0
@@ -83,6 +87,7 @@ hypofit:
   social-auth-naver-state: ${SOCIAL_AUTH_NAVER_STATE:disabled}
   survey-recruitment-creation-enabled: ${SURVEY_RECRUITMENT_CREATION_ENABLED:false}
   beta-test-recruitment-creation-enabled: ${BETA_TEST_RECRUITMENT_CREATION_ENABLED:false}
+  research-recruitment-creation-enabled: ${RESEARCH_RECRUITMENT_CREATION_ENABLED:false}
   extended-recruitment-creation-enabled: ${EXTENDED_RECRUITMENT_CREATION_ENABLED:false}
   ai-summary-enabled: ${AI_SUMMARY_ENABLED:false}
   ai-interview-summary-enabled: ${AI_INTERVIEW_SUMMARY_ENABLED:false}
@@ -97,6 +102,7 @@ hypofit:
   ai-summary-worker-error-sleep-seconds: ${AI_SUMMARY_WORKER_ERROR_SLEEP_SECONDS:30.0}
   ai-summary-processing-timeout-seconds: ${AI_SUMMARY_PROCESSING_TIMEOUT_SECONDS:300}
   ai-summary-max-attempts: ${AI_SUMMARY_MAX_ATTEMPTS:3}
+  posting-images-enabled: ${POSTING_IMAGES_ENABLED:false}
   gemini-api-key: ${GEMINI_API_KEY:${AI_SUMMARY_API_KEY:}}
   gemini-api-base-url: ${GEMINI_API_BASE_URL:https://generativelanguage.googleapis.com}
   push:

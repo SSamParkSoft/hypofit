@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-class AccountDeletionAdminService {
+public class AccountDeletionAdminService {
 
     private static final Set<String> AUTH_USER_DELETE_RETRYABLE_STATUSES =
             Set.of("pending", "failed_retryable", "skipped_missing_config");
@@ -20,7 +20,7 @@ class AccountDeletionAdminService {
     private final AccountDeletionAuthCleanupGateway authCleanupGateway;
     private final AccountDeletionCompletionWriteService completionWriteService;
 
-    AccountDeletionAdminService(
+    public AccountDeletionAdminService(
             AccountDeletionRepository repository,
             AccountDeletionAuthCleanupGateway authCleanupGateway,
             AccountDeletionCompletionWriteService completionWriteService
@@ -31,13 +31,22 @@ class AccountDeletionAdminService {
     }
 
     @Transactional(readOnly = true)
-    List<AccountDeletionService.AdminAccountDeletionRequestView> listRequests(String status, int limit) {
-        return repository.listRequestsForAdmin(status, limit).stream()
+    public List<AdminAccountDeletionRequestView> listRequests(String status, int limit) {
+        return listRequests(status, limit, 0, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminAccountDeletionRequestView> listRequests(String status, int limit, int page, String search) {
+        if (page < 0 || (search != null && search.length() > 200)) {
+            throw new HypofitException("validation_error", "검색어나 페이지 값을 확인해 주세요.", 422, "Invalid admin deletion search or page");
+        }
+        String normalizedSearch = search == null ? "" : search.trim().toLowerCase(java.util.Locale.ROOT);
+        return repository.listRequestsForAdmin(status, limit, page, normalizedSearch).stream()
                 .map(this::toView)
                 .toList();
     }
 
-    AccountDeletionService.AdminAccountDeletionRequestView retryAuthCleanup(UUID requestId, UUID actorUserId) {
+    public AdminAccountDeletionRequestView retryAuthCleanup(UUID requestId, UUID actorUserId) {
         AccountDeletionRequestRecord request = repository.findRequest(requestId)
                 .orElseThrow(() -> notFound("Account deletion request not found"));
         if (!canRetryAuthCleanup(request)) {
@@ -51,8 +60,8 @@ class AccountDeletionAdminService {
                 .orElseThrow(() -> new IllegalStateException("Account deletion request is missing after retry"));
     }
 
-    private AccountDeletionService.AdminAccountDeletionRequestView toView(AccountDeletionRequestRecord request) {
-        return new AccountDeletionService.AdminAccountDeletionRequestView(
+    private AdminAccountDeletionRequestView toView(AccountDeletionRequestRecord request) {
+        return new AdminAccountDeletionRequestView(
                 request.id(), request.userId(), request.requesterName(), emailDisplay(request),
                 emailHashPrefix(request.emailHash()), request.emailRedactedAt(), request.reason(), request.status(),
                 request.source(), verificationStatus(request), cleanupStatus(request), request.result(),

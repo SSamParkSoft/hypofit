@@ -32,8 +32,13 @@ public class SupabaseAdminAccountDeletionAuthCleanupGateway implements AccountDe
         try {
             restClient.delete()
                     .uri(url)
-                    .header("Authorization", "Bearer " + properties.getSupabaseServiceRoleKey())
-                    .header("apikey", properties.getSupabaseServiceRoleKey())
+                    .headers(headers -> {
+                        String serverKey = properties.getSupabaseServiceRoleKey();
+                        headers.set("apikey", serverKey);
+                        if (!serverKey.startsWith("sb_secret_")) {
+                            headers.setBearerAuth(serverKey);
+                        }
+                    })
                     .header("Accept", "application/json")
                     .retrieve()
                     .toBodilessEntity();

@@ -55,7 +55,8 @@ public class SocialAuthController {
             )
             @Valid @RequestBody AppleSignInNotificationReceive request
     ) {
-        return appleSignInNotificationService.processNotification(request);
+        appleSignInNotificationService.processNotification(request == null ? null : request.payload());
+        return AppleSignInNotificationAccepted.accepted();
     }
 
     @PostMapping("/attempts")

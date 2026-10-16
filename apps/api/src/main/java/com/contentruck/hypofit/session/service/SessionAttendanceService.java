@@ -124,10 +124,13 @@ public class SessionAttendanceService {
             if (!repository.updateApplicationStatusIfCurrent(application.id(), "completed", Set.of("selected"))) {
                 throw conflict("Application status has already changed");
             }
-            getOrCreateRewardConfirmation(savedSession, application, post);
+            if (post.hasReward()) {
+                getOrCreateRewardConfirmation(savedSession, application, post);
+            }
             notificationService.notifyParticipants(
                     savedSession, application, post, "session_completed", "인터뷰가 완료됐어요",
-                    "이제 사례비 지급 확인과 후기를 이어갈 수 있어요.", Map.of("actor_role", actorRole)
+                    post.hasReward() ? "보상 수령 확인과 후기를 이어갈 수 있어요." : "후기를 남겨주세요.",
+                    Map.of("actor_role", actorRole)
             );
         } else {
             notificationService.notifyCounterpart(
@@ -294,6 +297,14 @@ public class SessionAttendanceService {
     private void ensureScheduled(InterviewSessionRecord session, String action) {
         if (!"scheduled".equals(session.status())) {
             throw badRequest("Only scheduled sessions can be " + action);
+        }
+        if (session.scheduledAt().isAfter(OffsetDateTime.now(ZoneOffset.UTC))) {
+            throw new HypofitException(
+                    "session_not_started",
+                    "확정된 일정 시각부터 만남 확인과 노쇼 기록을 할 수 있어요.",
+                    HttpStatus.CONFLICT.value(),
+                    "Attendance actions are unavailable before the scheduled time"
+            );
         }
     }
 

@@ -10,6 +10,8 @@ import com.contentruck.hypofit.chat.service.ChatMessageRepository;
 import com.contentruck.hypofit.chat.service.ChatMessageReadModel;
 import com.contentruck.hypofit.chat.service.ChatRoomReadModel;
 import com.contentruck.hypofit.chat.service.ChatUserSummary;
+import com.contentruck.hypofit.interview.service.PostingCompensation;
+import com.contentruck.hypofit.interview.service.PostingCompensations;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,14 +35,15 @@ public class ChatRepositoryAdapter implements ChatRepository {
     private static final String CHAT_ROOM_OPEN = "open";
     private static final String CHAT_ROOM_SELECTED = "selected";
     private static final String CHAT_ROOM_CLOSED = "closed";
-    private static final String APPLICATION_CREATED_MESSAGE = "신청이 완료됐어요. 이 방에서 일정과 진행 방식을 조율할 수 있어요.";
-    private static final String APPLICATION_SELECTED_MESSAGE = "인터뷰 대상자로 선정됐어요. 이제 일정과 진행 방식을 확정해보세요.";
-    private static final String APPLICATION_REJECTED_MESSAGE = "이번 인터뷰 신청은 반려됐어요.";
-    private static final String APPLICATION_CANCELED_MESSAGE = "인터뷰 신청이 취소됐어요.";
+    private static final String APPLICATION_SELECTED_MESSAGE = "참여자로 선정됐어요. 채팅에서 필요한 내용을 확인해 주세요.";
+    private static final String APPLICATION_REJECTED_MESSAGE = "이번 참여 신청은 반려됐어요.";
+    private static final String APPLICATION_CANCELED_MESSAGE = "참여 신청이 취소됐어요.";
 
     private static final TypeReference<Map<String, String>> STRING_MAP_TYPE = new TypeReference<>() {
     };
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
+    };
+    private static final TypeReference<List<PostingCompensation>> COMPENSATION_LIST_TYPE = new TypeReference<>() {
     };
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
@@ -109,7 +112,7 @@ public class ChatRepositoryAdapter implements ChatRepository {
     }
 
     @Override
-    public void markSelectedForApplication(
+    public UUID markSelectedForApplication(
             UUID applicationId,
             UUID interviewPostId,
             UUID founderId,
@@ -125,6 +128,7 @@ public class ChatRepositoryAdapter implements ChatRepository {
                 Map.of(),
                 now
         );
+        return roomId;
     }
 
     @Override
@@ -135,7 +139,10 @@ public class ChatRepositoryAdapter implements ChatRepository {
             UUID respondentId,
             String rejectionReason
     ) {
-        UUID roomId = ensureApplicationRoom(applicationId, interviewPostId, founderId, respondentId);
+        UUID roomId = findApplicationRoomId(applicationId).orElse(null);
+        if (roomId == null) {
+            return;
+        }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         updateApplicationRoomStatus(roomId, CHAT_ROOM_CLOSED, now);
         insertApplicationSystemMessage(
@@ -154,7 +161,10 @@ public class ChatRepositoryAdapter implements ChatRepository {
             UUID founderId,
             UUID respondentId
     ) {
-        UUID roomId = ensureApplicationRoom(applicationId, interviewPostId, founderId, respondentId);
+        UUID roomId = findApplicationRoomId(applicationId).orElse(null);
+        if (roomId == null) {
+            return;
+        }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         updateApplicationRoomStatus(roomId, CHAT_ROOM_CLOSED, now);
         insertApplicationSystemMessage(roomId, "system", APPLICATION_CANCELED_MESSAGE, Map.of(), now);
@@ -247,13 +257,6 @@ public class ChatRepositoryAdapter implements ChatRepository {
         UUID roomId = findApplicationRoomId(applicationId)
                 .orElseThrow(() -> new IllegalStateException("Expected chat room to exist for application"));
         if (inserted > 0) {
-            insertApplicationSystemMessage(
-                    roomId,
-                    "application_created",
-                    APPLICATION_CREATED_MESSAGE,
-                    Map.of(),
-                    now
-            );
             insertApplicationRoomSetting(roomId, founderId, now);
             insertApplicationRoomSetting(roomId, respondentId, now);
         }
@@ -377,7 +380,15 @@ public class ChatRepositoryAdapter implements ChatRepository {
                   p.service_summary,
                   p.target_description,
                   p.reward_amount,
+                  p.recruitment_type,
+                  p.entry_mode,
+                  p.compensations,
                   p.duration_minutes,
+                  p.duration_value,
+                  p.duration_unit,
+                  p.beta_test_platforms,
+                  p.beta_test_starts_at,
+                  p.beta_test_ends_at,
                   p.recruit_count,
                   p.interview_mode,
                   p.location,
@@ -426,6 +437,8 @@ public class ChatRepositoryAdapter implements ChatRepository {
                 ) unread on unread.room_id = r.id
                 where (r.founder_id = :user_id or r.respondent_id = :user_id)
                   and coalesce(setting.is_hidden, false) = false
+                  and not (coalesce(p.recruitment_type, 'interview') = 'interview'
+                           and coalesce(a.status, '') = 'applied')
                 order by
                   case when r.last_message_at is null then 1 else 0 end,
                   r.last_message_at desc,
@@ -459,7 +472,15 @@ public class ChatRepositoryAdapter implements ChatRepository {
                   p.service_summary,
                   p.target_description,
                   p.reward_amount,
+                  p.recruitment_type,
+                  p.entry_mode,
+                  p.compensations,
                   p.duration_minutes,
+                  p.duration_value,
+                  p.duration_unit,
+                  p.beta_test_platforms,
+                  p.beta_test_starts_at,
+                  p.beta_test_ends_at,
                   p.recruit_count,
                   p.interview_mode,
                   p.location,
@@ -559,7 +580,15 @@ public class ChatRepositoryAdapter implements ChatRepository {
                         rs.getString("post_status"),
                         null,
                         null,
-                        null
+                        null,
+                        rs.getString("recruitment_type"),
+                        rs.getString("entry_mode"),
+                        readCompensations(rs),
+                        rs.getObject("duration_value", Integer.class),
+                        rs.getString("duration_unit"),
+                        readPlatforms(rs),
+                        offsetDateTime(rs, "beta_test_starts_at"),
+                        offsetDateTime(rs, "beta_test_ends_at")
                 ),
                 new ChatUserSummary(
                         uuid(rs, "founder_user_id"),
@@ -620,6 +649,32 @@ public class ChatRepositoryAdapter implements ChatRepository {
             return objectMapper.readValue(raw, STRING_LIST_TYPE);
         } catch (JsonProcessingException exception) {
             throw new SQLException("Failed to parse JSON column " + column, exception);
+        }
+    }
+
+    private List<PostingCompensation> readCompensations(ResultSet rs) throws SQLException {
+        String raw = rawJson(rs, "compensations");
+        if (raw == null || raw.isBlank()) {
+            return PostingCompensations.legacy(rs.getInt("reward_amount"));
+        }
+        try {
+            List<PostingCompensation> values = objectMapper.readValue(raw, COMPENSATION_LIST_TYPE);
+            return values == null || values.isEmpty()
+                    ? PostingCompensations.legacy(rs.getInt("reward_amount")) : List.copyOf(values);
+        } catch (JsonProcessingException exception) {
+            throw new SQLException("Failed to parse posting compensations JSON", exception);
+        }
+    }
+
+    private List<String> readPlatforms(ResultSet rs) throws SQLException {
+        java.sql.Array array = rs.getArray("beta_test_platforms");
+        if (array == null) {
+            return List.of();
+        }
+        try {
+            return java.util.Arrays.stream((Object[]) array.getArray()).map(String::valueOf).toList();
+        } finally {
+            array.free();
         }
     }
 

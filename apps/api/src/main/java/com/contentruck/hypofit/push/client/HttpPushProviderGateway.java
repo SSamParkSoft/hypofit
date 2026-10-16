@@ -191,27 +191,27 @@ public class HttpPushProviderGateway implements PushProviderGateway {
     }
 
     private String[] buildPushCopy(PushDispatchRepository.NotificationDispatchRecord notification) {
-        String interview = interviewLabel(notification);
+        String posting = postingLabel(notification);
         return switch (notification.type()) {
             case "chat_message" -> {
                 String sender = personLabel(notification, "sender_name");
                 yield new String[]{
                         sender == null ? "새 메시지가 왔어요" : sender + "님이 메시지를 보냈어요",
-                        interview + " 일정 조율을 이어가 보세요."
+                        posting + "에 새 메시지가 있어요."
                 };
             }
-            case "application_created" -> new String[]{"새 인터뷰 신청이 도착했어요", interview + "에 지원자가 있어요."};
-            case "application_selected" -> new String[]{"인터뷰에 선정됐어요", interview + " 일정을 조율해 주세요."};
-            case "application_rejected" -> new String[]{"신청 결과가 도착했어요", interview + "는 이번에 진행되지 않아요."};
-            case "attendance_confirmation_requested" -> new String[]{"만남 확인이 필요해요", interview + " 진행 여부를 확인해 주세요."};
-            case "session_rescheduled" -> new String[]{"인터뷰 일정이 변경됐어요", interview + "의 변경된 시간을 확인해 주세요."};
-            case "session_canceled" -> new String[]{"인터뷰가 취소됐어요", interview + " 채팅방에서 자세한 내용을 확인해 주세요."};
-            case "session_completed" -> new String[]{"인터뷰가 완료됐어요", interview + " 사례비 확인과 후기를 이어가 보세요."};
-            case "reward_marked_paid" -> new String[]{"사례비 지급 확인이 필요해요", interview + " 사례비 수령 여부를 확인해 주세요."};
-            case "reward_confirmed" -> new String[]{"사례비 수령이 확인됐어요", interview + " 후기를 남겨주세요."};
-            case "reward_disputed" -> new String[]{"사례비 확인 문제가 접수됐어요", interview + " 채팅에서 상황을 확인해 주세요."};
-            case "review_received" -> new String[]{"후기가 등록됐어요", interview + " 진행 기록을 확인해 주세요."};
-            case "no_show_marked" -> new String[]{"인터뷰 상태가 변경됐어요", interview + " 참여 기록을 확인해 주세요."};
+            case "application_created" -> new String[]{"새 신청이 도착했어요", posting + "에 지원자가 있어요."};
+            case "application_selected" -> new String[]{notification.title(), posting + " · " + notification.body()};
+            case "application_rejected" -> new String[]{"신청 결과가 도착했어요", posting + "의 신청 결과를 확인할 수 있어요."};
+            case "attendance_confirmation_requested" -> new String[]{"만남 확인이 필요해요", posting + " 진행 여부를 확인해 주세요."};
+            case "session_rescheduled" -> new String[]{"인터뷰 일정이 변경됐어요", posting + "의 변경된 시간을 확인해 주세요."};
+            case "session_canceled" -> new String[]{"인터뷰 일정이 취소됐어요", posting + " 채팅방에서 자세한 내용을 확인할 수 있어요."};
+            case "session_completed" -> new String[]{"인터뷰가 완료됐어요", posting + " 보상 확인과 후기를 이어갈 수 있어요."};
+            case "reward_marked_paid" -> new String[]{"보상 수령 여부를 확인해 주세요", posting + " 모집자가 보상 지급을 기록했어요."};
+            case "reward_confirmed" -> new String[]{"보상 수령이 확인됐어요", posting + " 참여자가 수령을 확인했어요."};
+            case "reward_disputed" -> new String[]{"보상 수령 문제가 접수됐어요", posting + " 채팅에서 상황을 확인해 주세요."};
+            case "review_received" -> new String[]{"후기가 등록됐어요", posting + " 진행 기록을 확인해 주세요."};
+            case "no_show_marked" -> new String[]{"인터뷰 상태가 변경됐어요", posting + " 참여 기록을 확인해 주세요."};
             case "support_replied" -> new String[]{"문의 답변이 도착했어요", "운영팀 답변을 확인해 주세요."};
             default -> new String[]{notification.title(), "Hypofit에서 새 소식이 있어요."};
         };
@@ -227,12 +227,18 @@ public class HttpPushProviderGateway implements PushProviderGateway {
         if (notification.targetId() != null) {
             data.put("target_id", notification.targetId().toString());
         }
+        for (String key : new String[]{"interview_post_id", "chat_room_id"}) {
+            String id = metadataText(notification, key);
+            if (id != null) {
+                data.put(key, id);
+            }
+        }
         return data;
     }
 
-    private String interviewLabel(PushDispatchRepository.NotificationDispatchRecord notification) {
+    private String postingLabel(PushDispatchRepository.NotificationDispatchRecord notification) {
         String title = metadataText(notification, "interview_title");
-        return title == null ? "인터뷰" : shortText(title, 26);
+        return title == null ? "공고" : shortText(title, 26);
     }
 
     private String personLabel(PushDispatchRepository.NotificationDispatchRecord notification, String key) {

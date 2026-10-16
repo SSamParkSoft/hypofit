@@ -36,6 +36,12 @@ public class AccountDeletionUserEntity {
     @Column(name = "profile_image_url", length = 1000)
     private String profileImageUrl;
 
+    @Column(name = "organization_type", length = 20)
+    private String organizationType;
+
+    @Column(name = "organization_name", length = 100)
+    private String organizationName;
+
     @Column(name = "deactivated_at")
     private OffsetDateTime deactivatedAt;
 
@@ -119,6 +125,11 @@ public class AccountDeletionUserEntity {
 
     public void setProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public void clearOrganization() {
+        organizationType = null;
+        organizationName = null;
     }
 
     public OffsetDateTime getDeactivatedAt() {

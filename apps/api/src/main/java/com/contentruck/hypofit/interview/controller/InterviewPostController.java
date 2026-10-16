@@ -10,6 +10,9 @@ import com.contentruck.hypofit.interview.dto.InterviewPostUpdateRequest;
 import com.contentruck.hypofit.interview.service.InterviewAdminPolicy;
 import com.contentruck.hypofit.interview.service.InterviewPostQueryService;
 import com.contentruck.hypofit.interview.service.InterviewPostWriteService;
+import com.contentruck.hypofit.interview.service.InterviewPostReadModel;
+import com.contentruck.hypofit.interview.service.PostingImageService;
+import com.contentruck.hypofit.interview.dto.PostingImageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -41,15 +44,18 @@ public class InterviewPostController {
     private final InterviewPostQueryService interviewPostQueryService;
     private final InterviewPostWriteService interviewPostWriteService;
     private final InterviewAdminPolicy interviewAdminPolicy;
+    private final PostingImageService images;
 
     public InterviewPostController(
             InterviewPostQueryService interviewPostQueryService,
             InterviewPostWriteService interviewPostWriteService,
-            InterviewAdminPolicy interviewAdminPolicy
+            InterviewAdminPolicy interviewAdminPolicy,
+            PostingImageService images
     ) {
         this.interviewPostQueryService = interviewPostQueryService;
         this.interviewPostWriteService = interviewPostWriteService;
         this.interviewAdminPolicy = interviewAdminPolicy;
+        this.images = images;
     }
 
     @GetMapping("/")
@@ -59,6 +65,8 @@ public class InterviewPostController {
             @RequestHeader(name = "X-Hypofit-Features", required = false) String featuresHeader,
             @RequestParam(name = "status", required = false) String status,
             @RequestParam(name = "mode", required = false) String mode,
+            @RequestParam(name = "recruitment_type", required = false) String recruitmentType,
+            @RequestParam(name = "compensation_type", required = false) String compensationType,
             @RequestParam(name = "founder_id", required = false) UUID founderId,
             @RequestParam(name = "q", required = false) String q,
             @RequestParam(name = "reward_min", required = false) Integer rewardMin,
@@ -84,13 +92,16 @@ public class InterviewPostController {
                 lng,
                 radiusM,
                 sort,
-                limit
+                limit,
+                recruitmentType,
+                compensationType
         );
 
-        return interviewPostQueryService.listPosts(request.toCriteria(viewerId, isAdmin, supportsRecruitmentTypes))
-                .stream()
-                .map(InterviewPostResponse::from)
-                .toList();
+        List<InterviewPostReadModel> posts = interviewPostQueryService.listPosts(request.toCriteria(
+                viewerId, isAdmin, supportsRecruitmentTypes, supportsResearchRecruitment(featuresHeader)));
+        var signed = images.forVisiblePosts(posts.stream().map(InterviewPostReadModel::id).toList(), false);
+        return posts.stream().map(post -> InterviewPostResponse.from(post,
+                signed.getOrDefault(post.id(), List.of()).stream().map(PostingImageResponse::from).toList())).toList();
     }
 
     @GetMapping("/{post_id}")
@@ -102,22 +113,28 @@ public class InterviewPostController {
     ) {
         UUID viewerId = jwt == null ? null : UUID.fromString(jwt.getSubject());
         boolean isAdmin = jwt != null && interviewAdminPolicy.isAdminEmail(jwt.getClaimAsString("email"));
-        return InterviewPostResponse.from(
+        return present(
                 interviewPostQueryService.getVisiblePost(
                         postId,
                         viewerId,
                         isAdmin,
-                        supportsRecruitmentTypes(featuresHeader)
+                        supportsRecruitmentTypes(featuresHeader),
+                        supportsResearchRecruitment(featuresHeader)
                 )
         );
     }
 
     @GetMapping("/creation-capabilities")
     @Operation(summary = "모집글 작성 가능 유형")
-    public InterviewPostCreationCapabilitiesResponse getCreationCapabilities() {
+    public InterviewPostCreationCapabilitiesResponse getCreationCapabilities(
+            @RequestHeader(name = "X-Hypofit-Features", required = false) String featuresHeader
+    ) {
         return new InterviewPostCreationCapabilitiesResponse(
-                interviewPostWriteService.enabledRecruitmentTypesForCreation(),
-                interviewPostWriteService.directParticipationRecruitmentTypesForCreation()
+                interviewPostWriteService.enabledRecruitmentTypesForCreation().stream()
+                        .filter(type -> !"research_experiment".equals(type) || supportsResearchRecruitment(featuresHeader))
+                        .toList(),
+                interviewPostWriteService.directParticipationRecruitmentTypesForCreation(),
+                images.enabled()
         );
     }
 
@@ -133,11 +150,12 @@ public class InterviewPostController {
             @RequestBody InterviewPostCreateRequest request
     ) {
         UUID actorUserId = UUID.fromString(jwt.getSubject());
-        return InterviewPostResponse.from(
+        return present(
                 interviewPostWriteService.createPost(
                         actorUserId,
                         InterviewPostRequestParser.parseCreate(request),
-                        InterviewPostRequestParser.parseClientSubmissionId(request)
+                        InterviewPostRequestParser.parseClientSubmissionId(request),
+                        InterviewPostRequestParser.parseImageIds(request.rawBody())
                 )
         );
     }
@@ -154,8 +172,9 @@ public class InterviewPostController {
             @RequestBody InterviewPostUpdateRequest request
     ) {
         UUID actorUserId = UUID.fromString(jwt.getSubject());
-        return InterviewPostResponse.from(
-                interviewPostWriteService.updatePost(actorUserId, postId, InterviewPostRequestParser.parseUpdate(request))
+        return present(
+                interviewPostWriteService.updatePost(actorUserId, postId, InterviewPostRequestParser.parseUpdate(request),
+                        InterviewPostRequestParser.parseImageIds(request.rawBody()))
         );
     }
 
@@ -172,7 +191,7 @@ public class InterviewPostController {
     ) {
         UUID actorUserId = UUID.fromString(jwt.getSubject());
         InterviewPostRequestParser.parseCloseStatus(request);
-        return InterviewPostResponse.from(interviewPostWriteService.closePost(actorUserId, postId));
+        return present(interviewPostWriteService.closePost(actorUserId, postId));
     }
 
     @PostMapping("/{post_id}/archive")
@@ -182,7 +201,7 @@ public class InterviewPostController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         UUID actorUserId = UUID.fromString(jwt.getSubject());
-        return InterviewPostResponse.from(interviewPostWriteService.archivePost(actorUserId, postId));
+        return present(interviewPostWriteService.archivePost(actorUserId, postId));
     }
 
     @PostMapping("/{post_id}/reopen")
@@ -192,15 +211,28 @@ public class InterviewPostController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         UUID actorUserId = UUID.fromString(jwt.getSubject());
-        return InterviewPostResponse.from(interviewPostWriteService.reopenPost(actorUserId, postId));
+        return present(interviewPostWriteService.reopenPost(actorUserId, postId));
     }
 
     private boolean supportsRecruitmentTypes(String featuresHeader) {
+        return supportsFeature(featuresHeader, RECRUITMENT_TYPES_FEATURE);
+    }
+
+    private InterviewPostResponse present(InterviewPostReadModel post) {
+        return InterviewPostResponse.from(post, images.forVisiblePosts(List.of(post.id()), true)
+                .getOrDefault(post.id(), List.of()).stream().map(PostingImageResponse::from).toList());
+    }
+
+    private boolean supportsResearchRecruitment(String featuresHeader) {
+        return supportsFeature(featuresHeader, "research-recruitment-v1");
+    }
+
+    private boolean supportsFeature(String featuresHeader, String feature) {
         if (featuresHeader == null || featuresHeader.isBlank()) {
             return false;
         }
         for (String token : featuresHeader.split(",")) {
-            if (RECRUITMENT_TYPES_FEATURE.equals(token.trim())) {
+            if (feature.equals(token.trim())) {
                 return true;
             }
         }

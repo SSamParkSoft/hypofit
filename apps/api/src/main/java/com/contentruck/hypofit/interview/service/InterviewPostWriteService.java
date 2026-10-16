@@ -1,5 +1,11 @@
 package com.contentruck.hypofit.interview.service;
 
+import static com.contentruck.hypofit.interview.service.PostingTypeValidator.validateBetaConfiguration;
+import static com.contentruck.hypofit.interview.service.PostingTypeValidator.validateInterviewCreate;
+import static com.contentruck.hypofit.interview.service.PostingTypeValidator.validateOfflineCapableLocation;
+import static com.contentruck.hypofit.interview.service.PostingTypeValidator.validateResearchConfiguration;
+import static com.contentruck.hypofit.interview.service.PostingTypeValidator.validateSurveyConfiguration;
+
 import com.contentruck.hypofit.ai.service.AiSummaryEnqueueService;
 import com.contentruck.hypofit.audit.service.AuditEventCommand;
 import com.contentruck.hypofit.audit.service.AuditWriteService;
@@ -9,9 +15,6 @@ import com.contentruck.hypofit.common.error.HypofitValidationException;
 import com.contentruck.hypofit.user.service.UserAccountDeactivatedException;
 import com.contentruck.hypofit.user.service.UserAccountDeletedException;
 import com.contentruck.hypofit.user.service.UserProfileMissingException;
-import java.net.IDN;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -32,11 +35,7 @@ public class InterviewPostWriteService {
     private static final String INTERVIEW_RECRUITMENT_TYPE = "interview";
     private static final String SURVEY_RECRUITMENT_TYPE = "survey";
     private static final String BETA_TEST_RECRUITMENT_TYPE = "beta_test";
-    private static final Set<String> EXTENDED_RECRUITMENT_TYPES = Set.of(
-            "usability_test", "research_experiment", "focus_group", "other"
-    );
-    private static final String GOOGLE_FORMS_PROVIDER = "google_forms";
-    private static final Set<String> APPROVED_SURVEY_HOSTS = Set.of("docs.google.com", "forms.gle");
+    private static final String RESEARCH_RECRUITMENT_TYPE = "research_experiment";
     private static final Set<String> EDITABLE_STATUSES = Set.of("draft", "open", "closed");
     private static final Set<String> ARCHIVABLE_STATUSES = Set.of("draft", "open", "closed");
     private static final Set<String> REOPENABLE_STATUSES = Set.of("closed", "archived");
@@ -66,6 +65,7 @@ public class InterviewPostWriteService {
     private final HypofitProperties properties;
     private final AiSummaryEnqueueService aiSummaryEnqueueService;
     private final MeterRegistry meterRegistry;
+    private final PostingImageService postingImages;
 
     @Autowired
     public InterviewPostWriteService(
@@ -73,13 +73,15 @@ public class InterviewPostWriteService {
             AuditWriteService auditWriteService,
             HypofitProperties properties,
             AiSummaryEnqueueService aiSummaryEnqueueService,
-            MeterRegistry meterRegistry
+            MeterRegistry meterRegistry,
+            PostingImageService postingImages
     ) {
         this.repository = repository;
         this.auditWriteService = auditWriteService;
         this.properties = properties;
         this.aiSummaryEnqueueService = aiSummaryEnqueueService;
         this.meterRegistry = meterRegistry;
+        this.postingImages = postingImages;
     }
 
     @Transactional
@@ -93,8 +95,15 @@ public class InterviewPostWriteService {
             InterviewPostCreateCommand command,
             UUID clientSubmissionId
     ) {
+        return createPost(actorUserId, command, clientSubmissionId, null);
+    }
+
+    @Transactional
+    public InterviewPostReadModel createPost(UUID actorUserId, InterviewPostCreateCommand command,
+            UUID clientSubmissionId, List<UUID> imageIds) {
         try {
             requireActiveUser(actorUserId);
+            postingImages.lockOwnerForImageWrite(actorUserId, imageIds);
             InterviewPostCreateCommand normalizedCommand = normalizeCreateCommand(command);
             if (clientSubmissionId != null) {
                 repository.lockClientSubmission(actorUserId, clientSubmissionId);
@@ -103,7 +112,8 @@ public class InterviewPostWriteService {
                         .map(this::toWriteResponse)
                         .orElse(null);
                 if (existing != null) {
-                    if (!matchesNormalizedCreateCommand(existing, normalizedCommand)) {
+                    if (!matchesNormalizedCreateCommand(existing, normalizedCommand)
+                            || !postingImages.replayMatches(existing.id(), imageIds)) {
                         throw new InterviewPostIdempotencyConflictException();
                     }
                     recordCreateOutcome("replayed");
@@ -113,6 +123,7 @@ public class InterviewPostWriteService {
             InterviewPostWriteModel created = clientSubmissionId == null
                     ? repository.createPost(actorUserId, normalizedCommand)
                     : repository.createPost(actorUserId, normalizedCommand, clientSubmissionId);
+            postingImages.attach(actorUserId, created.id(), imageIds);
             enqueueWhenOpen(created);
             recordCreateOutcome("created");
             return toWriteResponse(created);
@@ -143,11 +154,11 @@ public class InterviewPostWriteService {
                 && Objects.equals(existing.recruitCount(), command.recruitCount())
                 && Objects.equals(existing.externalProvider(), command.externalProvider())
                 && Objects.equals(existing.externalUrl(), command.externalUrl())
-                && Objects.equals(existing.participationDeadlineAt(), command.participationDeadlineAt())
+                && sameInstant(existing.participationDeadlineAt(), command.participationDeadlineAt())
                 && Objects.equals(existing.externalDataNotice(), command.externalDataNotice())
                 && Objects.equals(existing.betaTestPlatforms(), command.betaTestPlatforms())
-                && Objects.equals(existing.betaTestStartsAt(), command.betaTestStartsAt())
-                && Objects.equals(existing.betaTestEndsAt(), command.betaTestEndsAt())
+                && sameInstant(existing.betaTestStartsAt(), command.betaTestStartsAt())
+                && sameInstant(existing.betaTestEndsAt(), command.betaTestEndsAt())
                 && Objects.equals(existing.interviewMode(), command.interviewMode())
                 && Objects.equals(existing.location(), location(command))
                 && Objects.equals(existing.locationText(), locationText(command))
@@ -163,6 +174,11 @@ public class InterviewPostWriteService {
                 && Objects.equals(existing.creationConfiguration(), command.creationConfiguration());
     }
 
+    private boolean sameInstant(OffsetDateTime left, OffsetDateTime right) {
+        // PostgreSQL timestamptz preserves the instant, not the request's offset.
+        return left == null ? right == null : right != null && left.isEqual(right);
+    }
+
     private String location(InterviewPostCreateCommand command) {
         return command.location() != null ? command.location() : command.locationText();
     }
@@ -173,12 +189,19 @@ public class InterviewPostWriteService {
 
     @Transactional
     public InterviewPostReadModel updatePost(UUID actorUserId, UUID postId, InterviewPostUpdateCommand command) {
+        return updatePost(actorUserId, postId, command, null);
+    }
+
+    @Transactional
+    public InterviewPostReadModel updatePost(UUID actorUserId, UUID postId, InterviewPostUpdateCommand command,
+            List<UUID> imageIds) {
         requireActiveUser(actorUserId);
 
         InterviewPostWriteModel post = repository.findPost(postId)
                 .orElseThrow(InterviewPostNotFoundException::new);
         ensureOwner(post, actorUserId);
         ensurePostStatus(post.status(), EDITABLE_STATUSES, "edited");
+        postingImages.attach(actorUserId, postId, imageIds);
         if (command.hasField("recruitmentType")) {
             ensureRecruitmentTypeTransitionEnabled(post.recruitmentType(), command.recruitmentType());
         }
@@ -197,7 +220,8 @@ public class InterviewPostWriteService {
                 null,
                 Map.of(
                         "founder_id", updatedPost.founderId().toString(),
-                        "updated_fields", toAuditUpdatedFields(changes)
+                        "updated_fields", toAuditUpdatedFields(changes),
+                        "images_updated", imageIds != null
                 )
         ));
         enqueueWhenOpen(updatedPost);
@@ -303,8 +327,11 @@ public class InterviewPostWriteService {
         PostingCreationConfiguration creationConfiguration = normalizeCreationConfiguration(command);
         int legacyDurationMinutes = legacyDurationMinutes(command.durationMinutes(), creationConfiguration);
 
-        if (INTERVIEW_RECRUITMENT_TYPE.equals(recruitmentType)) {
+        if (INTERVIEW_RECRUITMENT_TYPE.equals(recruitmentType) || RESEARCH_RECRUITMENT_TYPE.equals(recruitmentType)) {
             validateInterviewCreate(command);
+            if (RESEARCH_RECRUITMENT_TYPE.equals(recruitmentType)) {
+                validateResearchConfiguration(command.entryMode(), legacyDurationMinutes, creationConfiguration);
+            }
             boolean online = "online".equals(command.interviewMode());
             return new InterviewPostCreateCommand(
                     recruitmentType,
@@ -335,7 +362,7 @@ public class InterviewPostWriteService {
                     command.status(),
                     command.entryMode(),
                     command.participantRequirements(),
-                    creationConfiguration
+                    RESEARCH_RECRUITMENT_TYPE.equals(recruitmentType) ? withoutBetaConfiguration(creationConfiguration) : creationConfiguration
             );
         }
 
@@ -418,42 +445,9 @@ public class InterviewPostWriteService {
             );
         }
 
-        if (EXTENDED_RECRUITMENT_TYPES.contains(recruitmentType)) {
-            return new InterviewPostCreateCommand(
-                    recruitmentType,
-                    command.title(),
-                    command.serviceSummary(),
-                    command.targetDescription(),
-                    legacyRewardAmount,
-                    compensations,
-                    legacyDurationMinutes,
-                    command.recruitCount(),
-                    null,
-                    null,
-                    command.participationDeadlineAt(),
-                    null,
-                    List.of(),
-                    null,
-                    null,
-                    "online",
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    safeScheduleOptions(command.scheduleOptions()),
-                    command.status(),
-                    command.entryMode(),
-                    command.participantRequirements(),
-                    withoutBetaConfiguration(creationConfiguration)
-            );
-        }
-
         throw new InterviewPostRecruitmentTypeNotSupportedException(recruitmentType);
     }
+
 
     private PostingCreationConfiguration normalizeCreationConfiguration(InterviewPostCreateCommand command) {
         PostingCreationConfiguration value = command.creationConfiguration() == null
@@ -705,10 +699,17 @@ public class InterviewPostWriteService {
         effective.putAll(changes);
         String effectiveRecruitmentType = asString(effective.get("recruitmentType"));
 
-        if (INTERVIEW_RECRUITMENT_TYPE.equals(effectiveRecruitmentType)) {
+        if (INTERVIEW_RECRUITMENT_TYPE.equals(effectiveRecruitmentType) || RESEARCH_RECRUITMENT_TYPE.equals(effectiveRecruitmentType)) {
             clearSurveyFields(effective, changes);
             clearBetaFields(effective, changes);
             validateInterviewUpdate(command, post, effective, changes);
+            if (RESEARCH_RECRUITMENT_TYPE.equals(effectiveRecruitmentType)) {
+                validateResearchConfiguration(
+                        asString(effective.get("entryMode")),
+                        ((Number) effective.get("durationMinutes")).intValue(),
+                        (PostingCreationConfiguration) effective.get("creationConfiguration")
+                );
+            }
         } else if (SURVEY_RECRUITMENT_TYPE.equals(effectiveRecruitmentType)) {
             forceNonInterviewCompatibility(effective, changes);
             clearBetaFields(effective, changes);
@@ -933,24 +934,6 @@ public class InterviewPostWriteService {
         }
     }
 
-    private void validateInterviewCreate(InterviewPostCreateCommand command) {
-        if (!hasText(command.interviewMode())) {
-            throw validationFailed(
-                    "Interview recruitment posts require interview_mode",
-                    List.of(new FieldError("interview_mode", "입력값을 확인해 주세요."))
-            );
-        }
-        if (!"online".equals(command.interviewMode())) {
-            validateOfflineCapableLocation(Map.of(
-                    "location", command.location(),
-                    "locationText", command.locationText(),
-                    "locationLatitude", command.locationLatitude(),
-                    "locationLongitude", command.locationLongitude(),
-                    "locationPrecision", command.locationPrecision(),
-                    "locationSource", command.locationSource()
-            ));
-        }
-    }
 
     private void validateInterviewUpdate(
             InterviewPostUpdateCommand command,
@@ -1012,110 +995,10 @@ public class InterviewPostWriteService {
         applyNormalizedChange(effective, changes, "betaTestPlatforms", normalizePlatforms(asStringList(effective.get("betaTestPlatforms"))));
     }
 
-    private void validateSurveyConfiguration(
-            String externalProvider,
-            String externalUrl,
-            OffsetDateTime participationDeadlineAt,
-            String externalDataNotice
-    ) {
-        List<FieldError> errors = new ArrayList<>();
-        if (!GOOGLE_FORMS_PROVIDER.equals(externalProvider)) {
-            errors.add(new FieldError("external_provider", "입력값을 확인해 주세요.", "survey_provider_not_supported"));
-        }
-        if (!hasText(externalUrl) || !isApprovedGoogleFormsUrl(externalUrl)) {
-            errors.add(new FieldError("external_url", "입력값을 확인해 주세요.", "survey_url_invalid"));
-        }
-        if (participationDeadlineAt == null) {
-            errors.add(new FieldError("participation_deadline_at", "입력값을 확인해 주세요."));
-        }
-        if (!hasText(externalDataNotice)) {
-            errors.add(new FieldError("external_data_notice", "입력값을 확인해 주세요."));
-        }
-        if (!errors.isEmpty()) {
-            throw validationFailed(
-                    "Survey recruitment posts require an approved Google Forms URL, deadline, and data notice",
-                    errors
-            );
-        }
-    }
 
-    private void validateBetaConfiguration(
-            List<String> betaTestPlatforms,
-            OffsetDateTime betaTestStartsAt,
-            OffsetDateTime betaTestEndsAt
-    ) {
-        List<FieldError> errors = new ArrayList<>();
-        if (betaTestPlatforms == null || betaTestPlatforms.isEmpty()) {
-            errors.add(new FieldError("beta_test_platforms", "입력값을 확인해 주세요."));
-        }
-        if (betaTestStartsAt == null) {
-            errors.add(new FieldError("beta_test_starts_at", "입력값을 확인해 주세요."));
-        }
-        if (betaTestEndsAt == null) {
-            errors.add(new FieldError("beta_test_ends_at", "입력값을 확인해 주세요."));
-        }
-        if (betaTestStartsAt != null && betaTestEndsAt != null && !betaTestStartsAt.isBefore(betaTestEndsAt)) {
-            errors.add(new FieldError("beta_test_ends_at", "입력값을 확인해 주세요."));
-        }
-        if (!errors.isEmpty()) {
-            throw validationFailed(
-                    "Beta-test recruitment posts require platforms and a valid start/end period",
-                    errors
-            );
-        }
-    }
 
-    private void validateOfflineCapableLocation(Map<String, Object> effective) {
-        String location = asString(effective.get("location"));
-        String locationText = asString(effective.get("locationText"));
-        Double latitude = asDouble(effective.get("locationLatitude"));
-        Double longitude = asDouble(effective.get("locationLongitude"));
-        String precision = asString(effective.get("locationPrecision"));
-        String source = asString(effective.get("locationSource"));
 
-        if ((!hasValue(locationText) && !hasValue(location))
-                || latitude == null
-                || longitude == null
-                || precision == null
-                || source == null) {
-            throw new HypofitValidationException(
-                    "Offline-capable interview posts require a selected location",
-                    java.util.List.of(new FieldError("__root__", "Offline-capable interview posts require a selected location"))
-            );
-        }
-    }
 
-    private boolean isApprovedGoogleFormsUrl(String externalUrl) {
-        try {
-            URI uri = new URI(externalUrl);
-            if (!"https".equalsIgnoreCase(uri.getScheme())) {
-                return false;
-            }
-            if (uri.getUserInfo() != null) {
-                return false;
-            }
-            String host = uri.getHost();
-            if (!hasText(host)) {
-                return false;
-            }
-            String asciiHost = IDN.toASCII(host.trim().toLowerCase());
-            if (!APPROVED_SURVEY_HOSTS.contains(asciiHost) || isLocalOrIpLiteral(asciiHost)) {
-                return false;
-            }
-            if ("docs.google.com".equals(asciiHost)) {
-                return uri.getPath() != null && uri.getPath().startsWith("/forms/");
-            }
-            return "forms.gle".equals(asciiHost);
-        } catch (URISyntaxException | IllegalArgumentException exception) {
-            return false;
-        }
-    }
-
-    private boolean isLocalOrIpLiteral(String host) {
-        return "localhost".equals(host)
-                || host.matches("^\\d{1,3}(\\.\\d{1,3}){3}$")
-                || host.contains(":");
-    }
 
     private boolean isModerated(String status) {
         return "hidden".equals(status) || "removed".equals(status);
@@ -1135,10 +1018,6 @@ public class InterviewPostWriteService {
             return List.of();
         }
         return (List<String>) value;
-    }
-
-    private Double asDouble(Object value) {
-        return value == null ? null : ((Number) value).doubleValue();
     }
 
     private OffsetDateTime asOffsetDateTime(Object value) {
@@ -1214,6 +1093,9 @@ public class InterviewPostWriteService {
         if (isRecruitmentTypeCreationEnabled(BETA_TEST_RECRUITMENT_TYPE)) {
             enabled.add(BETA_TEST_RECRUITMENT_TYPE);
         }
+        if (isRecruitmentTypeCreationEnabled(RESEARCH_RECRUITMENT_TYPE)) {
+            enabled.add(RESEARCH_RECRUITMENT_TYPE);
+        }
         return List.copyOf(enabled);
     }
 
@@ -1231,6 +1113,9 @@ public class InterviewPostWriteService {
             return true;
         }
         if (BETA_TEST_RECRUITMENT_TYPE.equals(recruitmentType) && properties.isBetaTestRecruitmentCreationEnabled()) {
+            return true;
+        }
+        if (RESEARCH_RECRUITMENT_TYPE.equals(recruitmentType) && properties.isResearchRecruitmentCreationEnabled()) {
             return true;
         }
         return false;

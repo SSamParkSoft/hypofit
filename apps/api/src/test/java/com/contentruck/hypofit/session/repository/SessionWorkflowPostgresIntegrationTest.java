@@ -7,7 +7,9 @@ import com.contentruck.hypofit.common.error.HypofitException;
 import com.contentruck.hypofit.session.service.SessionContexts.ApplicationRecord;
 import com.contentruck.hypofit.session.service.SessionContexts.InterviewPostRecord;
 import com.contentruck.hypofit.session.service.SessionContexts.InterviewSessionRecord;
-import com.contentruck.hypofit.session.service.SessionWorkflowService;
+import com.contentruck.hypofit.session.service.SessionAttendanceService;
+import com.contentruck.hypofit.session.service.SessionRewardService;
+import com.contentruck.hypofit.session.service.SessionReviewService;
 import com.contentruck.hypofit.testsupport.PostgresIntegrationTestSupport;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
@@ -24,7 +26,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 class SessionWorkflowPostgresIntegrationTest extends PostgresIntegrationTestSupport {
 
     @Autowired
-    private SessionWorkflowService service;
+    private SessionAttendanceService attendanceService;
+
+    @Autowired
+    private SessionRewardService rewardService;
+
+    @Autowired
+    private SessionReviewService reviewService;
 
     @Test
     void concurrentAttendanceConfirmationKeepsSingleAttendanceAndRewardRows() throws Exception {
@@ -77,7 +85,7 @@ class SessionWorkflowPostgresIntegrationTest extends PostgresIntegrationTestSupp
         CountDownLatch start = new CountDownLatch(1);
 
         Callable<Throwable> confirm = concurrentCall(
-                () -> service.confirmRewardReceived(
+                () -> rewardService.confirmRewardReceived(
                         fixture.session(),
                         fixture.application(),
                         fixture.post(),
@@ -88,7 +96,7 @@ class SessionWorkflowPostgresIntegrationTest extends PostgresIntegrationTestSupp
                 start
         );
         Callable<Throwable> dispute = concurrentCall(
-                () -> service.disputeReward(
+                () -> rewardService.disputeReward(
                         fixture.session(),
                         fixture.application(),
                         fixture.post(),
@@ -143,7 +151,7 @@ class SessionWorkflowPostgresIntegrationTest extends PostgresIntegrationTestSupp
             CountDownLatch start
     ) {
         return concurrentCall(
-                () -> service.confirmAttendance(
+                () -> attendanceService.confirmAttendance(
                         fixture.session(),
                         fixture.application(),
                         fixture.post(),
@@ -161,7 +169,7 @@ class SessionWorkflowPostgresIntegrationTest extends PostgresIntegrationTestSupp
             CountDownLatch start
     ) {
         return concurrentCall(
-                () -> service.markRewardPaid(
+                () -> rewardService.markRewardPaid(
                         fixture.session(),
                         fixture.application(),
                         fixture.post(),
@@ -179,7 +187,7 @@ class SessionWorkflowPostgresIntegrationTest extends PostgresIntegrationTestSupp
             CountDownLatch start
     ) {
         return concurrentCall(
-                () -> service.createReview(
+                () -> reviewService.createReview(
                         fixture.session(),
                         fixture.application(),
                         fixture.post(),

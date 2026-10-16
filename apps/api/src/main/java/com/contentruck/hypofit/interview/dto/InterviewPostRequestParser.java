@@ -25,7 +25,9 @@ public final class InterviewPostRequestParser {
     private static final Set<String> RECRUITMENT_TYPES = Set.of(
             "interview", "survey", "beta_test", "usability_test", "research_experiment", "focus_group", "other"
     );
-    private static final Set<String> EXTERNAL_PROVIDERS = Set.of("google_forms");
+    private static final Set<String> EXTERNAL_PROVIDERS = Set.of(
+            "google_forms", "naver_forms", "microsoft_forms", "typeform", "tally", "external"
+    );
     private static final Set<String> ENTRY_MODES = Set.of("application_required", "direct");
     private static final Set<String> INTERVIEW_MODES = Set.of("offline", "online", "both");
     private static final Set<String> LOCATION_PRECISIONS = Set.of("exact", "nearby", "district");
@@ -35,6 +37,25 @@ public final class InterviewPostRequestParser {
     private static final Set<String> RECRUITMENT_LIMIT_MODES = Set.of("limited", "unlimited");
 
     private InterviewPostRequestParser() {
+    }
+
+    public static List<UUID> parseImageIds(Object rawBody) {
+        JsonNode object = requireObject(RawRequestBodyJson.toJsonNode(rawBody));
+        if (!object.has("image_ids")) return null;
+        JsonNode ids = object.get("image_ids");
+        if (!ids.isArray() || ids.size() > 3) throw validation("image_ids", "이미지는 최대 3장까지 선택해 주세요.");
+        List<UUID> result = new ArrayList<>();
+        for (JsonNode id : ids) {
+            if (!id.isTextual()) throw validation("image_ids", "이미지를 다시 선택해 주세요.");
+            try {
+                UUID parsed = UUID.fromString(id.textValue());
+                if (result.contains(parsed)) throw validation("image_ids", "같은 이미지를 중복 선택할 수 없어요.");
+                result.add(parsed);
+            } catch (IllegalArgumentException exception) {
+                throw validation("image_ids", "이미지를 다시 선택해 주세요.");
+            }
+        }
+        return List.copyOf(result);
     }
 
     public static InterviewPostCreateCommand parseCreate(InterviewPostCreateRequest body) {
@@ -120,7 +141,7 @@ public final class InterviewPostRequestParser {
             status = "draft";
         }
 
-        if ("interview".equals(recruitmentType) && interviewMode == null) {
+        if (("interview".equals(recruitmentType) || "research_experiment".equals(recruitmentType)) && interviewMode == null) {
             errors.add(new FieldError("interview_mode", "입력값을 확인해 주세요."));
         }
         validateCanonicalCreationFields(
@@ -132,7 +153,7 @@ public final class InterviewPostRequestParser {
         );
 
         throwIfErrors(errors);
-        if ("interview".equals(recruitmentType)
+        if (("interview".equals(recruitmentType) || "research_experiment".equals(recruitmentType))
                 && ("offline".equals(interviewMode) || "both".equals(interviewMode))) {
             validateCreateLocation(
                     location,
@@ -209,7 +230,7 @@ public final class InterviewPostRequestParser {
                 || source == null) {
             throw new HypofitValidationException(
                     "Offline-capable interview posts require a selected location",
-                    List.of(new FieldError("__root__", "Offline-capable interview posts require a selected location"))
+                    List.of(new FieldError("location", "대면 진행에는 지도에서 장소를 선택해 주세요."))
             );
         }
     }
@@ -353,6 +374,10 @@ public final class InterviewPostRequestParser {
         );
         String status = optionalNullableEnum(object, "status", UPDATE_STATUSES, errors, providedFields);
 
+        if (object.has("image_ids")) {
+            parseImageIds(object);
+            providedFields.add("imageIds");
+        }
         if (providedFields.isEmpty()) {
             throw validation("__root__", "At least one interview post field must be provided");
         }

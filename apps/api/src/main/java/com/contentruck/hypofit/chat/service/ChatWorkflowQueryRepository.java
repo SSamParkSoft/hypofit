@@ -1,5 +1,7 @@
 package com.contentruck.hypofit.chat.service;
 
+import com.contentruck.hypofit.interview.service.PostingCompensation;
+import com.contentruck.hypofit.interview.service.PostingCompensations;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,10 +24,25 @@ public interface ChatWorkflowQueryRepository {
     record ChatRoomWorkflowContextRecord(
             UUID interviewPostId,
             ChatWorkflowModels.ApplicationReadModel application,
-            ChatWorkflowModels.InterviewSessionReadModel latestSession
+            ChatWorkflowModels.InterviewSessionReadModel latestSession,
+            String recruitmentType,
+            List<PostingCompensation> compensations
     ) {
+        public ChatRoomWorkflowContextRecord(UUID interviewPostId, ChatWorkflowModels.ApplicationReadModel application,
+                ChatWorkflowModels.InterviewSessionReadModel latestSession, String recruitmentType) {
+            this(interviewPostId, application, latestSession, recruitmentType, PostingCompensations.legacy(0));
+        }
+
+        public ChatRoomWorkflowContextRecord(UUID interviewPostId, ChatWorkflowModels.ApplicationReadModel application,
+                ChatWorkflowModels.InterviewSessionReadModel latestSession) {
+            this(interviewPostId, application, latestSession, "interview");
+        }
+
+        public boolean hasReward() {
+            return compensations.stream().anyMatch(compensation -> !"none".equals(compensation.type()));
+        }
     }
 
-    record ApplicationMessageabilityRecord(UUID id, String status) {
+    record ApplicationMessageabilityRecord(UUID id, String status, String recruitmentType) {
     }
 }

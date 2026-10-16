@@ -19,7 +19,7 @@ public interface ChatRepository {
 
     void ensureRoomForApplication(UUID applicationId, UUID interviewPostId, UUID founderId, UUID respondentId);
 
-    void markSelectedForApplication(UUID applicationId, UUID interviewPostId, UUID founderId, UUID respondentId);
+    UUID markSelectedForApplication(UUID applicationId, UUID interviewPostId, UUID founderId, UUID respondentId);
 
     void markRejectedForApplication(
             UUID applicationId,

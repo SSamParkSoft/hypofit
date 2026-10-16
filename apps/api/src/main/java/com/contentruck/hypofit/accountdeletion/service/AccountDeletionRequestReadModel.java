@@ -1,5 +1,6 @@
 package com.contentruck.hypofit.accountdeletion.service;
 
+import com.contentruck.hypofit.accountdeletion.service.AccountDeletionRepository.AccountDeletionRequestRecord;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -26,6 +27,32 @@ public record AccountDeletionRequestReadModel(
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
+
+    static AccountDeletionRequestReadModel from(AccountDeletionRequestRecord request) {
+        return new AccountDeletionRequestReadModel(
+                request.id(),
+                request.userId(),
+                request.email(),
+                request.emailHash(),
+                request.emailRedactedAt(),
+                request.requesterName(),
+                request.reason(),
+                request.status(),
+                request.source(),
+                request.result(),
+                request.retentionNote(),
+                request.retentionUntil(),
+                request.authUserDeleteStatus(),
+                request.authUserDeletedAt(),
+                request.authUserDeleteErrorCode(),
+                request.verifiedAt(),
+                request.verificationExpiresAt(),
+                request.verificationResendAvailableAt(),
+                null,
+                request.createdAt(),
+                request.updatedAt()
+        );
+    }
 
     public AccountDeletionRequestReadModel withResult(String nextResult) {
         return new AccountDeletionRequestReadModel(

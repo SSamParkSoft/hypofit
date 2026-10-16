@@ -80,8 +80,14 @@ public class MaintenanceController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return MaintenanceModels.MaintenanceResponse.from(
-                service.update(admin.requireAdmin(jwt).id(), id, request.toCommand())
+                service.update(admin.requireAdmin(jwt).id(), id, request.toCommand(), request.expectedVersion())
         );
+    }
+
+    @GetMapping("/api/v1/admin/maintenances/{id}/events")
+    public List<MaintenanceRepository.MaintenanceEvent> events(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        admin.requireAdmin(jwt);
+        return service.events(id);
     }
 
     @PostMapping("/api/v1/admin/maintenances/{id}/start")

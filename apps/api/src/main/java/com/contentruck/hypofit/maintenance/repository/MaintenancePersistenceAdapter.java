@@ -20,6 +20,19 @@ public class MaintenancePersistenceAdapter implements MaintenanceRepository {
     public MaintenancePersistenceAdapter(NamedParameterJdbcTemplate jdbc) { this.jdbc = jdbc; }
     @Override public List<MaintenanceRecord> list() { return jdbc.query("select * from service_maintenances order by starts_at desc", Map.of(), ROW); }
     @Override public Optional<MaintenanceRecord> find(UUID id) { return jdbc.query("select * from service_maintenances where id = :id", Map.of("id", id), ROW).stream().findFirst(); }
+    @Override public Optional<MaintenanceRecord> findForUpdate(UUID id) { return jdbc.query("select * from service_maintenances where id = :id for update", Map.of("id", id), ROW).stream().findFirst(); }
+    @Override public List<MaintenanceEvent> listEvents(UUID id) {
+        return jdbc.query("""
+                select a.id, a.actor_user_id, u.name as actor_name, a.event_type,
+                  a.before::text as before_json, a.after::text as after_json, a.created_at
+                from audit_events a left join app_users u on u.id = a.actor_user_id
+                where a.target_type = 'service_maintenance' and a.target_id = :id
+                order by a.created_at desc, a.id desc limit 100
+                """, Map.of("id", id), (r, row) -> new MaintenanceEvent(
+                r.getObject("id", UUID.class), r.getObject("actor_user_id", UUID.class), r.getString("actor_name"),
+                r.getString("event_type"), r.getString("before_json"), r.getString("after_json"),
+                r.getObject("created_at", OffsetDateTime.class)));
+    }
     @Override public Optional<MaintenanceRecord> findActive() { return jdbc.query("select * from service_maintenances where status in ('IN_PROGRESS', 'VERIFYING') order by started_at desc limit 1", Map.of(), ROW).stream().findFirst(); }
     @Override public Optional<MaintenanceRecord> findVisibleScheduled(OffsetDateTime now) { return jdbc.query("""
             select * from service_maintenances where status = 'SCHEDULED' and show_banner = true
@@ -45,11 +58,12 @@ public class MaintenancePersistenceAdapter implements MaintenanceRepository {
     @Override public void linkNotice(UUID id, UUID noticeId) {
         jdbc.update("update service_maintenances set notice_id = :noticeId, updated_at = now(), version = version + 1 where id = :id", Map.of("id", id, "noticeId", noticeId));
     }
-    @Override public MaintenanceRecord update(UUID id, UUID actorId, WriteCommand c) {
+    @Override public MaintenanceRecord update(UUID id, UUID actorId, WriteCommand c, long expectedVersion) {
         int changed = jdbc.update("""
             update service_maintenances set title=:title,message=:message,starts_at=:startsAt,ends_at=:endsAt,show_banner=:showBanner,
-              banner_starts_at=:bannerStartsAt,updated_by=:actorId,updated_at=now(),version=version+1 where id=:id and status='SCHEDULED'
-            """, params(id, actorId, c));
+              banner_starts_at=:bannerStartsAt,updated_by=:actorId,updated_at=now(),version=version+1
+            where id=:id and status in ('SCHEDULED', 'IN_PROGRESS', 'VERIFYING') and version=:version
+            """, params(id, actorId, c).addValue("version", expectedVersion));
         return changed == 0 ? null : find(id).orElseThrow();
     }
     @Override public MaintenanceRecord transition(UUID id, UUID actorId, String from, String to, OffsetDateTime now) {

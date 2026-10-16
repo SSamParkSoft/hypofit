@@ -51,7 +51,7 @@ public record InterviewPostResponse(
         @Schema(nullable = true, allowableValues = {"limited", "unlimited"})
         String recruitmentLimitMode,
         @JsonProperty("external_provider")
-        @Schema(nullable = true, allowableValues = {"google_forms"})
+        @Schema(nullable = true, allowableValues = {"google_forms", "naver_forms", "microsoft_forms", "typeform", "tally", "external"})
         String externalProvider,
         @JsonProperty("external_url")
         @Schema(nullable = true, maxLength = 2000)
@@ -125,10 +125,16 @@ public record InterviewPostResponse(
         @JsonProperty("distance_meters")
         Double distanceMeters,
         @JsonProperty("ai_summary")
-        InterviewAiSummaryResponse aiSummary
+        InterviewAiSummaryResponse aiSummary,
+        @JsonProperty("cover_image") PostingImageResponse coverImage,
+        List<PostingImageResponse> images
 ) {
 
     public static InterviewPostResponse from(InterviewPostReadModel model) {
+        return from(model, List.of());
+    }
+
+    public static InterviewPostResponse from(InterviewPostReadModel model, List<PostingImageResponse> images) {
         return new InterviewPostResponse(
                 model.id(),
                 model.founderId(),
@@ -176,7 +182,9 @@ public record InterviewPostResponse(
                 FounderSummaryResponse.from(model.founder()),
                 FounderReviewSummaryResponse.from(model.founderReviewSummary()),
                 model.distanceMeters(),
-                InterviewAiSummaryResponse.from(model.aiSummary())
+                InterviewAiSummaryResponse.from(model.aiSummary()),
+                images.isEmpty() ? null : images.getFirst(),
+                images
         );
     }
 }

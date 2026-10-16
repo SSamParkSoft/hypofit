@@ -48,6 +48,14 @@ public class PushDispatchService {
     }
 
     public PushDispatchResult dispatchPendingDeliveries(Integer limitOverride) {
+        return dispatch(limitOverride, null);
+    }
+
+    public PushDispatchResult dispatchNotification(UUID notificationId) {
+        return dispatch(null, java.util.Objects.requireNonNull(notificationId));
+    }
+
+    private PushDispatchResult dispatch(Integer limitOverride, UUID notificationId) {
         if (!properties.getPush().isEnabled()) {
             return PushDispatchResult.zero();
         }
@@ -55,12 +63,15 @@ public class PushDispatchService {
         int limit = limitOverride == null ? properties.getPush().getPushBatchSize() : limitOverride;
         List<PushDispatchRepository.ClaimedPushDeliveryRecord> claimed = transactionOperations.execute(status -> {
             OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-            repository.resetStaleSendingDeliveries(
+            if (notificationId == null) {
+                repository.resetStaleSendingDeliveries(
                     now,
                     properties.getPush().getPushSendingTimeoutSeconds(),
                     properties.getPush().getPushMaxAttempts()
-            );
-            return repository.claimPendingDeliveries(now, limit);
+                );
+            }
+            return notificationId == null ? repository.claimPendingDeliveries(now, limit)
+                    : repository.claimNotificationDeliveries(now, limit, notificationId);
         });
 
         if (claimed == null || claimed.isEmpty()) {
@@ -74,6 +85,24 @@ public class PushDispatchService {
         List<DeliveryOutcome> outcomes = new ArrayList<>(claimed.size());
 
         for (PushDispatchRepository.ClaimedPushDeliveryRecord delivery : claimed) {
+            // Recheck each delivery after claim; commit suppression before any later provider call can fail.
+            Boolean eligible = transactionOperations.execute(status -> {
+                if (repository.isDeliveryEligible(delivery)) {
+                    return true;
+                }
+                repository.markDeliverySkipped(
+                        OffsetDateTime.now(ZoneOffset.UTC),
+                        delivery.deliveryId(),
+                        "skipped",
+                        "push_recipient_ineligible",
+                        "Push recipient or device no longer permits delivery"
+                );
+                return false;
+            });
+            if (!Boolean.TRUE.equals(eligible)) {
+                skipped += 1;
+                continue;
+            }
             PushProviderGateway.PushProviderResult result = send(delivery);
             String status = normalizeStatus(result.status());
             if ("sent".equals(status)) {

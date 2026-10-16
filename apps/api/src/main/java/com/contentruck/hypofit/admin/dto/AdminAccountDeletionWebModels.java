@@ -1,6 +1,6 @@
 package com.contentruck.hypofit.admin.dto;
 
-import com.contentruck.hypofit.accountdeletion.service.AccountDeletionService.AdminAccountDeletionRequestView;
+import com.contentruck.hypofit.accountdeletion.service.AdminAccountDeletionRequestView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;

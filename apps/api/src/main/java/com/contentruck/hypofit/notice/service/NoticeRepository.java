@@ -15,6 +15,10 @@ public interface NoticeRepository {
 
     Optional<NoticeRecord> find(UUID id);
 
+    Optional<NoticeRecord> findForUpdate(UUID id);
+
+    boolean delete(UUID id);
+
     NoticeRecord insert(UUID actorId, NoticeWriteCommand command);
 
     NoticeRecord update(UUID id, UUID actorId, NoticeWriteCommand command);
@@ -34,7 +38,8 @@ public interface NoticeRepository {
             UUID createdBy,
             UUID updatedBy,
             OffsetDateTime createdAt,
-            OffsetDateTime updatedAt
+            OffsetDateTime updatedAt,
+            boolean managedByMaintenance
     ) {
     }
 }

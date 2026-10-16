@@ -38,8 +38,10 @@ public class HypofitProperties {
     private String socialAuthGoogleState = "disabled";
     private String socialAuthKakaoState = "disabled";
     private String socialAuthNaverState = "disabled";
+    private boolean postingImagesEnabled;
     private boolean surveyRecruitmentCreationEnabled;
     private boolean betaTestRecruitmentCreationEnabled;
+    private boolean researchRecruitmentCreationEnabled;
     private boolean extendedRecruitmentCreationEnabled;
     private boolean aiSummaryEnabled;
     private boolean aiInterviewSummaryEnabled;
@@ -60,6 +62,14 @@ public class HypofitProperties {
 
     public String getEnv() {
         return env;
+    }
+
+    public boolean isPostingImagesEnabled() {
+        return postingImagesEnabled;
+    }
+
+    public void setPostingImagesEnabled(boolean enabled) {
+        postingImagesEnabled = enabled;
     }
 
     public void setEnv(String env) {
@@ -267,7 +277,7 @@ public class HypofitProperties {
     }
 
     public String getSocialAuthNaverState() {
-        return socialAuthNaverState;
+        return "disabled";
     }
 
     public void setSocialAuthNaverState(String socialAuthNaverState) {
@@ -292,6 +302,14 @@ public class HypofitProperties {
 
     public boolean isExtendedRecruitmentCreationEnabled() {
         return extendedRecruitmentCreationEnabled;
+    }
+
+    public boolean isResearchRecruitmentCreationEnabled() {
+        return researchRecruitmentCreationEnabled;
+    }
+
+    public void setResearchRecruitmentCreationEnabled(boolean researchRecruitmentCreationEnabled) {
+        this.researchRecruitmentCreationEnabled = researchRecruitmentCreationEnabled;
     }
 
     public void setExtendedRecruitmentCreationEnabled(boolean extendedRecruitmentCreationEnabled) {
@@ -506,8 +524,7 @@ public class HypofitProperties {
                 "providers", Map.of(
                         "apple", socialAuthAppleState,
                         "google", socialAuthGoogleState,
-                        "kakao", socialAuthKakaoState,
-                        "naver", socialAuthNaverState
+                        "kakao", socialAuthKakaoState
                 ),
                 "apple_platforms", Map.of(
                         "web", StringUtils.hasText(socialAuthAppleWebState) ? socialAuthAppleWebState : socialAuthAppleState,

@@ -1,6 +1,5 @@
 package com.contentruck.hypofit.accountdeletion.service;
 
-import com.contentruck.hypofit.accountdeletion.service.AccountDeletionAuthCleanupGateway.AuthCleanupResult;
 import com.contentruck.hypofit.accountdeletion.service.AccountDeletionCommands.AuthenticatedCreateCommand;
 import com.contentruck.hypofit.accountdeletion.service.AccountDeletionCommands.ConfirmCommand;
 import com.contentruck.hypofit.accountdeletion.service.AccountDeletionCommands.PublicCreateCommand;
@@ -38,37 +37,29 @@ public class AccountDeletionService {
 
     private static final Duration VERIFICATION_CODE_TTL = Duration.ofMinutes(10);
     private static final Duration VERIFICATION_RESEND_COOLDOWN = Duration.ofSeconds(90);
-    private static final int VERIFICATION_MAX_ATTEMPTS = 5;
     private static final int VERIFICATION_MAX_SENDS_PER_HOUR = 5;
     private static final Duration VERIFICATION_SEND_WINDOW = Duration.ofHours(1);
-    private static final Duration DELETION_AUTHORIZATION_TTL = Duration.ofMinutes(5);
 
     private final AccountDeletionRepository repository;
     private final AccountDeletionEmailGateway emailGateway;
-    private final AccountDeletionAuthCleanupGateway authCleanupGateway;
-    private final AccountDeletionProfileImagePurgeGateway profileImagePurgeGateway;
-    private final AccountDeletionCompletionWriteService completionWriteService;
-    private final AccountDeletionAdminService adminService;
     private final AccountDeletionVerificationSecurity verificationSecurity;
+    private final AccountDeletionVerificationService verificationService;
+    private final AccountDeletionCompletionService completionService;
     private final HypofitProperties properties;
 
     public AccountDeletionService(
             AccountDeletionRepository repository,
             AccountDeletionEmailGateway emailGateway,
-            AccountDeletionAuthCleanupGateway authCleanupGateway,
-            AccountDeletionProfileImagePurgeGateway profileImagePurgeGateway,
-            AccountDeletionCompletionWriteService completionWriteService,
-            AccountDeletionAdminService adminService,
             AccountDeletionVerificationSecurity verificationSecurity,
+            AccountDeletionVerificationService verificationService,
+            AccountDeletionCompletionService completionService,
             HypofitProperties properties
     ) {
         this.repository = repository;
         this.emailGateway = emailGateway;
-        this.authCleanupGateway = authCleanupGateway;
-        this.profileImagePurgeGateway = profileImagePurgeGateway;
-        this.completionWriteService = completionWriteService;
-        this.adminService = adminService;
         this.verificationSecurity = verificationSecurity;
+        this.verificationService = verificationService;
+        this.completionService = completionService;
         this.properties = properties;
     }
 
@@ -80,7 +71,7 @@ public class AccountDeletionService {
         AccountDeletionRequestRecord existing = repository.findLatestPublicRequestByEmailHash(emailHash).orElse(null);
 
         if (isVerificationRecentlySent(existing, now)) {
-            return toReadModel(existing).withResult("verification_code_recently_sent");
+            return AccountDeletionRequestReadModel.from(existing).withResult("verification_code_recently_sent");
         }
 
         UserAccountRecord matchedUser = repository.findUserByEmail(input.email()).orElse(null);
@@ -191,14 +182,9 @@ public class AccountDeletionService {
         return attachDebugVerificationCode(saved, verificationCode);
     }
 
-    @Transactional
     public AccountDeletionVerificationReadModel verifyPublicRequest(VerifyCommand command) {
         NormalizedVerifyInput input = normalizeVerify(command);
-        AccountDeletionRequestRecord request = repository.findRequestForUpdate(input.requestId()).orElse(null);
-        if (request == null || !PUBLIC_SOURCE.equals(request.source())) {
-            throw notFound("Account deletion request not found");
-        }
-        return verifyRequestCode(request, input.code(), input.token(), null, "public");
+        return verificationService.verifyPublic(input.requestId(), input.code(), input.token()).requireVerified();
     }
 
     @Transactional
@@ -217,7 +203,7 @@ public class AccountDeletionService {
         if (request == null || !PUBLIC_SOURCE.equals(request.source())) {
             throw notFound("Account deletion request not found");
         }
-        return confirmVerifiedDeletion(request, input.deletionAuthorization(), null, "public");
+        return completionService.confirmVerifiedDeletion(request, input.deletionAuthorization(), null, "public");
     }
 
     @Transactional
@@ -231,7 +217,7 @@ public class AccountDeletionService {
         OffsetDateTime now = now();
         AccountDeletionRequestRecord existing = repository.findLatestRequestForUser(userId).orElse(null);
         if (isVerificationRecentlySent(existing, now) && AUTHENTICATED_SOURCE.equals(existing.source())) {
-            return toReadModel(existing).withResult("verification_code_recently_sent");
+            return AccountDeletionRequestReadModel.from(existing).withResult("verification_code_recently_sent");
         }
 
         String verificationCode = verificationSecurity.generateVerificationCode();
@@ -356,13 +342,9 @@ public class AccountDeletionService {
         return attachDebugVerificationCode(saved, verificationCode);
     }
 
-    @Transactional
     public AccountDeletionVerificationReadModel verifyAuthenticatedRequest(UUID userId, VerifyCommand command) {
         NormalizedVerifyInput input = normalizeVerify(command);
-        UserAccountRecord user = requireUserAccount(userId);
-        AccountDeletionRequestRecord request = repository.findRequestForUpdate(input.requestId()).orElse(null);
-        ensureAuthenticatedOwner(request, user);
-        return verifyRequestCode(request, input.code(), input.token(), user, "user");
+        return verificationService.verifyAuthenticated(userId, input.requestId(), input.code(), input.token()).requireVerified();
     }
 
     @Transactional
@@ -379,7 +361,7 @@ public class AccountDeletionService {
         UserAccountRecord user = requireUserAccount(userId);
         AccountDeletionRequestRecord request = repository.findRequest(input.requestId()).orElse(null);
         ensureAuthenticatedOwner(request, user);
-        return confirmVerifiedDeletion(request, input.deletionAuthorization(), user, "user");
+        return completionService.confirmVerifiedDeletion(request, input.deletionAuthorization(), user, "user");
     }
 
     public AccountDeletionRequestReadModel deactivateCurrentUser(UUID userId, AuthenticatedCreateCommand command) {
@@ -396,178 +378,7 @@ public class AccountDeletionService {
         String reason = normalizedReason != null
                 ? normalizedReason
                 : request == null ? null : request.reason();
-        return performCompletedDeletion(user, request, reason, "user");
-    }
-
-    @Transactional(readOnly = true)
-    public List<AdminAccountDeletionRequestView> listAdminRequests(String status, int limit) {
-        return adminService.listRequests(status, limit);
-    }
-
-    public AdminAccountDeletionRequestView retryAuthCleanup(UUID requestId, UUID actorUserId) {
-        return adminService.retryAuthCleanup(requestId, actorUserId);
-    }
-
-    private AccountDeletionVerificationReadModel verifyRequestCode(
-            AccountDeletionRequestRecord request,
-            String code,
-            String legacyToken,
-            UserAccountRecord expectedUser,
-            String actorType
-    ) {
-        OffsetDateTime now = now();
-        if (isClosedRequest(request)) {
-            throw conflict("Account deletion request is no longer verifiable");
-        }
-        if ("verified".equals(request.status())) {
-            throw conflict("Account deletion code has already been verified");
-        }
-        if (request.verificationLockedAt() != null || request.verificationAttemptCount() >= VERIFICATION_MAX_ATTEMPTS) {
-            throw tooManyRequests("Verification attempts exceeded. Request a new code");
-        }
-        boolean legacyMode = legacyToken != null && request.verificationTokenHash() != null;
-        if (!legacyMode && (request.verificationCodeHash() == null || request.verificationExpiresAt() == null)) {
-            throw conflict("Account deletion request is not awaiting verification");
-        }
-        if (!legacyMode && !request.verificationExpiresAt().isAfter(now)) {
-            throw gone("Verification code has expired");
-        }
-
-        String providedHash = legacyMode
-                ? verificationSecurity.sha256(legacyToken)
-                : verificationSecurity.hashVerificationCode(request.id(), Objects.requireNonNullElse(code, ""));
-        String expectedHash = legacyMode ? request.verificationTokenHash() : request.verificationCodeHash();
-        if (!Objects.equals(expectedHash, providedHash)) {
-            int attempts = request.verificationAttemptCount() + 1;
-            OffsetDateTime lockedAt = attempts >= VERIFICATION_MAX_ATTEMPTS ? now : null;
-            repository.saveRequest(new AccountDeletionRequestMutation(
-                    request.id(),
-                    request.userId(),
-                    request.email(),
-                    request.emailHash(),
-                    request.emailRedactedAt(),
-                    request.requesterName(),
-                    request.reason(),
-                    request.status(),
-                    request.source(),
-                    request.verificationTokenHash(),
-                    request.verificationCodeHash(),
-                    request.verificationExpiresAt(),
-                    attempts,
-                    request.verificationResendAvailableAt(),
-                    lockedAt,
-                    request.verificationSendCount(),
-                    request.verificationWindowStartedAt(),
-                    request.deletionAuthorizationHash(),
-                    request.deletionAuthorizationExpiresAt(),
-                    request.verifiedAt(),
-                    request.processedBy(),
-                    request.processedAt(),
-                    request.result(),
-                    request.retentionNote(),
-                    request.retentionUntil(),
-                    request.authUserDeleteStatus(),
-                    request.authUserDeletedAt(),
-                    request.authUserDeleteErrorCode(),
-                    request.createdAt(),
-                    now
-            ));
-            repository.recordAuditEvent(
-                    request.userId(),
-                    actorType,
-                    "account_deletion_verification_code_failed",
-                    "account_deletion_request",
-                    request.id(),
-                    null,
-                    Map.of(
-                            "attempt_count", attempts,
-                            "locked", lockedAt != null,
-                            "source", request.source()
-                    )
-            );
-            throw badRequest("Verification code is invalid");
-        }
-
-        UserAccountRecord matchedUser = expectedUser;
-        if (matchedUser == null && request.userId() != null) {
-            matchedUser = repository.findUserAccount(request.userId()).orElse(null);
-        }
-        if (matchedUser == null) {
-            matchedUser = repository.findUserByEmail(request.email()).orElse(null);
-        }
-        UserAccountRecord activeMatchedUser = activeUser(matchedUser);
-        String deletionAuthorization = verificationSecurity.generateDeletionAuthorization();
-        OffsetDateTime deletionAuthorizationExpiresAt = now.plus(DELETION_AUTHORIZATION_TTL);
-        AccountDeletionRequestReadModel saved = repository.saveRequest(new AccountDeletionRequestMutation(
-                request.id(),
-                activeMatchedUser == null ? request.userId() : activeMatchedUser.id(),
-                request.email(),
-                request.emailHash(),
-                request.emailRedactedAt(),
-                request.requesterName(),
-                request.reason(),
-                "verified",
-                request.source(),
-                null,
-                null,
-                null,
-                request.verificationAttemptCount(),
-                request.verificationResendAvailableAt(),
-                null,
-                request.verificationSendCount(),
-                request.verificationWindowStartedAt(),
-                verificationSecurity.sha256(deletionAuthorization),
-                deletionAuthorizationExpiresAt,
-                now,
-                request.processedBy(),
-                request.processedAt(),
-                request.result(),
-                request.retentionNote(),
-                request.retentionUntil(),
-                request.authUserDeleteStatus(),
-                request.authUserDeletedAt(),
-                request.authUserDeleteErrorCode(),
-                request.createdAt(),
-                now
-        ));
-
-        if (activeMatchedUser != null
-                && (activeMatchedUser.deletionRequestedAt() == null || !Objects.equals(activeMatchedUser.deletionReason(), request.reason()))) {
-            repository.saveUserDeletion(new UserDeletionMutation(
-                    activeMatchedUser.id(),
-                    activeMatchedUser.email(),
-                    activeMatchedUser.name(),
-                    activeMatchedUser.bio(),
-                    activeMatchedUser.phone(),
-                    activeMatchedUser.role(),
-                    activeMatchedUser.profileImagePath(),
-                    activeMatchedUser.profileImageUrl(),
-                    activeMatchedUser.deactivatedAt(),
-                    activeMatchedUser.deletedAt(),
-                    activeMatchedUser.anonymizedAt(),
-                    activeMatchedUser.deletionRequestedAt() == null ? now : activeMatchedUser.deletionRequestedAt(),
-                    activeMatchedUser.deletionCompletedAt(),
-                    request.reason(),
-                    activeMatchedUser.deletedEmailHash()
-            ));
-        }
-
-        Map<String, Object> verifiedMetadata = new LinkedHashMap<>();
-        verifiedMetadata.put("source", request.source());
-        verifiedMetadata.put("email_hash", request.emailHash());
-        verifiedMetadata.put("verification_status", "verified");
-        verifiedMetadata.put("matched_active_account", activeMatchedUser != null);
-        repository.recordAuditEvent(
-                activeMatchedUser == null ? null : activeMatchedUser.id(),
-                actorType,
-                "account_deletion_verified",
-                "account_deletion_request",
-                request.id(),
-                request.reason(),
-                verifiedMetadata
-        );
-
-        return new AccountDeletionVerificationReadModel(saved, deletionAuthorization, deletionAuthorizationExpiresAt);
+        return completionService.performCompletedDeletion(user, request, reason, "user");
     }
 
     private AccountDeletionRequestReadModel resendVerificationCode(AccountDeletionRequestRecord request, String actorType) {
@@ -629,84 +440,6 @@ public class AccountDeletionService {
         String emailStatus = emailGateway.sendVerificationCode(saved.email(), verificationCode);
         saved = updateRequestResult(saved.id(), emailStatus, now);
         return attachDebugVerificationCode(saved, verificationCode);
-    }
-
-    private AccountDeletionRequestReadModel confirmVerifiedDeletion(
-            AccountDeletionRequestRecord request,
-            String deletionAuthorization,
-            UserAccountRecord expectedUser,
-            String actorType
-    ) {
-        OffsetDateTime now = now();
-        if (!"verified".equals(request.status())) {
-            throw conflict("Verify the account deletion code first");
-        }
-        if (request.deletionAuthorizationHash() == null || request.deletionAuthorizationExpiresAt() == null) {
-            throw conflict("Account deletion confirmation is not available");
-        }
-        if (!request.deletionAuthorizationExpiresAt().isAfter(now)) {
-            throw gone("Account deletion confirmation has expired");
-        }
-        if (!Objects.equals(request.deletionAuthorizationHash(), verificationSecurity.sha256(deletionAuthorization))) {
-            throw badRequest("Account deletion confirmation is invalid");
-        }
-        if (!repository.claimVerifiedRequest(request.id(), now)) {
-            throw conflict("Account deletion is already being processed");
-        }
-
-        UserAccountRecord matchedUser = expectedUser;
-        if (matchedUser == null && request.userId() != null) {
-            matchedUser = repository.findUserAccount(request.userId()).orElse(null);
-        }
-        if (matchedUser == null) {
-            matchedUser = repository.findUserByEmail(request.email()).orElse(null);
-        }
-        UserAccountRecord activeMatchedUser = activeUser(matchedUser);
-
-        if (activeMatchedUser == null) {
-            String emailHash = request.emailHash() == null ? verificationSecurity.hashEmail(request.email()) : request.emailHash();
-            completionWriteService.completeWithoutActiveAccount(request, emailHash);
-            return repository.findRequest(request.id())
-                    .map(this::toReadModel)
-                    .orElseThrow(() -> new IllegalStateException("Account deletion request is missing after completion"));
-        }
-        return performCompletedDeletion(activeMatchedUser, request, request.reason(), actorType);
-    }
-
-    private AccountDeletionRequestReadModel performCompletedDeletion(
-            UserAccountRecord user,
-            AccountDeletionRequestRecord request,
-            String reason,
-            String actorType
-    ) {
-        if (user.deletedAt() != null || user.deactivatedAt() != null) {
-            throw conflict("Account is already inactive");
-        }
-
-        String emailHash = request == null || request.emailHash() == null
-                ? verificationSecurity.hashEmail(user.email())
-                : request.emailHash();
-        AccountDeletionCompletionWriteService.InitialDeletionState initialState =
-                completionWriteService.commitInitialDeletionState(
-                        user,
-                        request,
-                        reason,
-                        actorType,
-                        emailHash
-                );
-        String profileImagePurgeStatus = profileImagePurgeGateway.purgeProfileImage(initialState.profileImagePath());
-        completionWriteService.persistProfileImagePurgeResult(
-                initialState.requestId(),
-                initialState.userId(),
-                initialState.profileImagePath(),
-                initialState.initialProfileImagePurgeStatus(),
-                profileImagePurgeStatus
-        );
-        AuthCleanupResult authCleanup = authCleanupGateway.deleteAuthUser(user.id());
-        completionWriteService.persistCompletionAuthCleanupResult(initialState.requestId(), initialState.userId(), authCleanup);
-        return repository.findRequest(initialState.requestId())
-                .map(this::toReadModel)
-                .orElseThrow(() -> new IllegalStateException("Account deletion request is missing after completion"));
     }
 
     private boolean isVerificationRecentlySent(AccountDeletionRequestRecord request, OffsetDateTime now) {
@@ -892,71 +625,6 @@ public class AccountDeletionService {
         return OffsetDateTime.now(ZoneOffset.UTC);
     }
 
-    private AccountDeletionRequestReadModel toReadModel(AccountDeletionRequestRecord request) {
-        return new AccountDeletionRequestReadModel(
-                request.id(),
-                request.userId(),
-                request.email(),
-                request.emailHash(),
-                request.emailRedactedAt(),
-                request.requesterName(),
-                request.reason(),
-                request.status(),
-                request.source(),
-                request.result(),
-                request.retentionNote(),
-                request.retentionUntil(),
-                request.authUserDeleteStatus(),
-                request.authUserDeletedAt(),
-                request.authUserDeleteErrorCode(),
-                request.verifiedAt(),
-                request.verificationExpiresAt(),
-                request.verificationResendAvailableAt(),
-                null,
-                request.createdAt(),
-                request.updatedAt()
-        );
-    }
-
-    private AccountDeletionRequestMutation toMutation(
-            AccountDeletionRequestReadModel request,
-            AccountDeletionRequestRecord existing,
-            OffsetDateTime updatedAt
-    ) {
-        return new AccountDeletionRequestMutation(
-                request.id(),
-                request.userId(),
-                request.email(),
-                request.emailHash(),
-                request.emailRedactedAt(),
-                request.requesterName(),
-                request.reason(),
-                request.status(),
-                request.source(),
-                existing == null ? null : existing.verificationTokenHash(),
-                existing == null ? null : existing.verificationCodeHash(),
-                request.verificationExpiresAt(),
-                existing == null ? 0 : existing.verificationAttemptCount(),
-                request.verificationResendAvailableAt(),
-                existing == null ? null : existing.verificationLockedAt(),
-                existing == null ? 0 : existing.verificationSendCount(),
-                existing == null ? null : existing.verificationWindowStartedAt(),
-                existing == null ? null : existing.deletionAuthorizationHash(),
-                existing == null ? null : existing.deletionAuthorizationExpiresAt(),
-                request.verifiedAt(),
-                existing == null ? null : existing.processedBy(),
-                existing == null ? null : existing.processedAt(),
-                request.result(),
-                request.retentionNote(),
-                request.retentionUntil(),
-                request.authUserDeleteStatus(),
-                request.authUserDeletedAt(),
-                request.authUserDeleteErrorCode(),
-                request.createdAt(),
-                updatedAt
-        );
-    }
-
     private AccountDeletionRequestReadModel updateRequestResult(UUID requestId, String result, OffsetDateTime updatedAt) {
         AccountDeletionRequestRecord existing = repository.findRequest(requestId)
                 .orElseThrow(() -> new IllegalStateException("Account deletion request is missing after save"));
@@ -1002,16 +670,8 @@ public class AccountDeletionService {
         return new HypofitException("conflict", "이미 처리된 요청이에요.", HttpStatus.CONFLICT.value(), detail);
     }
 
-    private HypofitException badRequest(String detail) {
-        return new HypofitException("request_failed", "요청을 처리하지 못했어요.", HttpStatus.BAD_REQUEST.value(), detail);
-    }
-
     private HypofitException tooManyRequests(String detail) {
         return new HypofitException("request_rate_limited", "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.", 429, detail);
-    }
-
-    private HypofitException gone(String detail) {
-        return new HypofitException("request_expired", "요청이 만료되었어요.", HttpStatus.GONE.value(), detail);
     }
 
     private record NormalizedPublicCreateInput(
@@ -1040,31 +700,4 @@ public class AccountDeletionService {
     ) {
     }
 
-    public record AdminAccountDeletionRequestView(
-            UUID id,
-            UUID userId,
-            String requesterName,
-            String emailDisplay,
-            String emailHashPrefix,
-            OffsetDateTime emailRedactedAt,
-            String reason,
-            String status,
-            String source,
-            String verificationStatus,
-            String cleanupStatus,
-            String result,
-            String profileImageCleanupStatus,
-            String authUserDeleteStatus,
-            OffsetDateTime authUserDeletedAt,
-            String authUserDeleteErrorCode,
-            boolean authCleanupRetryAvailable,
-            String retentionNote,
-            OffsetDateTime retentionUntil,
-            OffsetDateTime verifiedAt,
-            UUID processedBy,
-            OffsetDateTime processedAt,
-            OffsetDateTime createdAt,
-            OffsetDateTime updatedAt
-    ) {
-    }
 }

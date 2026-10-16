@@ -17,6 +17,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class NoticePersistenceAdapter implements NoticeRepository {
 
+    private static final String SELECT = "select n.*, exists(select 1 from service_maintenances m where m.notice_id = n.id) as managed_by_maintenance from notices n";
+
     private static final RowMapper<NoticeRecord> ROW_MAPPER = NoticePersistenceAdapter::map;
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -26,26 +28,37 @@ public class NoticePersistenceAdapter implements NoticeRepository {
 
     @Override
     public List<NoticeRecord> listPublished() {
-        return jdbc.query("""
-                select * from notices where status = 'PUBLISHED'
-                order by published_at desc nulls last, created_at desc
-                """, Map.of(), ROW_MAPPER);
+        return jdbc.query(SELECT + " where n.status = 'PUBLISHED' order by n.published_at desc nulls last, n.created_at desc", Map.of(), ROW_MAPPER);
     }
 
     @Override
     public Optional<NoticeRecord> findPublished(UUID id) {
-        return jdbc.query("select * from notices where id = :id and status = 'PUBLISHED'", Map.of("id", id), ROW_MAPPER)
+        return jdbc.query(SELECT + " where n.id = :id and n.status = 'PUBLISHED'", Map.of("id", id), ROW_MAPPER)
                 .stream().findFirst();
     }
 
     @Override
     public List<NoticeRecord> listAll() {
-        return jdbc.query("select * from notices order by updated_at desc", Map.of(), ROW_MAPPER);
+        return jdbc.query(SELECT + " order by n.updated_at desc", Map.of(), ROW_MAPPER);
     }
 
     @Override
     public Optional<NoticeRecord> find(UUID id) {
-        return jdbc.query("select * from notices where id = :id", Map.of("id", id), ROW_MAPPER).stream().findFirst();
+        return jdbc.query(SELECT + " where n.id = :id", Map.of("id", id), ROW_MAPPER).stream().findFirst();
+    }
+
+    @Override
+    public Optional<NoticeRecord> findForUpdate(UUID id) {
+        return jdbc.query(SELECT + " where n.id = :id for update of n", Map.of("id", id), ROW_MAPPER).stream().findFirst();
+    }
+
+    @Override
+    public boolean delete(UUID id) {
+        return jdbc.update("""
+                delete from notices n
+                where n.id = :id
+                  and not exists (select 1 from service_maintenances m where m.notice_id = n.id)
+                """, Map.of("id", id)) == 1;
     }
 
     @Override
@@ -88,6 +101,6 @@ public class NoticePersistenceAdapter implements NoticeRepository {
     private static NoticeRecord map(ResultSet row, int ignored) throws SQLException {
         return new NoticeRecord(row.getObject("id", UUID.class), row.getString("type"), row.getString("title"), row.getString("body"),
                 row.getString("status"), row.getObject("published_at", OffsetDateTime.class), row.getObject("created_by", UUID.class),
-                row.getObject("updated_by", UUID.class), row.getObject("created_at", OffsetDateTime.class), row.getObject("updated_at", OffsetDateTime.class));
+                row.getObject("updated_by", UUID.class), row.getObject("created_at", OffsetDateTime.class), row.getObject("updated_at", OffsetDateTime.class), row.getBoolean("managed_by_maintenance"));
     }
 }

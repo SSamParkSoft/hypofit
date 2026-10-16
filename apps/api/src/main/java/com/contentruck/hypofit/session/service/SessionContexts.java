@@ -1,5 +1,7 @@
 package com.contentruck.hypofit.session.service;
 
+import com.contentruck.hypofit.interview.service.PostingCompensation;
+import com.contentruck.hypofit.interview.service.PostingCompensations;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +46,21 @@ public final class SessionContexts {
             UUID founderId,
             String title,
             int rewardAmount,
-            String recruitmentType
+            String recruitmentType,
+            List<PostingCompensation> compensations
     ) {
+        public InterviewPostRecord {
+            compensations = compensations == null || compensations.isEmpty()
+                    ? PostingCompensations.legacy(rewardAmount) : List.copyOf(compensations);
+        }
+
+        public InterviewPostRecord(UUID id, UUID founderId, String title, int rewardAmount, String recruitmentType) {
+            this(id, founderId, title, rewardAmount, recruitmentType, List.of());
+        }
+
+        public boolean hasReward() {
+            return compensations.stream().anyMatch(compensation -> !"none".equals(compensation.type()));
+        }
     }
 
     public record InterviewSessionRecord(

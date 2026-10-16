@@ -63,6 +63,7 @@ public class SessionRewardService {
         post = locked.post();
         ensureFounder(actorRole);
         ensureCompleted(session, "mark reward paid");
+        ensureRewardRequired(post);
 
         RewardConfirmationRecord reward = getOrCreateReward(session, application, post);
         if (!Set.of("pending", "founder_marked_paid").contains(reward.status())) {
@@ -81,8 +82,8 @@ public class SessionRewardService {
                 auditMetadata(application, post, session, actorRole)
         ));
         notificationService.notifyCounterpart(
-                session, application, post, post.founderId(), "reward_marked_paid", "사례비 지급 확인이 필요해요",
-                "창업자가 사례비 지급을 완료했다고 표시했어요. 수령 여부를 확인해 주세요.",
+                session, application, post, post.founderId(), "reward_marked_paid", "보상 수령 여부를 확인해 주세요",
+                "모집자가 보상을 지급했다고 표시했어요.",
                 Map.of("reward_id", reward.id().toString(), "actor_role", actorRole)
         );
         return toReadModel(reward);
@@ -110,6 +111,7 @@ public class SessionRewardService {
         post = locked.post();
         ensureRespondent(actorRole);
         ensureCompleted(session, "confirm reward");
+        ensureRewardRequired(post);
         RewardConfirmationRecord reward = repository.findRewardConfirmation(session.id())
                 .orElseThrow(() -> conflict("Reward is not ready for confirmation"));
         if (!"founder_marked_paid".equals(reward.status())) {
@@ -126,8 +128,8 @@ public class SessionRewardService {
                 auditMetadata(application, post, session, actorRole)
         ));
         notificationService.notifyCounterpart(
-                session, application, post, actorUserId, "reward_confirmed", "사례비 수령이 확인됐어요",
-                "상대가 사례비 수령을 확인했어요. 후기를 남겨주세요.",
+                session, application, post, actorUserId, "reward_confirmed", "보상 수령이 확인됐어요",
+                "참여자가 보상을 받았다고 확인했어요.",
                 Map.of("reward_id", saved.id().toString(), "actor_role", actorRole)
         );
         return toReadModel(saved);
@@ -156,6 +158,7 @@ public class SessionRewardService {
         post = locked.post();
         ensureRespondent(actorRole);
         ensureCompleted(session, "dispute reward");
+        ensureRewardRequired(post);
         RewardConfirmationRecord reward = repository.findRewardConfirmation(session.id())
                 .orElseThrow(() -> conflict("Reward is not ready for dispute"));
         if (!"founder_marked_paid".equals(reward.status())) {
@@ -173,8 +176,8 @@ public class SessionRewardService {
                 auditMetadata(application, post, session, actorRole)
         ));
         notificationService.notifyCounterpart(
-                session, application, post, actorUserId, "reward_disputed", "사례비 확인 문제가 접수됐어요",
-                "상대가 사례비 수령에 문제가 있다고 표시했어요. 채팅에서 확인해 주세요.",
+                session, application, post, actorUserId, "reward_disputed", "보상 수령 문제가 접수됐어요",
+                "참여자가 보상 수령에 문제가 있다고 표시했어요. 채팅에서 확인해 주세요.",
                 Map.of("reward_id", saved.id().toString(), "actor_role", actorRole)
         );
         return toReadModel(saved);
@@ -241,6 +244,17 @@ public class SessionRewardService {
     private void ensureCompleted(InterviewSessionRecord session, String action) {
         if (!"completed".equals(session.status())) {
             throw badRequest("Only completed sessions can " + action);
+        }
+    }
+
+    private void ensureRewardRequired(InterviewPostRecord post) {
+        if (!post.hasReward()) {
+            throw new HypofitException(
+                    "reward_not_required",
+                    "보상 없는 인터뷰는 지급 확인 없이 후기를 남길 수 있어요.",
+                    HttpStatus.CONFLICT.value(),
+                    "Reward actions are unavailable for a posting without compensation"
+            );
         }
     }
 

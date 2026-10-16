@@ -50,9 +50,17 @@ public class NoticeService {
     }
 
     @Transactional
+    public NoticeRepository.NoticeRecord updateEditorial(UUID actorId, UUID id, NoticeRepository.NoticeWriteCommand command) {
+        if (getForUpdate(id).managedByMaintenance()) {
+            throw new HypofitException("notice_managed_by_maintenance", "연결된 점검의 안내를 서비스 운영에서 수정해 주세요.", 409, "Notice managed by maintenance");
+        }
+        return update(actorId, id, command);
+    }
+
+    @Transactional
     public NoticeRepository.NoticeRecord update(UUID actorId, UUID id, NoticeRepository.NoticeWriteCommand command) {
         validate(command);
-        NoticeRepository.NoticeRecord before = get(id);
+        NoticeRepository.NoticeRecord before = getForUpdate(id);
         NoticeRepository.NoticeRecord notice = repository.update(id, actorId, command);
         audit(actorId, "NOTICE_UPDATED", id, before, notice);
         return notice;
@@ -60,7 +68,7 @@ public class NoticeService {
 
     @Transactional
     public NoticeRepository.NoticeRecord publish(UUID actorId, UUID id) {
-        get(id);
+        getForUpdate(id);
         NoticeRepository.NoticeRecord notice = repository.changeStatus(id, actorId, "DRAFT", "PUBLISHED", OffsetDateTime.now(ZoneOffset.UTC));
         if (notice == null) {
             throw conflict();
@@ -71,7 +79,10 @@ public class NoticeService {
 
     @Transactional
     public NoticeRepository.NoticeRecord archive(UUID actorId, UUID id) {
-        NoticeRepository.NoticeRecord current = get(id);
+        NoticeRepository.NoticeRecord current = getForUpdate(id);
+        if (current.managedByMaintenance()) {
+            throw new HypofitException("notice_managed_by_maintenance", "연결된 점검은 서비스 운영에서 취소하거나 종료해 주세요.", 409, "Notice managed by maintenance");
+        }
         if (!"DRAFT".equals(current.status()) && !"PUBLISHED".equals(current.status())) {
             throw conflict();
         }
@@ -81,6 +92,22 @@ public class NoticeService {
         }
         audit(actorId, "NOTICE_ARCHIVED", id, current, notice);
         return notice;
+    }
+
+    @Transactional
+    public void delete(UUID actorId, UUID id) {
+        NoticeRepository.NoticeRecord current = getForUpdate(id);
+        if (current.managedByMaintenance()) {
+            throw new HypofitException("notice_managed_by_maintenance", "점검에 연결된 공지는 삭제할 수 없어요.", 409, "Notice managed by maintenance");
+        }
+        if (!repository.delete(id)) {
+            throw conflict();
+        }
+        audit(actorId, "NOTICE_DELETED", id, current, null);
+    }
+
+    private NoticeRepository.NoticeRecord getForUpdate(UUID id) {
+        return repository.findForUpdate(id).orElseThrow(this::notFound);
     }
 
     private void validate(NoticeRepository.NoticeWriteCommand command) {
@@ -105,6 +132,11 @@ public class NoticeService {
         return new HypofitException("notice_state_conflict", "현재 상태에서는 처리할 수 없어요.", 409, "Notice state conflict");
     }
     private void audit(UUID actorId, String event, UUID id, NoticeRepository.NoticeRecord before, NoticeRepository.NoticeRecord after) {
-        audit.record(new AuditEventCommand(actorId, "admin", event, "notice", id, before == null ? null : Map.of("status", before.status()), Map.of("status", after.status()), null, Map.of()));
+        audit.record(new AuditEventCommand(actorId, "admin", event, "notice", id,
+                before == null ? null : snapshot(before), after == null ? null : snapshot(after), null, Map.of()));
+    }
+
+    private Map<String, Object> snapshot(NoticeRepository.NoticeRecord notice) {
+        return Map.of("status", notice.status(), "title", notice.title(), "body", notice.body(), "type", notice.type());
     }
 }

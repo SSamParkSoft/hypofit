@@ -1,7 +1,11 @@
 package com.contentruck.hypofit.session.controller;
 
 import com.contentruck.hypofit.session.dto.SessionWebModels;
-import com.contentruck.hypofit.session.service.SessionWorkflowService;
+import com.contentruck.hypofit.session.service.SessionAttendanceService;
+import com.contentruck.hypofit.session.service.SessionQueryService;
+import com.contentruck.hypofit.session.service.SessionReviewService;
+import com.contentruck.hypofit.session.service.SessionRewardService;
+import com.contentruck.hypofit.session.service.SessionSchedulingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -25,16 +29,30 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = "HTTPBearer")
 public class SessionsController {
 
-    private final SessionWorkflowService sessionWorkflowService;
+    private final SessionQueryService queryService;
+    private final SessionSchedulingService schedulingService;
+    private final SessionAttendanceService attendanceService;
+    private final SessionRewardService rewardService;
+    private final SessionReviewService reviewService;
 
-    public SessionsController(SessionWorkflowService sessionWorkflowService) {
-        this.sessionWorkflowService = sessionWorkflowService;
+    public SessionsController(
+            SessionQueryService queryService,
+            SessionSchedulingService schedulingService,
+            SessionAttendanceService attendanceService,
+            SessionRewardService rewardService,
+            SessionReviewService reviewService
+    ) {
+        this.queryService = queryService;
+        this.schedulingService = schedulingService;
+        this.attendanceService = attendanceService;
+        this.rewardService = rewardService;
+        this.reviewService = reviewService;
     }
 
     @GetMapping("/")
     @Operation(summary = "인터뷰 일정 목록")
     public List<SessionWebModels.InterviewSessionResponse> listSessions(@AuthenticationPrincipal Jwt jwt) {
-        return sessionWorkflowService.listSessions(currentUserId(jwt))
+        return queryService.listSessions(currentUserId(jwt))
                 .stream()
                 .map(SessionWebModels.InterviewSessionResponse::from)
                 .toList();
@@ -48,7 +66,7 @@ public class SessionsController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return SessionWebModels.InterviewSessionResponse.from(
-                sessionWorkflowService.createSession(
+                schedulingService.createSession(
                         currentUserId(jwt),
                         request.applicationId(),
                         request.scheduledAt(),
@@ -68,7 +86,7 @@ public class SessionsController {
     ) {
         request.validateForPatch();
         return SessionWebModels.InterviewSessionResponse.from(
-                sessionWorkflowService.updateSession(
+                schedulingService.updateSession(
                         currentUserId(jwt),
                         sessionId,
                         request.getReason(),
@@ -91,7 +109,7 @@ public class SessionsController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return SessionWebModels.InterviewSessionResponse.from(
-                sessionWorkflowService.completeSession(currentUserId(jwt), sessionId)
+                attendanceService.completeSession(currentUserId(jwt), sessionId)
         );
     }
 
@@ -102,7 +120,7 @@ public class SessionsController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return SessionWebModels.ConfirmAttendanceResponse.from(
-                sessionWorkflowService.confirmAttendance(currentUserId(jwt), sessionId)
+                attendanceService.confirmAttendance(currentUserId(jwt), sessionId)
         );
     }
 
@@ -113,7 +131,7 @@ public class SessionsController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return SessionWebModels.RewardConfirmationResponse.from(
-                sessionWorkflowService.markRewardPaid(currentUserId(jwt), sessionId)
+                rewardService.markRewardPaid(currentUserId(jwt), sessionId)
         );
     }
 
@@ -124,7 +142,7 @@ public class SessionsController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return SessionWebModels.RewardConfirmationResponse.from(
-                sessionWorkflowService.confirmRewardReceived(currentUserId(jwt), sessionId)
+                rewardService.confirmRewardReceived(currentUserId(jwt), sessionId)
         );
     }
 
@@ -136,7 +154,7 @@ public class SessionsController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return SessionWebModels.RewardConfirmationResponse.from(
-                sessionWorkflowService.disputeReward(currentUserId(jwt), sessionId, request.reason())
+                rewardService.disputeReward(currentUserId(jwt), sessionId, request.reason())
         );
     }
 
@@ -149,7 +167,7 @@ public class SessionsController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return SessionWebModels.InterviewReviewResponse.from(
-                sessionWorkflowService.createReview(
+                reviewService.createReview(
                         currentUserId(jwt),
                         sessionId,
                         request.rating(),
@@ -165,7 +183,7 @@ public class SessionsController {
             @PathVariable("session_id") UUID sessionId,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return sessionWorkflowService.listReviews(currentUserId(jwt), sessionId)
+        return reviewService.listReviews(currentUserId(jwt), sessionId)
                 .stream()
                 .map(SessionWebModels.InterviewReviewResponse::from)
                 .toList();
@@ -179,7 +197,7 @@ public class SessionsController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return SessionWebModels.InterviewSessionResponse.from(
-                sessionWorkflowService.cancelSession(currentUserId(jwt), sessionId, request.reason())
+                schedulingService.cancelSession(currentUserId(jwt), sessionId, request.reason())
         );
     }
 
@@ -191,7 +209,7 @@ public class SessionsController {
             @AuthenticationPrincipal Jwt jwt
     ) {
         return SessionWebModels.InterviewSessionResponse.from(
-                sessionWorkflowService.markNoShow(currentUserId(jwt), sessionId, request.noShowParty())
+                attendanceService.markNoShow(currentUserId(jwt), sessionId, request.noShowParty())
         );
     }
 

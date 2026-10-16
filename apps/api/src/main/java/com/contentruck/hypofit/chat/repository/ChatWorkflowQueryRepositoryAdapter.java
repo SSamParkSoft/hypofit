@@ -3,6 +3,8 @@ package com.contentruck.hypofit.chat.repository;
 import com.contentruck.hypofit.chat.entity.ChatInterviewSessionEntity;
 import com.contentruck.hypofit.chat.service.ChatWorkflowModels;
 import com.contentruck.hypofit.chat.service.ChatWorkflowQueryRepository;
+import com.contentruck.hypofit.interview.service.PostingCompensation;
+import com.contentruck.hypofit.interview.service.PostingCompensations;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,31 +27,37 @@ public class ChatWorkflowQueryRepositoryAdapter implements ChatWorkflowQueryRepo
     };
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {
     };
+    private static final TypeReference<List<PostingCompensation>> COMPENSATION_LIST_TYPE = new TypeReference<>() {
+    };
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
-    private final ChatApplicationJpaRepository chatApplicationJpaRepository;
     private final ChatInterviewSessionJpaRepository chatInterviewSessionJpaRepository;
 
     public ChatWorkflowQueryRepositoryAdapter(
             NamedParameterJdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper,
-            ChatApplicationJpaRepository chatApplicationJpaRepository,
             ChatInterviewSessionJpaRepository chatInterviewSessionJpaRepository
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
-        this.chatApplicationJpaRepository = chatApplicationJpaRepository;
         this.chatInterviewSessionJpaRepository = chatInterviewSessionJpaRepository;
     }
 
     @Override
     public Optional<ChatWorkflowQueryRepository.ApplicationMessageabilityRecord> findApplicationMessageability(UUID applicationId) {
-        return chatApplicationJpaRepository.findById(applicationId)
-                .map(application -> new ChatWorkflowQueryRepository.ApplicationMessageabilityRecord(
-                        application.getId(),
-                        application.getStatus()
-                ));
+        return jdbcTemplate.query(
+                        """
+                        select a.id, a.status, p.recruitment_type
+                        from applications a
+                        join interview_posts p on p.id = a.interview_post_id
+                        where a.id = :application_id
+                        """,
+                        new MapSqlParameterSource("application_id", applicationId),
+                        (rs, rowNum) -> new ChatWorkflowQueryRepository.ApplicationMessageabilityRecord(
+                                uuid(rs, "id"), rs.getString("status"), rs.getString("recruitment_type")
+                        )
+                ).stream().findFirst();
     }
 
     @Override
@@ -124,6 +132,9 @@ public class ChatWorkflowQueryRepositoryAdapter implements ChatWorkflowQueryRepo
         return """
                 select
                   p.id as post_id_ref,
+                  p.recruitment_type as post_recruitment_type,
+                  p.reward_amount,
+                  p.compensations,
                   a.id as application_id_ref,
                   a.interview_post_id as application_interview_post_id,
                   a.answers as application_answers,
@@ -201,7 +212,9 @@ public class ChatWorkflowQueryRepositoryAdapter implements ChatWorkflowQueryRepo
             return new ChatRoomWorkflowContextRecord(
                     uuidNullable(rs, "post_id_ref"),
                     application,
-                    latestSession
+                    latestSession,
+                    rs.getString("post_recruitment_type"),
+                    readCompensations(rs)
             );
         };
     }
@@ -285,6 +298,20 @@ public class ChatWorkflowQueryRepositoryAdapter implements ChatWorkflowQueryRepo
             return objectMapper.readValue(raw, STRING_LIST_TYPE);
         } catch (JsonProcessingException exception) {
             throw new SQLException("Failed to parse JSON column " + column, exception);
+        }
+    }
+
+    private List<PostingCompensation> readCompensations(ResultSet rs) throws SQLException {
+        String raw = rawJson(rs, "compensations");
+        if (raw == null || raw.isBlank()) {
+            return PostingCompensations.legacy(rs.getInt("reward_amount"));
+        }
+        try {
+            List<PostingCompensation> values = objectMapper.readValue(raw, COMPENSATION_LIST_TYPE);
+            return values == null || values.isEmpty()
+                    ? PostingCompensations.legacy(rs.getInt("reward_amount")) : List.copyOf(values);
+        } catch (JsonProcessingException exception) {
+            throw new SQLException("Failed to parse posting compensations JSON", exception);
         }
     }
 

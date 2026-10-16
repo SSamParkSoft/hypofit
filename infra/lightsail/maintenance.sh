@@ -84,7 +84,7 @@ write_status() {
       ;;
     SCHEDULED)
       title="서비스 점검 예정"
-      message="점검 시간 동안 일부 기능을 이용할 수 있어요."
+      message="점검 시간 동안 서비스 이용이 제한돼요."
       ;;
     IN_PROGRESS)
       title="서비스 점검 중이에요"

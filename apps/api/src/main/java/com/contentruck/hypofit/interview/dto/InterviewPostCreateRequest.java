@@ -18,6 +18,9 @@ public record InterviewPostCreateRequest(Object rawBody) {
 
     @Schema(name = "InterviewPostCreate")
     public record OpenApiSchema(
+            @JsonProperty("image_ids")
+            @ArraySchema(maxItems = 3, schema = @Schema(format = "uuid"))
+            List<java.util.UUID> imageIds,
             @JsonProperty("client_submission_id")
             @Schema(nullable = true, format = "uuid")
             java.util.UUID clientSubmissionId,
@@ -51,7 +54,7 @@ public record InterviewPostCreateRequest(Object rawBody) {
             @Schema(defaultValue = "application_required", allowableValues = {"application_required", "direct"})
             String entryMode,
             @JsonProperty("external_provider")
-            @Schema(nullable = true, allowableValues = {"google_forms"})
+            @Schema(nullable = true, allowableValues = {"google_forms", "naver_forms", "microsoft_forms", "typeform", "tally", "external"})
             String externalProvider,
             @JsonProperty("external_url")
             @Schema(nullable = true, maxLength = 2000)

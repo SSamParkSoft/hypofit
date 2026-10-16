@@ -110,14 +110,17 @@ public class AdminOperationsService {
         );
 
         PushDispatchResultView dispatchResult = command.dispatch()
-                ? dispatchPendingPushDeliveries()
+                ? toDispatchResult(pushDispatchService.dispatchNotification(notification.id()))
                 : null;
 
         return new AdminTestNotificationView(notification, dispatchResult);
     }
 
     public PushDispatchResultView dispatchPendingPushDeliveries() {
-        PushDispatchService.PushDispatchResult result = pushDispatchService.dispatchPendingDeliveries(null);
+        return toDispatchResult(pushDispatchService.dispatchPendingDeliveries(null));
+    }
+
+    private PushDispatchResultView toDispatchResult(PushDispatchService.PushDispatchResult result) {
         return new PushDispatchResultView(
                 result.processed(),
                 result.sent(),

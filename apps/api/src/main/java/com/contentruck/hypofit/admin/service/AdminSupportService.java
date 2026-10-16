@@ -23,13 +23,14 @@ public class AdminSupportService {
     }
 
     @Transactional(readOnly = true)
-    public List<AdminSupportTicketView> listTickets(String kind, String status, Boolean deletedByUser, int limit) {
-        List<AdminSupportRepository.SupportTicketRecord> tickets = repository.listTickets(kind, status, deletedByUser, limit);
-        Map<UUID, List<AdminSupportRepository.SupportTicketEventRecord>> eventsByTicketId = repository.listTicketEvents(
-                tickets.stream().map(AdminSupportRepository.SupportTicketRecord::id).toList()
-        );
+    public List<AdminSupportTicketView> listTickets(String kind, String status, Boolean deletedByUser, int limit,
+                                                 int offset, String search, boolean excludeReports, boolean includeEvents) {
+        List<AdminSupportRepository.SupportTicketRecord> tickets = repository.listTickets(kind, status, deletedByUser, limit, offset, search, excludeReports);
+        Map<UUID, List<AdminSupportRepository.SupportTicketEventRecord>> events = includeEvents
+                ? repository.listTicketEvents(tickets.stream().map(AdminSupportRepository.SupportTicketRecord::id).toList())
+                : Map.of();
         return tickets.stream()
-                .map(ticket -> new AdminSupportTicketView(ticket, eventsByTicketId.getOrDefault(ticket.id(), List.of())))
+                .map(ticket -> new AdminSupportTicketView(ticket, events.getOrDefault(ticket.id(), List.of())))
                 .toList();
     }
 
@@ -45,6 +46,12 @@ public class AdminSupportService {
     public AdminSupportTicketView updateStatus(UUID actorUserId, UUID ticketId, AdminSupportStatusUpdateCommand command) {
         AdminSupportRepository.SupportTicketRecord ticket = repository.findTicket(ticketId)
                 .orElseThrow(AdminSupportTicketNotFoundException::new);
+        if (command.expectedStatus() != null && !command.expectedStatus().equals(ticket.status())) {
+            throw new com.contentruck.hypofit.common.error.HypofitException(
+                    "support_state_conflict", "티켓 상태가 변경됐어요. 최신 상태를 다시 확인해 주세요.",
+                    409, "Admin ticket state differs from expected_status"
+            );
+        }
         AdminSupportRepository.SupportTicketRecord updated = repository.updateStatus(
                 ticketId,
                 actorUserId,
@@ -108,8 +115,12 @@ public class AdminSupportService {
 
     public record AdminSupportStatusUpdateCommand(
             String status,
-            String reason
+            String reason,
+            String expectedStatus
     ) {
+        public AdminSupportStatusUpdateCommand(String status, String reason) {
+            this(status, reason, null);
+        }
     }
 
     public record AdminSupportReplyCommand(

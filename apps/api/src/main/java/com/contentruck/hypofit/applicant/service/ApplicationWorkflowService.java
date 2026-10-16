@@ -8,6 +8,7 @@ import com.contentruck.hypofit.notification.service.NotificationWriteService;
 import com.contentruck.hypofit.user.service.UserAccountDeactivatedException;
 import com.contentruck.hypofit.user.service.UserAccountDeletedException;
 import com.contentruck.hypofit.user.service.UserProfileMissingException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,6 +24,7 @@ public class ApplicationWorkflowService {
     private static final String RECRUITMENT_TYPE_INTERVIEW = "interview";
     private static final String RECRUITMENT_TYPE_SURVEY = "survey";
     private static final String RECRUITMENT_TYPE_BETA_TEST = "beta_test";
+    private static final String RECRUITMENT_TYPE_RESEARCH = "research_experiment";
     private static final Set<String> WITHDRAWABLE_APPLICATION_STATUSES = Set.of("applied", "selected");
     private static final Set<String> SELECT_ALLOWED_PREVIOUS_STATUSES = Set.of("applied");
     private static final Set<String> REJECT_ALLOWED_PREVIOUS_STATUSES = Set.of("applied");
@@ -76,6 +78,9 @@ public class ApplicationWorkflowService {
         InterviewPostOwnership post = repository.findInterviewPost(interviewPostId)
                 .orElseThrow(() -> new ApplicationNotFoundException("Interview post not found"));
         ensureApplicationCreationSupported(post);
+        if (!"open".equals(post.status())) {
+            throw new ApplicationConflictException("Only open postings accept new applications");
+        }
         if (post.founderId().equals(userId)) {
             throw new ApplicationPermissionDeniedException("Cannot apply to your own interview");
         }
@@ -88,19 +93,11 @@ public class ApplicationWorkflowService {
 
         try {
             ApplicationReadModel application = repository.createApplication(interviewPostId, userId, answers, availableTimes);
-            if (shouldCreateChatRoomOnApply(post.recruitmentType())) {
-                chatLifecycleService.ensureRoomForApplication(
-                        application.id(),
-                        post.id(),
-                        post.founderId(),
-                        application.respondentId()
-                );
-            }
             notificationWriteService.createNotification(
                     post.founderId(),
                     "application_created",
                     "새 신청이 도착했어요",
-                    "모집글에 새 신청이 들어왔어요.",
+                    "지원 내용을 확인할 수 있어요.",
                     "application",
                     application.id(),
                     Map.of(
@@ -150,14 +147,15 @@ public class ApplicationWorkflowService {
         notificationWriteService.createNotification(
                 context.founderId(),
                 "application_withdrawn",
-                "신청이 철회됐어요",
+                "지원자가 신청을 철회했어요",
                 "selected".equals(context.status())
-                        ? "선정된 신청자가 인터뷰 참여를 철회했어요."
-                        : "지원자가 인터뷰 신청을 철회했어요.",
+                        ? "선정된 신청자가 참여를 철회했어요."
+                        : "지원자가 신청을 철회했어요.",
                 "application",
                 application.id(),
                 Map.of(
                         "interview_post_id", context.interviewPostId().toString(),
+                        "interview_title", context.interviewTitle(),
                         "previous_status", context.status()
                 )
         );
@@ -223,13 +221,21 @@ public class ApplicationWorkflowService {
                 .orElseThrow(() -> new ApplicationConflictException("Application status has already changed"));
         if ("selected".equals(nextStatus)) {
             applicationWorkflowMetrics.recordSelection("selected");
+            UUID roomId = null;
             if (shouldManageSelectedChatRoom(context.recruitmentType())) {
-                chatLifecycleService.markSelectedForApplication(
+                roomId = chatLifecycleService.markSelectedForApplication(
                         application.id(),
                         context.interviewPostId(),
                         context.founderId(),
                         application.respondentId()
                 );
+            }
+            Map<String, Object> metadata = new HashMap<>(Map.of(
+                    "interview_post_id", context.interviewPostId().toString(),
+                    "interview_title", context.interviewTitle()
+            ));
+            if (roomId != null) {
+                metadata.put("chat_room_id", roomId.toString());
             }
             notificationWriteService.createNotification(
                     context.respondentId(),
@@ -238,10 +244,7 @@ public class ApplicationWorkflowService {
                     selectedNotificationBody(context.recruitmentType()),
                     "application",
                     application.id(),
-                    Map.of(
-                            "interview_post_id", context.interviewPostId().toString(),
-                            "interview_title", context.interviewTitle()
-                    )
+                    metadata
             );
         } else if ("rejected".equals(nextStatus)) {
             if (shouldManageExistingChatRoom(context.recruitmentType(), context.status())) {
@@ -256,8 +259,8 @@ public class ApplicationWorkflowService {
             notificationWriteService.createNotification(
                     context.respondentId(),
                     "application_rejected",
-                    "신청이 반려됐어요",
-                    normalizedReason != null ? normalizedReason : "이번 인터뷰 신청은 반려됐어요.",
+                    "이번 모집에 선정되지 않았어요",
+                    normalizedReason != null ? normalizedReason : "신청 결과를 확인할 수 있어요.",
                     "application",
                     application.id(),
                     Map.of(
@@ -277,11 +280,14 @@ public class ApplicationWorkflowService {
             notificationWriteService.createNotification(
                     context.respondentId(),
                     "application_canceled",
-                    "인터뷰 신청이 취소됐어요",
-                    "인터뷰 신청 상태가 취소로 변경됐어요.",
+                    "참여 신청이 취소됐어요",
+                    "공고에서 변경된 참여 상태를 확인할 수 있어요.",
                     "application",
                     application.id(),
-                    Map.of("interview_post_id", context.interviewPostId().toString())
+                    Map.of(
+                            "interview_post_id", context.interviewPostId().toString(),
+                            "interview_title", context.interviewTitle()
+                    )
             );
         }
         return application;
@@ -307,7 +313,8 @@ public class ApplicationWorkflowService {
     private void ensureApplicationWorkflowSupported(String recruitmentType) {
         if (RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType)
                 || RECRUITMENT_TYPE_SURVEY.equals(recruitmentType)
-                || RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType)) {
+                || RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType)
+                || RECRUITMENT_TYPE_RESEARCH.equals(recruitmentType)) {
             return;
         }
         throw new ApplicationRecruitmentTypeActionNotAllowedException(
@@ -324,27 +331,26 @@ public class ApplicationWorkflowService {
         }
     }
 
-    private boolean shouldCreateChatRoomOnApply(String recruitmentType) {
-        return RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType);
-    }
-
     private boolean shouldManageExistingChatRoom(String recruitmentType, String currentStatus) {
         if (RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType)) {
             return true;
         }
-        return RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType) && "selected".equals(currentStatus);
+        return (RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType) || RECRUITMENT_TYPE_RESEARCH.equals(recruitmentType))
+                && "selected".equals(currentStatus);
     }
 
     private boolean shouldManageSelectedChatRoom(String recruitmentType) {
         return RECRUITMENT_TYPE_INTERVIEW.equals(recruitmentType)
-                || RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType);
+                || RECRUITMENT_TYPE_BETA_TEST.equals(recruitmentType)
+                || RECRUITMENT_TYPE_RESEARCH.equals(recruitmentType);
     }
 
     private String selectedNotificationTitle(String recruitmentType) {
         return switch (recruitmentType) {
             case RECRUITMENT_TYPE_SURVEY -> "설문 참여가 승인됐어요";
             case RECRUITMENT_TYPE_BETA_TEST -> "베타테스트 참여자로 선정됐어요";
-            default -> "인터뷰 대상자로 선정됐어요";
+            case RECRUITMENT_TYPE_RESEARCH -> "연구 실험 참여자로 선정됐어요";
+            default -> "인터뷰에 선정됐어요";
         };
     }
 
@@ -352,7 +358,8 @@ public class ApplicationWorkflowService {
         return switch (recruitmentType) {
             case RECRUITMENT_TYPE_SURVEY -> "공고에서 설문을 시작할 수 있어요.";
             case RECRUITMENT_TYPE_BETA_TEST -> "채팅에서 테스트 준비와 진행 방법을 확인해 주세요.";
-            default -> "채팅에서 일정과 진행 방식을 조율해보세요.";
+            case RECRUITMENT_TYPE_RESEARCH -> "채팅에서 연구 일정과 준비 사항을 확인해 주세요.";
+            default -> "채팅에서 일정과 진행 방식을 조율할 수 있어요.";
         };
     }
 

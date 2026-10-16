@@ -7,9 +7,7 @@ public record InterviewPostOwnership(
         UUID founderId,
         String title,
         String recruitmentType,
-        String entryMode
+        String entryMode,
+        String status
 ) {
-    public InterviewPostOwnership(UUID id, UUID founderId, String title, String recruitmentType) {
-        this(id, founderId, title, recruitmentType, "application_required");
-    }
 }

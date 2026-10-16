@@ -18,13 +18,27 @@ public class AdminModerationService {
     private static final Set<String> CHAT_MESSAGE_VISIBILITY_ACTIONS = Set.of("hide", "remove", "restore");
 
     private final AdminModerationRepository repository;
+    private final AdminSupportService support;
 
-    public AdminModerationService(AdminModerationRepository repository) {
+    public AdminModerationService(AdminModerationRepository repository, AdminSupportService support) {
         this.repository = repository;
+        this.support = support;
     }
 
     @Transactional
     public ModerationActionView createAction(UUID actorUserId, AdminModerationActionCommand command) {
+        validateAction(command);
+        if (command.sourceTicketId() != null) {
+            var ticket = support.getTicket(command.sourceTicketId()).ticket();
+            if (!"report".equals(ticket.kind()) || !command.targetType().equals(ticket.targetType())
+                    || !command.targetId().equals(ticket.targetId())) {
+                throw new AdminModerationConflictException("Source report does not match target");
+            }
+        }
+        if ("close_report".equals(command.action())) {
+            support.updateStatus(actorUserId, command.sourceTicketId(),
+                    new AdminSupportService.AdminSupportStatusUpdateCommand("closed", command.reason()));
+        }
         EffectSnapshot effect = applyTargetEffect(command);
 
         AdminModerationRepository.ModerationActionRecord action = repository.createModerationAction(
@@ -60,6 +74,20 @@ public class AdminModerationService {
                 action.metadata(),
                 action.createdAt()
         );
+    }
+
+    private void validateAction(AdminModerationActionCommand command) {
+        Set<String> effects = switch (command.targetType()) {
+            case "user" -> Set.of("block", "remove", "unblock", "restore");
+            case "interview_post", "application", "session", "chat_message" -> Set.of("hide", "remove", "restore");
+            default -> Set.of();
+        };
+        boolean recordOnly = "warn".equals(command.action());
+        boolean close = "close_report".equals(command.action()) && command.sourceTicketId() != null;
+        if (!recordOnly && !close && !effects.contains(command.action())) {
+            throw new com.contentruck.hypofit.common.error.HypofitException(
+                    "validation_failed", "이 대상에 적용할 수 없는 조치예요.", 422, "Unsupported moderation action for target");
+        }
     }
 
     private EffectSnapshot applyTargetEffect(AdminModerationActionCommand command) {

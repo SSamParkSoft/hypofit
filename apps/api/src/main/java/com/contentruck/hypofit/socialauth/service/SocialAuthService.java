@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SocialAuthService {
 
-    private static final List<String> PROVIDERS = List.of("apple", "google", "kakao", "naver");
+    private static final List<String> PROVIDERS = List.of("apple", "google", "kakao");
     private static final Set<String> AVAILABLE_STATES = Set.of("available", "disabled", "review_pending");
     private static final List<String> WEB_RETURN_PREFIXES = List.of(
             "/app",
@@ -98,6 +98,7 @@ public class SocialAuthService {
         requireActiveUserAccount(authUserId);
         List<SocialAuthReadModels.IdentityReadModel> identities = repository.listUserIdentities(authUserId)
                 .stream()
+                .filter(identity -> PROVIDERS.contains(identity.getProvider()))
                 .map(this::toIdentityReadModel)
                 .toList();
         return new SocialAuthReadModels.IdentityListReadModel(identities);
@@ -117,6 +118,10 @@ public class SocialAuthService {
                     HttpStatus.GONE,
                     "Social auth attempt was not found or secret mismatched"
             );
+        }
+
+        if (!PROVIDERS.contains(attempt.getProvider())) {
+            requireAvailable(capability(attempt.getProvider(), attempt.getPlatform()));
         }
 
         if ("completed".equals(attempt.getStatus())) {
@@ -243,6 +248,7 @@ public class SocialAuthService {
                 reconciledAt
         );
         List<SocialAuthReadModels.IdentityReadModel> identities = reconciliation.identities().stream()
+                .filter(identity -> PROVIDERS.contains(identity.getProvider()))
                 .map(this::toIdentityReadModel)
                 .toList();
         return new SocialAuthReadModels.IdentityReconcileReadModel(
@@ -300,6 +306,9 @@ public class SocialAuthService {
         Set<UUID> matchedIdentityIds = new java.util.LinkedHashSet<>();
 
         for (SocialAuthReadModels.VerifiedProviderIdentity identity : liveIdentities) {
+            if (!PROVIDERS.contains(identity.provider())) {
+                continue;
+            }
             String subjectHash = hmacValue(identity.subject(), properties.getSocialAuthIdentityPepper());
             repository.lockIdentityKeys(
                     userId,
@@ -346,6 +355,10 @@ public class SocialAuthService {
 
         List<String> revokedProviders = new java.util.ArrayList<>();
         for (SocialAuthIdentityEntity identity : existingIdentities) {
+            // Unsupported providers remain historical records, not reconciliation targets.
+            if (!PROVIDERS.contains(identity.getProvider())) {
+                continue;
+            }
             if (matchedIdentityIds.contains(identity.getId()) || "revoked".equals(identity.getStatus())) {
                 continue;
             }
@@ -395,7 +408,9 @@ public class SocialAuthService {
 
     private SocialAuthReadModels.ProviderCapability capability(String provider, String platform) {
         String state;
-        if ("android".equals(platform) && "apple".equals(provider)) {
+        if (!PROVIDERS.contains(provider)) {
+            state = "disabled";
+        } else if ("android".equals(platform) && "apple".equals(provider)) {
             state = "unsupported_platform";
         } else if (!properties.isSocialAuthEnabled()) {
             state = "disabled";
@@ -423,7 +438,6 @@ public class SocialAuthService {
             case "apple" -> normalizeProviderState(properties.getSocialAuthAppleState());
             case "google" -> normalizeProviderState(properties.getSocialAuthGoogleState());
             case "kakao" -> normalizeProviderState(properties.getSocialAuthKakaoState());
-            case "naver" -> normalizeProviderState(properties.getSocialAuthNaverState());
             default -> "disabled";
         };
     }

@@ -20,14 +20,24 @@ public class InterviewPostQueryService {
     public List<InterviewPostReadModel> listPosts(InterviewPostListCriteria criteria) {
         return interviewPostReadRepository.findPosts(criteria).stream()
                 .filter(post -> criteria.supportsRecruitmentTypes() || INTERVIEW_RECRUITMENT_TYPE.equals(post.recruitmentType()))
+                .filter(post -> criteria.supportsResearchRecruitment() || !"research_experiment".equals(post.recruitmentType()))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public InterviewPostReadModel getVisiblePost(UUID postId, UUID viewerId, boolean isAdmin, boolean supportsRecruitmentTypes) {
+        return getVisiblePost(postId, viewerId, isAdmin, supportsRecruitmentTypes, false);
+    }
+
+    @Transactional(readOnly = true)
+    public InterviewPostReadModel getVisiblePost(UUID postId, UUID viewerId, boolean isAdmin,
+            boolean supportsRecruitmentTypes, boolean supportsResearchRecruitment) {
         InterviewPostReadModel post = interviewPostReadRepository.findVisiblePost(postId, viewerId, isAdmin)
                 .orElseThrow(InterviewPostNotFoundException::new);
         if (!supportsRecruitmentTypes && !INTERVIEW_RECRUITMENT_TYPE.equals(post.recruitmentType())) {
+            throw new InterviewPostClientUpgradeRequiredException(post.id(), post.recruitmentType());
+        }
+        if (!supportsResearchRecruitment && "research_experiment".equals(post.recruitmentType())) {
             throw new InterviewPostClientUpgradeRequiredException(post.id(), post.recruitmentType());
         }
         return post;

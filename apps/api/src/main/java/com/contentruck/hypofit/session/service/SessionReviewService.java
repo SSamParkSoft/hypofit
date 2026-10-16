@@ -68,6 +68,15 @@ public class SessionReviewService {
         application = locked.application();
         post = locked.post();
         ensureCompleted(session);
+        if (post.hasReward() && repository.findRewardConfirmation(session.id())
+                .filter(reward -> "respondent_confirmed".equals(reward.status())).isEmpty()) {
+            throw new HypofitException(
+                    "reward_not_confirmed",
+                    "보상 수령 확인 후 후기를 남길 수 있어요.",
+                    HttpStatus.CONFLICT.value(),
+                    "Reward receipt must be confirmed before reviewing a compensated interview"
+            );
+        }
         if (repository.findReview(session.id(), actorUserId).isPresent()) {
             throw conflict("Review already exists");
         }

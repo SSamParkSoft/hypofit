@@ -20,6 +20,9 @@ public class InterviewPostRecordEntity {
     @Column(name = "title", nullable = false)
     private String title;
 
+    @Column(name = "status", nullable = false)
+    private String status;
+
     @Column(name = "recruit_count", nullable = false)
     private int recruitCount;
 
@@ -45,6 +48,10 @@ public class InterviewPostRecordEntity {
 
     public String getTitle() {
         return title;
+    }
+
+    public String getStatus() {
+        return status;
     }
 
     public int getRecruitCount() {

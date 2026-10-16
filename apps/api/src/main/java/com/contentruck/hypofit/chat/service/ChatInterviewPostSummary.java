@@ -1,5 +1,7 @@
 package com.contentruck.hypofit.chat.service;
 
+import com.contentruck.hypofit.interview.service.PostingCompensation;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +27,14 @@ public record ChatInterviewPostSummary(
         String status,
         ChatUserSummary founder,
         ChatFounderReviewSummary founderReviewSummary,
-        Double distanceMeters
+        Double distanceMeters,
+        String recruitmentType,
+        String entryMode,
+        List<PostingCompensation> compensations,
+        Integer durationValue,
+        String durationUnit,
+        List<String> betaTestPlatforms,
+        OffsetDateTime betaTestStartsAt,
+        OffsetDateTime betaTestEndsAt
 ) {
 }

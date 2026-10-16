@@ -16,10 +16,18 @@ public record InterviewPostListRequest(
         Double lng,
         Integer radiusM,
         String sort,
-        Integer limit
+        Integer limit,
+        String recruitmentType,
+        String compensationType
 ) {
 
     private static final Set<String> ALLOWED_SORTS = Set.of("newest", "distance", "reward");
+    private static final Set<String> RECRUITMENT_TYPES = Set.of(
+            "interview", "survey", "beta_test", "research_experiment"
+    );
+    private static final Set<String> COMPENSATION_TYPES = Set.of(
+            "cash", "gift_card", "points", "product", "coupon_or_access", "other", "none"
+    );
     private static final int MAX_QUERY_LENGTH = 100;
     private static final double MIN_LATITUDE = -90.0;
     private static final double MAX_LATITUDE = 90.0;
@@ -27,6 +35,11 @@ public record InterviewPostListRequest(
     private static final double MAX_LONGITUDE = 180.0;
 
     public InterviewPostListCriteria toCriteria(UUID viewerId, boolean isAdmin, boolean supportsRecruitmentTypes) {
+        return toCriteria(viewerId, isAdmin, supportsRecruitmentTypes, false);
+    }
+
+    public InterviewPostListCriteria toCriteria(UUID viewerId, boolean isAdmin, boolean supportsRecruitmentTypes,
+            boolean supportsResearchRecruitment) {
         validate();
         return new InterviewPostListCriteria(
                 status,
@@ -42,7 +55,10 @@ public record InterviewPostListRequest(
                 lng,
                 radiusM,
                 sort == null || sort.isBlank() ? "newest" : sort,
-                limit == null ? 100 : limit
+                limit == null ? 100 : limit,
+                supportsResearchRecruitment,
+                recruitmentType,
+                compensationType
         );
     }
 
@@ -50,6 +66,12 @@ public record InterviewPostListRequest(
         boolean hasLat = lat != null;
         boolean hasLng = lng != null;
 
+        if (recruitmentType != null && !RECRUITMENT_TYPES.contains(recruitmentType)) {
+            throw new InterviewPostValidationException("recruitment_type is not supported");
+        }
+        if (compensationType != null && !COMPENSATION_TYPES.contains(compensationType)) {
+            throw new InterviewPostValidationException("compensation_type is not supported");
+        }
         if (q != null && q.length() > MAX_QUERY_LENGTH) {
             throw new InterviewPostValidationException("q must be at most 100 characters");
         }

@@ -37,7 +37,7 @@ class ChatRepositoryPostgresIntegrationTest extends PostgresIntegrationTestSuppo
     private PlatformTransactionManager transactionManager;
 
     @Test
-    void concurrentRoomCreationCreatesOneRoomOneSystemMessageAndTwoSettings() throws Exception {
+    void concurrentRoomCreationCreatesOneRoomWithoutMessagesAndTwoSettings() throws Exception {
         Fixture fixture = seedFixture();
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
@@ -69,7 +69,7 @@ class ChatRepositoryPostgresIntegrationTest extends PostgresIntegrationTestSuppo
         );
         assertThat(count("select count(*) from chat_rooms where application_id = ?", fixture.applicationId()))
                 .isEqualTo(1);
-        assertThat(count("select count(*) from chat_messages where room_id = ?", roomId)).isEqualTo(1);
+        assertThat(count("select count(*) from chat_messages where room_id = ?", roomId)).isZero();
         assertThat(count("select count(*) from chat_room_participant_settings where room_id = ?", roomId))
                 .isEqualTo(2);
     }

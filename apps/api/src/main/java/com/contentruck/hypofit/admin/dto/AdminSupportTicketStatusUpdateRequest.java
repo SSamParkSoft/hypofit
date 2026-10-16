@@ -19,7 +19,10 @@ public record AdminSupportTicketStatusUpdateRequest(Object rawBody) {
             )
             String status,
             @Schema(nullable = true, maxLength = 1000)
-            String reason
+            String reason,
+            @com.fasterxml.jackson.annotation.JsonProperty("expected_status")
+            @Schema(nullable = true, allowableValues = {"open", "in_review", "resolved", "closed"})
+            String expectedStatus
     ) {
     }
 }

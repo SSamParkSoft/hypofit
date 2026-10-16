@@ -24,13 +24,13 @@ public class ApplicationChatLifecycleService {
     }
 
     @Transactional
-    public void markSelectedForApplication(
+    public UUID markSelectedForApplication(
             UUID applicationId,
             UUID interviewPostId,
             UUID founderId,
             UUID respondentId
     ) {
-        chatRepository.markSelectedForApplication(applicationId, interviewPostId, founderId, respondentId);
+        return chatRepository.markSelectedForApplication(applicationId, interviewPostId, founderId, respondentId);
     }
 
     @Transactional

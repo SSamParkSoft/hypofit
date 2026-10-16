@@ -1,6 +1,6 @@
 package com.contentruck.hypofit.admin.controller;
 
-import com.contentruck.hypofit.accountdeletion.service.AccountDeletionService;
+import com.contentruck.hypofit.accountdeletion.service.AccountDeletionAdminService;
 import com.contentruck.hypofit.admin.dto.AdminAccountDeletionRequestParser;
 import com.contentruck.hypofit.admin.dto.AdminAccountDeletionWebModels;
 import com.contentruck.hypofit.admin.service.AdminAccessService;
@@ -24,14 +24,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminAccountDeletionController {
 
     private final AdminAccessService adminAccessService;
-    private final AccountDeletionService accountDeletionService;
+    private final AccountDeletionAdminService accountDeletionAdminService;
 
     public AdminAccountDeletionController(
             AdminAccessService adminAccessService,
-            AccountDeletionService accountDeletionService
+            AccountDeletionAdminService accountDeletionAdminService
     ) {
         this.adminAccessService = adminAccessService;
-        this.accountDeletionService = accountDeletionService;
+        this.accountDeletionAdminService = accountDeletionAdminService;
     }
 
     @GetMapping("/account-deletion-requests")
@@ -40,12 +40,14 @@ public class AdminAccountDeletionController {
             @Parameter(schema = @Schema(type = "integer", minimum = "1", maximum = "200", defaultValue = "100"))
             @RequestParam(value = "limit", required = false) String limit,
             @Parameter(schema = @Schema(types = {"null", "string"}, pattern = "^(requested|verified|in_review|completed|rejected|canceled)$"))
-            @RequestParam(value = "status", required = false) String status
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "q", required = false) String search
     ) {
         adminAccessService.requireAdmin(jwt);
-        return accountDeletionService.listAdminRequests(
+        return accountDeletionAdminService.listRequests(
                         AdminAccountDeletionRequestParser.parseStatusFilter(status),
-                        AdminAccountDeletionRequestParser.parseLimit(limit)
+                        AdminAccountDeletionRequestParser.parseLimit(limit), page, search
                 ).stream()
                 .map(AdminAccountDeletionWebModels.AdminAccountDeletionRequestResponse::from)
                 .toList();
@@ -59,7 +61,7 @@ public class AdminAccountDeletionController {
     ) {
         AdminAccessService.CurrentAdmin admin = adminAccessService.requireAdmin(jwt);
         return AdminAccountDeletionWebModels.AdminAccountDeletionRequestResponse.from(
-                accountDeletionService.retryAuthCleanup(
+                accountDeletionAdminService.retryAuthCleanup(
                         AdminAccountDeletionRequestParser.parseRequestId(requestId),
                         admin.id()
                 )

@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public final class MaintenanceModels {
     private MaintenanceModels() { }
-    public record WriteRequest(@NotBlank @Size(max=160) String title, @NotBlank String message, @NotNull @JsonProperty("starts_at") OffsetDateTime startsAt, @JsonProperty("ends_at") OffsetDateTime endsAt, @JsonProperty("show_banner") boolean showBanner, @JsonProperty("banner_starts_at") OffsetDateTime bannerStartsAt, @JsonProperty("create_notice") boolean createNotice) {
+    public record WriteRequest(@NotBlank @Size(max=160) String title, @NotBlank String message, @NotNull @JsonProperty("starts_at") OffsetDateTime startsAt, @JsonProperty("ends_at") OffsetDateTime endsAt, @JsonProperty("show_banner") boolean showBanner, @JsonProperty("banner_starts_at") OffsetDateTime bannerStartsAt, @JsonProperty("create_notice") boolean createNotice, @JsonProperty("expected_version") Long expectedVersion) {
         public MaintenanceRepository.WriteCommand toCommand() { return new MaintenanceRepository.WriteCommand(title == null ? null : title.trim(), message == null ? null : message.trim(), startsAt, endsAt, showBanner, bannerStartsAt); }
     }
     public record EmergencyStartRequest(@NotBlank @Size(max=160) String title, @NotBlank String message, @JsonProperty("ends_at") OffsetDateTime endsAt, @JsonProperty("create_notice") boolean createNotice) {

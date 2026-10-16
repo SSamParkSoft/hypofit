@@ -7,6 +7,10 @@ import com.contentruck.hypofit.notice.service.NoticeRepository;
 import com.contentruck.hypofit.notice.service.NoticeService;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
+import java.util.Objects;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -42,6 +46,12 @@ public class MaintenanceService {
     }
 
     @Transactional(readOnly = true)
+    public List<MaintenanceRepository.MaintenanceEvent> events(UUID id) {
+        get(id);
+        return repository.listEvents(id);
+    }
+
+    @Transactional(readOnly = true)
     public MaintenanceRepository.MaintenanceRecord active() {
         return repository.findActive().orElse(null);
     }
@@ -62,7 +72,7 @@ public class MaintenanceService {
         if (createNotice) {
             NoticeRepository.NoticeRecord notice = noticeService.create(
                     actor,
-                    new NoticeRepository.NoticeWriteCommand("MAINTENANCE", command.title(), renderedNoticeBody(command))
+                    new NoticeRepository.NoticeWriteCommand("MAINTENANCE", command.title(), renderedNoticeBody(maintenance))
             );
             noticeService.publish(actor, notice.id());
             repository.linkNotice(maintenance.id(), notice.id());
@@ -76,19 +86,26 @@ public class MaintenanceService {
     public MaintenanceRepository.MaintenanceRecord update(
             UUID actor,
             UUID id,
-            MaintenanceRepository.WriteCommand command
+            MaintenanceRepository.WriteCommand command,
+            Long expectedVersion
     ) {
         validate(command);
-        get(id);
-        MaintenanceRepository.MaintenanceRecord maintenance = repository.update(id, actor, command);
+        MaintenanceRepository.MaintenanceRecord before = repository.findForUpdate(id).orElseThrow(this::notFound);
+        if (expectedVersion != null && expectedVersion.longValue() != before.version()) {
+            throw conflict();
+        }
+        if (!"SCHEDULED".equals(before.status())
+                && (!before.startsAt().isEqual(command.startsAt())
+                || before.showBanner() != command.showBanner()
+                || !Objects.equals(before.bannerStartsAt(), command.bannerStartsAt()))) {
+            throw conflict();
+        }
+        MaintenanceRepository.MaintenanceRecord maintenance = repository.update(id, actor, command, before.version());
         if (maintenance == null) {
             throw conflict();
         }
-        if (maintenance.noticeId() != null) {
-            noticeService.update(actor, maintenance.noticeId(),
-                    new NoticeRepository.NoticeWriteCommand("MAINTENANCE", command.title(), renderedNoticeBody(command)));
-        }
-        audit(actor, "MAINTENANCE_UPDATED", maintenance);
+        syncNotice(actor, maintenance);
+        audit(actor, "MAINTENANCE_UPDATED", before, maintenance);
         return maintenance;
     }
 
@@ -113,7 +130,7 @@ public class MaintenanceService {
                         new NoticeRepository.NoticeWriteCommand(
                                 "MAINTENANCE",
                                 command.title(),
-                                renderedNoticeBody(command, true)
+                                renderedNoticeBody(maintenance)
                         )
                 );
                 noticeService.publish(actor, notice.id());
@@ -153,6 +170,7 @@ public class MaintenanceService {
             String to,
             String event
     ) {
+        MaintenanceRepository.MaintenanceRecord before = repository.findForUpdate(id).orElseThrow(this::notFound);
         MaintenanceRepository.MaintenanceRecord maintenance;
         try {
             maintenance = repository.transition(
@@ -168,7 +186,8 @@ public class MaintenanceService {
         if (maintenance == null) {
             throw conflict();
         }
-        audit(actor, event, maintenance);
+        syncNotice(actor, maintenance);
+        audit(actor, event, before, maintenance);
         return maintenance;
     }
 
@@ -195,34 +214,62 @@ public class MaintenanceService {
     private HypofitException conflict() {
         return new HypofitException(
                 "maintenance_state_conflict",
-                "현재 상태에서는 처리할 수 없어요.",
+                "점검 상태가 변경됐거나 다른 운영자가 수정했어요. 최신 상태를 다시 확인해 주세요.",
                 HttpStatus.CONFLICT.value(),
                 "Maintenance state conflict"
         );
     }
 
     private void audit(UUID actor, String event, MaintenanceRepository.MaintenanceRecord maintenance) {
+        audit(actor, event, null, maintenance);
+    }
+
+    private void audit(UUID actor, String event, MaintenanceRepository.MaintenanceRecord before,
+                       MaintenanceRepository.MaintenanceRecord maintenance) {
         audit.record(new AuditEventCommand(
                 actor,
                 "admin",
                 event,
                 "service_maintenance",
                 maintenance.id(),
-                null,
-                Map.of("status", maintenance.status()),
+                before == null ? null : snapshot(before),
+                snapshot(maintenance),
                 null,
                 Map.of()
         ));
     }
 
-    private String renderedNoticeBody(MaintenanceRepository.WriteCommand command) {
-        return renderedNoticeBody(command, false);
+    private Map<String, Object> snapshot(MaintenanceRepository.MaintenanceRecord record) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("status", record.status());
+        result.put("title", record.title());
+        result.put("message", record.message());
+        result.put("starts_at", record.startsAt().toString());
+        result.put("ends_at", record.endsAt() == null ? null : record.endsAt().toString());
+        result.put("show_banner", record.showBanner());
+        result.put("banner_starts_at", record.bannerStartsAt() == null ? null : record.bannerStartsAt().toString());
+        return result;
     }
 
-    private String renderedNoticeBody(MaintenanceRepository.WriteCommand command, boolean inProgress) {
-        return command.message()
-                + (inProgress ? "\n\n점검 시작: " : "\n\n점검 예정: ")
-                + command.startsAt()
-                + (command.endsAt() == null ? "" : " ~ " + command.endsAt());
+    private void syncNotice(UUID actor, MaintenanceRepository.MaintenanceRecord maintenance) {
+        if (maintenance.noticeId() != null) {
+            noticeService.update(actor, maintenance.noticeId(), new NoticeRepository.NoticeWriteCommand(
+                    "MAINTENANCE", maintenance.title(), renderedNoticeBody(maintenance)));
+        }
+    }
+
+    private String renderedNoticeBody(MaintenanceRepository.MaintenanceRecord record) {
+        String status = switch (record.status()) {
+            case "IN_PROGRESS" -> "점검 중";
+            case "VERIFYING" -> "정상화 확인 중";
+            case "COMPLETED" -> "점검 완료";
+            case "CANCELLED" -> "점검 취소";
+            default -> "점검 예정";
+        };
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm").withZone(ZoneId.of("Asia/Seoul"));
+        String end = record.endsAt() == null ? "종료 시간 미정" : formatter.format(record.endsAt());
+        String completed = record.completedAt() == null ? "" : "\n완료 시각: " + formatter.format(record.completedAt());
+        return record.message() + "\n\n상태: " + status + "\n점검 일시 (한국 시간): "
+                + formatter.format(record.startsAt()) + " ~ " + end + completed;
     }
 }

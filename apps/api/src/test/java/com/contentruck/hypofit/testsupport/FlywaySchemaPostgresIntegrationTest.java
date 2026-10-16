@@ -11,7 +11,7 @@ class FlywaySchemaPostgresIntegrationTest extends PostgresIntegrationTestSupport
         assertThat(jdbcTemplate.queryForObject(
                 "select version from flyway_schema_history where success order by installed_rank desc limit 1",
                 String.class
-        )).isEqualTo("0032");
+        )).isEqualTo("0034");
 
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from information_schema.tables where table_schema = 'public' and table_name in ('admin_users', 'notices', 'service_maintenances')",

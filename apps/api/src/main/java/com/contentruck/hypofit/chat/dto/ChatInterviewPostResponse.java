@@ -1,8 +1,10 @@
 package com.contentruck.hypofit.chat.dto;
 
 import com.contentruck.hypofit.chat.service.ChatInterviewPostSummary;
+import com.contentruck.hypofit.interview.service.PostingCompensation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,7 +23,7 @@ public record ChatInterviewPostResponse(
         @Schema(minimum = "0")
         int rewardAmount,
         @JsonProperty("duration_minutes")
-        @Schema(minimum = "10", maximum = "240")
+        @Schema(minimum = "0")
         int durationMinutes,
         @JsonProperty("recruit_count")
         @Schema(minimum = "0", maximum = "999", defaultValue = "0")
@@ -59,7 +61,22 @@ public record ChatInterviewPostResponse(
         @JsonProperty("founder_review_summary")
         ChatFounderReviewSummaryResponse founderReviewSummary,
         @JsonProperty("distance_meters")
-        Double distanceMeters
+        Double distanceMeters,
+        @JsonProperty("recruitment_type")
+        String recruitmentType,
+        @JsonProperty("entry_mode")
+        String entryMode,
+        List<PostingCompensation> compensations,
+        @JsonProperty("duration_value")
+        Integer durationValue,
+        @JsonProperty("duration_unit")
+        String durationUnit,
+        @JsonProperty("beta_test_platforms")
+        List<String> betaTestPlatforms,
+        @JsonProperty("beta_test_starts_at")
+        OffsetDateTime betaTestStartsAt,
+        @JsonProperty("beta_test_ends_at")
+        OffsetDateTime betaTestEndsAt
 ) {
     public static ChatInterviewPostResponse from(ChatInterviewPostSummary summary) {
         if (summary == null) {
@@ -87,7 +104,15 @@ public record ChatInterviewPostResponse(
                 summary.status(),
                 ChatUserSummaryResponse.from(summary.founder()),
                 ChatFounderReviewSummaryResponse.from(summary.founderReviewSummary()),
-                summary.distanceMeters()
+                summary.distanceMeters(),
+                summary.recruitmentType(),
+                summary.entryMode(),
+                summary.compensations(),
+                summary.durationValue(),
+                summary.durationUnit(),
+                summary.betaTestPlatforms(),
+                summary.betaTestStartsAt(),
+                summary.betaTestEndsAt()
         );
     }
 }

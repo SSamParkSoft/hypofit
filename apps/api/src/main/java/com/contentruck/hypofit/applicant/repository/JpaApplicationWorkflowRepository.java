@@ -182,7 +182,8 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
                 entity.getFounderId(),
                 entity.getTitle(),
                 entity.getRecruitmentType(),
-                entity.getEntryMode()
+                entity.getEntryMode(),
+                entity.getStatus()
         ));
     }
 

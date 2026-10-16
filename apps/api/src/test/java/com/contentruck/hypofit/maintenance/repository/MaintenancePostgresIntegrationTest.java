@@ -63,7 +63,7 @@ class MaintenancePostgresIntegrationTest extends PostgresIntegrationTestSupport 
         var created = service.create(actor, command(true), true);
         var changed = new MaintenanceRepository.WriteCommand("변경한 점검", "변경한 안내 문구",
                 bannerStart.plusDays(2), bannerStart.plusDays(2).plusHours(2), true, bannerStart);
-        service.update(actor, created.id(), changed);
+        service.update(actor, created.id(), changed, created.version());
         var notice = notices.getPublished(created.noticeId());
         assertThat(notice.title()).isEqualTo(changed.title());
         assertThat(notice.body()).contains(changed.message(), changed.startsAt().toString(), changed.endsAt().toString());

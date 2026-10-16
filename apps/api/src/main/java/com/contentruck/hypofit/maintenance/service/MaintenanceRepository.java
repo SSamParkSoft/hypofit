@@ -8,15 +8,18 @@ import java.util.UUID;
 public interface MaintenanceRepository {
     List<MaintenanceRecord> list();
     Optional<MaintenanceRecord> find(UUID id);
+    Optional<MaintenanceRecord> findForUpdate(UUID id);
+    List<MaintenanceEvent> listEvents(UUID id);
     Optional<MaintenanceRecord> findActive();
     Optional<MaintenanceRecord> findVisibleScheduled(OffsetDateTime now);
     MaintenanceRecord create(UUID actorId, WriteCommand command);
     MaintenanceRecord createInProgress(UUID actorId, WriteCommand command, OffsetDateTime now);
     void linkNotice(UUID id, UUID noticeId);
-    MaintenanceRecord update(UUID id, UUID actorId, WriteCommand command);
+    MaintenanceRecord update(UUID id, UUID actorId, WriteCommand command, long expectedVersion);
     MaintenanceRecord transition(UUID id, UUID actorId, String fromStatus, String toStatus, OffsetDateTime now);
 
     record WriteCommand(String title, String message, OffsetDateTime startsAt, OffsetDateTime endsAt, boolean showBanner, OffsetDateTime bannerStartsAt) { }
+    record MaintenanceEvent(UUID id, UUID actorId, String actorName, String action, String before, String after, OffsetDateTime createdAt) { }
     record MaintenanceRecord(UUID id, String title, String message, String status, String mode, OffsetDateTime startsAt, OffsetDateTime endsAt,
                              UUID noticeId, boolean showBanner, OffsetDateTime bannerStartsAt, UUID createdBy, UUID updatedBy,
                              OffsetDateTime startedAt, OffsetDateTime completedAt, long version, OffsetDateTime createdAt, OffsetDateTime updatedAt) { }
