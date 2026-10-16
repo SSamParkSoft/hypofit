@@ -66,4 +66,3 @@ export function useChatHistory(
 
   return { messages, hasOlder, loadOlder, isLoadingOlder: loadingScope === scope, isHistoryError: errorScope === scope };
 }
-

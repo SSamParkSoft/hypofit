@@ -1,0 +1,61 @@
+name: Frontend static checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - apps/mobile/**
+      - apps/web/**
+      - packages/contracts/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .npmrc
+      - .node-version
+      - .github/workflows/frontend-checks.yml
+  push:
+    branches: [main]
+    paths:
+      - apps/mobile/**
+      - apps/web/**
+      - packages/contracts/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .npmrc
+      - .node-version
+      - .github/workflows/frontend-checks.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check mobile types and lint (including architecture boundaries)
+        run: |
+          pnpm --dir apps/mobile typecheck
+          pnpm --dir apps/mobile lint
+      - name: Check web types and lint (including architecture boundaries)
+        run: |
+          pnpm --dir apps/web typecheck
+          pnpm --dir apps/web lint

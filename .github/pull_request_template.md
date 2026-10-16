@@ -7,7 +7,7 @@
 
 - [ ] `make test-web`
 - [ ] `make test-mobile`
-- [ ] `make test-api`
+- [ ] API E2E scenario (name the scenario and result; report if unavailable)
 - [ ] `make lint-web`
 - [ ] `make lint-mobile`
 - [ ] `make lint-api`
