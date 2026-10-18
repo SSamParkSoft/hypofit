@@ -374,6 +374,7 @@ public class ChatRepositoryAdapter implements ChatRepository {
                   a.respondent_id as application_respondent_id,
                   a.status as application_status,
                   a.rejection_reason as application_rejection_reason,
+                  a.sharing_withdrawn_at as application_sharing_withdrawn_at,
                   p.id as post_id_ref,
                   p.founder_id as post_founder_id,
                   p.title as post_title,
@@ -436,6 +437,7 @@ public class ChatRepositoryAdapter implements ChatRepository {
                   group by m.room_id
                 ) unread on unread.room_id = r.id
                 where (r.founder_id = :user_id or r.respondent_id = :user_id)
+                  and (r.respondent_id = :user_id or a.sharing_withdrawn_at is null)
                   and coalesce(setting.is_hidden, false) = false
                   and not (coalesce(p.recruitment_type, 'interview') = 'interview'
                            and coalesce(a.status, '') = 'applied')
@@ -466,6 +468,7 @@ public class ChatRepositoryAdapter implements ChatRepository {
                   a.respondent_id as application_respondent_id,
                   a.status as application_status,
                   a.rejection_reason as application_rejection_reason,
+                  a.sharing_withdrawn_at as application_sharing_withdrawn_at,
                   p.id as post_id_ref,
                   p.founder_id as post_founder_id,
                   p.title as post_title,
@@ -528,6 +531,7 @@ public class ChatRepositoryAdapter implements ChatRepository {
                   group by m.room_id
                 ) unread on unread.room_id = r.id
                 where r.id = :room_id
+                  and (r.respondent_id = :user_id or a.sharing_withdrawn_at is null)
                 """;
     }
 
@@ -556,7 +560,8 @@ public class ChatRepositoryAdapter implements ChatRepository {
                                 rs.getString("respondent_bio"),
                                 rs.getString("respondent_role"),
                                 rs.getString("respondent_profile_image_url")
-                        )
+                        ),
+                        offsetDateTime(rs, "application_sharing_withdrawn_at")
                 ),
                 new ChatInterviewPostSummary(
                         uuid(rs, "post_id_ref"),

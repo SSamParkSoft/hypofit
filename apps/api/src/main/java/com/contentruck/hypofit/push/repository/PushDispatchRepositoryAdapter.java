@@ -166,6 +166,14 @@ public class PushDispatchRepositoryAdapter implements PushDispatchRepository {
                             and d.permission_status in ('granted', 'provisional')
                             and u.deleted_at is null
                             and u.deactivated_at is null
+                            and not exists(select 1 from applications a
+                              join interview_posts post on post.id = a.interview_post_id
+                              where a.sharing_withdrawn_at is not null and post.founder_id = pd.user_id
+                                and ((n.target_type = 'application' and n.target_id = a.id)
+                                  or (n.target_type = 'chat_room' and exists(select 1 from chat_rooms r
+                                      where r.application_id = a.id and r.id = n.target_id))
+                                  or (n.target_type in ('session', 'interview_session') and exists(select 1 from interview_sessions s
+                                      where s.application_id = a.id and s.id = n.target_id))))
                             and (%s)
                         )
                         """.formatted(PREFERENCE_ALLOWS_DELIVERY_SQL), new MapSqlParameterSource()

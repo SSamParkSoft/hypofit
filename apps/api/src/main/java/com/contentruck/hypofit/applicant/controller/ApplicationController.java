@@ -69,7 +69,8 @@ public class ApplicationController {
                 userId,
                 request.interviewPostId(),
                 request.answers(),
-                request.availableTimes()
+                request.availableTimes(),
+                request.sharingConsent()
         ));
     }
 

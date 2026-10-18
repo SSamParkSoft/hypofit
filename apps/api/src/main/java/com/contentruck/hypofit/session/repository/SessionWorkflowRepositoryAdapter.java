@@ -57,7 +57,8 @@ public class SessionWorkflowRepositoryAdapter implements SessionWorkflowReposito
                 join SessionApplicationEntity a on a.id = s.applicationId
                 join SessionInterviewPostEntity p on p.id = a.interviewPostId
                 left join SessionUserEntity u on u.id = a.respondentId
-                where (a.respondentId = :userId or p.founderId = :userId)
+                where (a.respondentId = :userId
+                    or (p.founderId = :userId and a.sharingWithdrawnAt is null))
                   and a.moderationStatus = 'visible'
                   and s.moderationStatus = 'visible'
                 order by s.scheduledAt desc

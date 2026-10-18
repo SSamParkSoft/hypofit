@@ -18,6 +18,26 @@ public class AccountDeletionPushDeviceEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "token", nullable = false)
+    private String token;
+
+    @Column(name = "token_hash", nullable = false, length = 80)
+    private String tokenHash;
+
+    @Column(name = "installation_id", length = 120)
+    private String installationId;
+
+    @Column(name = "device_label", length = 120)
+    private String deviceLabel;
+
+    public void clearDeliveryIdentifiers() {
+        // This per-device tombstone preserves uniqueness, not anonymity of the retained history.
+        token = "";
+        tokenHash = "deleted-device:" + id;
+        installationId = null;
+        deviceLabel = null;
+    }
+
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
 

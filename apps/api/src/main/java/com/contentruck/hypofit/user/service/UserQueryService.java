@@ -3,8 +3,11 @@ package com.contentruck.hypofit.user.service;
 
 import com.contentruck.hypofit.common.error.HypofitException;
 import com.contentruck.hypofit.socialauth.service.SocialAuthAdminClient;
+import com.contentruck.hypofit.user.dto.LegalAcknowledgementsRequest;
+import com.contentruck.hypofit.user.repository.LegalAcknowledgementRepository;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,10 +16,19 @@ public class UserQueryService {
 
     private final UserReadRepository userReadRepository;
     private final SocialAuthAdminClient authAdminClient;
+    private final LegalAcknowledgementRepository legalAcknowledgementRepository;
+    private final String publishedLegalRevision;
 
-    public UserQueryService(UserReadRepository userReadRepository, SocialAuthAdminClient authAdminClient) {
+    public UserQueryService(
+            UserReadRepository userReadRepository,
+            SocialAuthAdminClient authAdminClient,
+            LegalAcknowledgementRepository legalAcknowledgementRepository,
+            @Value("${hypofit.legal.published-revision:}") String publishedLegalRevision
+    ) {
         this.userReadRepository = userReadRepository;
         this.authAdminClient = authAdminClient;
+        this.legalAcknowledgementRepository = legalAcknowledgementRepository;
+        this.publishedLegalRevision = publishedLegalRevision;
     }
 
     @Transactional(readOnly = true)
@@ -25,7 +37,11 @@ public class UserQueryService {
     }
 
     @Transactional
-    public UserProfile syncMe(UUID userId, String email, UserProfileCommands.SyncCommand command) {
+    public UserProfile syncMe(
+            UUID userId, String email, UserProfileCommands.SyncCommand command,
+            LegalAcknowledgementsRequest acknowledgements
+    ) {
+        validateAcknowledgements(acknowledgements);
         UserReadRepository.UserProfileRecord existing = userReadRepository.findById(userId).orElse(null);
         if (existing != null && existing.deleted()) {
             throw new UserAccountDeletedException();
@@ -41,7 +57,7 @@ public class UserQueryService {
                 profileEmail,
                 command
         );
-        return userReadRepository.saveProfile(new UserReadRepository.UserProfileMutation(
+        UserProfile profile = userReadRepository.saveProfile(new UserReadRepository.UserProfileMutation(
                 userId,
                 mutation.email(),
                 mutation.name(),
@@ -53,6 +69,33 @@ public class UserQueryService {
                 mutation.organizationType(),
                 mutation.organizationName()
         )).toDomain();
+        if (acknowledgements != null) {
+            legalAcknowledgementRepository.recordSignup(userId, acknowledgements);
+        }
+        return profile;
+    }
+
+    private void validateAcknowledgements(LegalAcknowledgementsRequest request) {
+        if (request == null) {
+            return;
+        }
+        // Empty until the policy bundle is finalized and approved for publication.
+        if (publishedLegalRevision.isBlank()
+                || !publishedLegalRevision.equals(request.documentRevision())
+                || !"published".equals(request.documentStatus())
+                || !"signup".equals(request.action())
+                || request.source() == null
+                || !List.of("web_onboarding", "ios_onboarding", "android_onboarding").contains(request.source())
+                || !Boolean.TRUE.equals(request.termsAccepted())
+                || !Boolean.TRUE.equals(request.privacyNoticeAcknowledged())
+                || !Boolean.TRUE.equals(request.age19Confirmed())) {
+            throw new HypofitException(
+                    "legal_acknowledgements_invalid",
+                    "가입 확인 문서의 버전과 상태를 다시 확인해 주세요.",
+                    422,
+                    "Signup acknowledgement must reference the configured published document revision"
+            );
+        }
     }
 
     private String requireVerifiedSignupEmail(UUID userId, String email) {

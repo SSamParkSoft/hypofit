@@ -5,6 +5,7 @@ import com.contentruck.hypofit.accountdeletion.service.AccountDeletionAuthCleanu
 import com.contentruck.hypofit.accountdeletion.service.AccountDeletionAuthCleanupGateway.AuthCleanupResult;
 import com.contentruck.hypofit.common.config.HypofitProperties;
 import java.util.UUID;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
@@ -18,7 +19,10 @@ public class SupabaseAdminAccountDeletionAuthCleanupGateway implements AccountDe
     private final HypofitProperties properties;
 
     public SupabaseAdminAccountDeletionAuthCleanupGateway(RestClient.Builder restClientBuilder, HypofitProperties properties) {
-        this.restClient = restClientBuilder.build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(4000);
+        requestFactory.setReadTimeout(4000);
+        this.restClient = restClientBuilder.requestFactory(requestFactory).build();
         this.properties = properties;
     }
 
@@ -48,7 +52,7 @@ public class SupabaseAdminAccountDeletionAuthCleanupGateway implements AccountDe
             if (statusCode == 404) {
                 return new AuthCleanupResult("not_found", null);
             }
-            if (statusCode >= 500) {
+            if (statusCode == 429 || statusCode >= 500) {
                 return new AuthCleanupResult("failed_retryable", "http_" + statusCode);
             }
             return new AuthCleanupResult("failed_non_retryable", "http_" + statusCode);

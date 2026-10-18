@@ -12,6 +12,14 @@ public interface AccountDeletionRepository {
 
     Optional<AccountDeletionRequestRecord> findRequestForUpdate(UUID requestId);
 
+    List<UUID> findCleanupRetryCandidates(OffsetDateTime before, int limit);
+
+    boolean claimCleanupRetry(UUID requestId, OffsetDateTime before, OffsetDateTime now);
+
+    void savePendingProfileImagePath(UUID requestId, String path);
+
+    Optional<String> findPendingProfileImagePath(UUID requestId);
+
     boolean claimVerifiedRequest(UUID requestId, OffsetDateTime updatedAt);
 
     Optional<AccountDeletionRequestRecord> findLatestRequestForUser(UUID userId);
@@ -23,6 +31,8 @@ public interface AccountDeletionRepository {
     List<AccountDeletionRequestRecord> listRequestsForAdmin(String status, int limit, int page, String search);
 
     Optional<UserAccountRecord> findUserAccount(UUID userId);
+
+    Optional<UserAccountRecord> findUserAccountForUpdate(UUID userId);
 
     Optional<UserAccountRecord> findUserByEmail(String email);
 

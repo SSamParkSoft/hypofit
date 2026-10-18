@@ -45,14 +45,15 @@ public class ChatWorkflowQueryRepositoryAdapter implements ChatWorkflowQueryRepo
     }
 
     @Override
-    public Optional<ChatWorkflowQueryRepository.ApplicationMessageabilityRecord> findApplicationMessageability(UUID applicationId) {
+    public Optional<ChatWorkflowQueryRepository.ApplicationMessageabilityRecord> findApplicationMessageability(UUID applicationId, boolean lock) {
         return jdbcTemplate.query(
                         """
                         select a.id, a.status, p.recruitment_type
                         from applications a
                         join interview_posts p on p.id = a.interview_post_id
                         where a.id = :application_id
-                        """,
+                          and a.sharing_withdrawn_at is null
+                        """ + (lock ? " for update of a" : ""),
                         new MapSqlParameterSource("application_id", applicationId),
                         (rs, rowNum) -> new ChatWorkflowQueryRepository.ApplicationMessageabilityRecord(
                                 uuid(rs, "id"), rs.getString("status"), rs.getString("recruitment_type")

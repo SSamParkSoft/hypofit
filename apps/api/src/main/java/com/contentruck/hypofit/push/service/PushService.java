@@ -26,7 +26,9 @@ public class PushService {
 
     @Transactional
     public PushDeviceReadModel registerPushDevice(UUID userId, RegisterPushDeviceCommand rawCommand) {
-        requireActiveUser(userId, true);
+        // Serialize device writes with account deletion before checking account or device state.
+        requireActiveUser(pushRepository.findUserAccountForUpdate(userId)
+                .orElseThrow(PushProfileRequiredException::new));
         RegisterPushDeviceCommand command = PushInputValidator.validateRegister(rawCommand);
 
         if (!defaultProviderForPlatform(command.platform()).equals(command.provider())) {
@@ -77,7 +79,8 @@ public class PushService {
 
     @Transactional
     public void disablePushDevice(UUID userId, UUID pushDeviceId) {
-        requireActiveUser(userId, false);
+        requireActiveUser(pushRepository.findUserAccountForUpdate(userId)
+                .orElseThrow(PushNotificationProfileMissingException::new));
         PushRepository.PushDeviceRecord device = pushRepository.findUserPushDevice(pushDeviceId, userId)
                 .orElseThrow(PushDeviceNotFoundException::new);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -111,13 +114,13 @@ public class PushService {
 
     @Transactional
     public NotificationPreferenceReadModel getPreferences(UUID userId) {
-        requireActiveUser(userId, false);
+        requireActiveUser(userId);
         return toReadModel(pushRepository.getOrCreatePreferences(userId, OffsetDateTime.now(ZoneOffset.UTC)));
     }
 
     @Transactional
     public NotificationPreferenceReadModel updatePreferences(UUID userId, UpdateNotificationPreferenceCommand command) {
-        requireActiveUser(userId, false);
+        requireActiveUser(userId);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         PushRepository.NotificationPreferenceRecord preference = pushRepository.getOrCreatePreferences(userId, now);
 
@@ -144,11 +147,13 @@ public class PushService {
         return updated;
     }
 
-    private void requireActiveUser(UUID userId, boolean pushSpecificMissing) {
+    private void requireActiveUser(UUID userId) {
         PushRepository.UserAccountRecord user = pushRepository.findUserAccount(userId)
-                .orElseThrow(() -> pushSpecificMissing
-                        ? new PushProfileRequiredException()
-                        : new PushNotificationProfileMissingException());
+                .orElseThrow(PushNotificationProfileMissingException::new);
+        requireActiveUser(user);
+    }
+
+    private void requireActiveUser(PushRepository.UserAccountRecord user) {
         if (user.deletedAt() != null) {
             throw new PushAccountDeletedException();
         }

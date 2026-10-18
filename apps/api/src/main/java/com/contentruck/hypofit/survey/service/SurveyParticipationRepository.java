@@ -19,6 +19,8 @@ public interface SurveyParticipationRepository {
 
     boolean hasSelectedApplication(UUID postId, UUID participantId);
 
+    boolean hasWithdrawnApplicationForUpdate(UUID postId, UUID participantId);
+
     SurveyParticipationReadModel createOpenedParticipation(UUID postId, UUID participantId, OffsetDateTime openedAt);
 
     SurveyParticipationReadModel updateToSubmitted(UUID postId, UUID participantId, OffsetDateTime submittedAt);

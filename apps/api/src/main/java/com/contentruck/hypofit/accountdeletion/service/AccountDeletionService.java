@@ -68,7 +68,8 @@ public class AccountDeletionService {
         NormalizedPublicCreateInput input = normalizePublicCreate(command);
         OffsetDateTime now = now();
         String emailHash = verificationSecurity.hashEmail(input.email());
-        AccountDeletionRequestRecord existing = repository.findLatestPublicRequestByEmailHash(emailHash).orElse(null);
+        AccountDeletionRequestRecord existing = lockRequestForIssuance(
+                repository.findLatestPublicRequestByEmailHash(emailHash).orElse(null));
 
         if (isVerificationRecentlySent(existing, now)) {
             return AccountDeletionRequestReadModel.from(existing).withResult("verification_code_recently_sent");
@@ -190,7 +191,7 @@ public class AccountDeletionService {
     @Transactional
     public AccountDeletionRequestReadModel resendPublicRequest(ResendCommand command) {
         UUID requestId = requireRequestId(command.requestId());
-        AccountDeletionRequestRecord request = repository.findRequest(requestId).orElse(null);
+        AccountDeletionRequestRecord request = repository.findRequestForUpdate(requestId).orElse(null);
         if (request == null || !PUBLIC_SOURCE.equals(request.source())) {
             throw notFound("Account deletion request not found");
         }
@@ -215,7 +216,8 @@ public class AccountDeletionService {
         }
 
         OffsetDateTime now = now();
-        AccountDeletionRequestRecord existing = repository.findLatestRequestForUser(userId).orElse(null);
+        AccountDeletionRequestRecord existing = lockRequestForIssuance(
+                repository.findLatestRequestForUser(userId).orElse(null));
         if (isVerificationRecentlySent(existing, now) && AUTHENTICATED_SOURCE.equals(existing.source())) {
             return AccountDeletionRequestReadModel.from(existing).withResult("verification_code_recently_sent");
         }
@@ -351,7 +353,7 @@ public class AccountDeletionService {
     public AccountDeletionRequestReadModel resendAuthenticatedRequest(UUID userId, ResendCommand command) {
         UUID requestId = requireRequestId(command.requestId());
         UserAccountRecord user = requireUserAccount(userId);
-        AccountDeletionRequestRecord request = repository.findRequest(requestId).orElse(null);
+        AccountDeletionRequestRecord request = repository.findRequestForUpdate(requestId).orElse(null);
         ensureAuthenticatedOwner(request, user);
         return resendVerificationCode(request, "user");
     }
@@ -383,7 +385,7 @@ public class AccountDeletionService {
 
     private AccountDeletionRequestReadModel resendVerificationCode(AccountDeletionRequestRecord request, String actorType) {
         OffsetDateTime now = now();
-        if (isClosedRequest(request)) {
+        if (isClosedRequest(request) || "in_review".equals(request.status())) {
             throw conflict("Account deletion request can no longer receive a code");
         }
         if (request.verificationResendAvailableAt() != null && request.verificationResendAvailableAt().isAfter(now)) {
@@ -440,6 +442,17 @@ public class AccountDeletionService {
         String emailStatus = emailGateway.sendVerificationCode(saved.email(), verificationCode);
         saved = updateRequestResult(saved.id(), emailStatus, now);
         return attachDebugVerificationCode(saved, verificationCode);
+    }
+
+    private AccountDeletionRequestRecord lockRequestForIssuance(AccountDeletionRequestRecord candidate) {
+        if (candidate == null) {
+            return null;
+        }
+        AccountDeletionRequestRecord current = repository.findRequestForUpdate(candidate.id()).orElse(null);
+        if (current != null && "in_review".equals(current.status())) {
+            throw conflict("Account deletion is already being processed");
+        }
+        return current;
     }
 
     private boolean isVerificationRecentlySent(AccountDeletionRequestRecord request, OffsetDateTime now) {

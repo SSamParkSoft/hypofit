@@ -24,6 +24,7 @@ public class SurveyParticipationService {
     private static final String SURVEY_RECRUITMENT_TYPE = "survey";
     private static final String POST_OPEN_STATUS = "open";
     private static final String ENTRY_MODE_DIRECT = "direct";
+    private static final String ENTRY_MODE_APPLICATION_REQUIRED = "application_required";
     private static final String STATUS_OPENED = "opened";
     private static final String STATUS_SUBMITTED = "submitted";
     private static final String STATUS_CONFIRMED = "confirmed";
@@ -154,6 +155,11 @@ public class SurveyParticipationService {
         requireActiveAccount(actorUserId);
         SurveyPostSummary post = requireSurveyPost(postId);
         ensureOrganizer(actorUserId, post);
+
+        if (ENTRY_MODE_APPLICATION_REQUIRED.equals(post.entryMode())
+                && repository.hasWithdrawnApplicationForUpdate(postId, participantId)) {
+            throw notFound("Survey participation sharing was withdrawn for post " + postId);
+        }
 
         SurveyParticipationReadModel existing = repository.findParticipationForUpdate(postId, participantId)
                 .orElseThrow(() -> notFound(

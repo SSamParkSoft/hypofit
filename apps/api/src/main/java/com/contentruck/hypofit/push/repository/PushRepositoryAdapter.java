@@ -34,6 +34,12 @@ public class PushRepositoryAdapter implements PushRepository {
     }
 
     @Override
+    public Optional<UserAccountRecord> findUserAccountForUpdate(UUID userId) {
+        return pushUserJpaRepository.findForUpdateById(userId)
+                .map(entity -> new UserAccountRecord(entity.getId(), entity.getDeactivatedAt(), entity.getDeletedAt()));
+    }
+
+    @Override
     public Optional<PushDeviceRecord> findPushDevice(String provider, String environment, String tokenHash) {
         return pushDeviceJpaRepository.findByProviderAndEnvironmentAndTokenHash(provider, environment, tokenHash)
                 .map(this::toRecord);

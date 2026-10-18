@@ -8,6 +8,8 @@ public interface PushRepository {
 
     Optional<UserAccountRecord> findUserAccount(UUID userId);
 
+    Optional<UserAccountRecord> findUserAccountForUpdate(UUID userId);
+
     Optional<PushDeviceRecord> findPushDevice(String provider, String environment, String tokenHash);
 
     Optional<PushDeviceRecord> findUserPushDevice(UUID pushDeviceId, UUID userId);

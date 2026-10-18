@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.OffsetDateTime;
 
 public record ChatApplicationResponse(
         UUID id,
@@ -18,7 +19,9 @@ public record ChatApplicationResponse(
         String status,
         @JsonProperty("rejection_reason")
         String rejectionReason,
-        ChatUserSummaryResponse respondent
+        ChatUserSummaryResponse respondent,
+        @JsonProperty("sharing_withdrawn_at")
+        OffsetDateTime sharingWithdrawnAt
 ) {
     public static ChatApplicationResponse from(ChatApplicationSummary summary) {
         if (summary == null) {
@@ -32,7 +35,8 @@ public record ChatApplicationResponse(
                 summary.respondentId(),
                 summary.status(),
                 summary.rejectionReason(),
-                ChatUserSummaryResponse.from(summary.respondent())
+                ChatUserSummaryResponse.from(summary.respondent()),
+                summary.sharingWithdrawnAt()
         );
     }
 }

@@ -1,6 +1,7 @@
 package com.contentruck.hypofit.applicant.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.constraints.NotNull;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,7 +14,9 @@ public record ApplicationCreateRequest(
         UUID interviewPostId,
         Map<String, String> answers,
         @JsonProperty("available_times")
-        List<String> availableTimes
+        List<String> availableTimes,
+        @JsonProperty("sharing_consent")
+        JsonNode sharingConsent
 ) {
 
     public ApplicationCreateRequest {

@@ -11,19 +11,40 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 @Repository
 public class NotificationRepositoryAdapter implements NotificationRepository {
 
     private final NotificationJpaRepository notificationJpaRepository;
     private final NotificationUserJpaRepository notificationUserJpaRepository;
+    private final NamedParameterJdbcTemplate jdbc;
 
     public NotificationRepositoryAdapter(
             NotificationJpaRepository notificationJpaRepository,
-            NotificationUserJpaRepository notificationUserJpaRepository
+            NotificationUserJpaRepository notificationUserJpaRepository,
+            NamedParameterJdbcTemplate jdbc
     ) {
         this.notificationJpaRepository = notificationJpaRepository;
         this.notificationUserJpaRepository = notificationUserJpaRepository;
+        this.jdbc = jdbc;
+    }
+
+    @Override
+    public boolean isSharingRestricted(UUID userId, String targetType, UUID targetId) {
+        if (targetId == null || targetType == null) return false;
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                select exists(select 1 from applications a
+                join interview_posts p on p.id = a.interview_post_id
+                where a.sharing_withdrawn_at is not null and p.founder_id = :userId
+                  and ((:targetType = 'application' and a.id = :targetId)
+                    or (:targetType = 'chat_room' and exists(select 1 from chat_rooms r
+                        where r.application_id = a.id and r.id = :targetId))
+                    or (:targetType in ('session', 'interview_session') and exists(select 1 from interview_sessions s
+                        where s.application_id = a.id and s.id = :targetId))))
+                """, new MapSqlParameterSource("userId", userId).addValue("targetType", targetType)
+                .addValue("targetId", targetId), Boolean.class));
     }
 
     @Override

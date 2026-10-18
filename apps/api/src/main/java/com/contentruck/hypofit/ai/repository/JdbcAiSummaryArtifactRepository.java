@@ -186,6 +186,7 @@ public class JdbcAiSummaryArtifactRepository implements AiSummaryArtifactReposit
                         from applications a
                         join interview_posts p on p.id = a.interview_post_id
                         where a.id = :applicationId
+                          and a.sharing_withdrawn_at is null
                           and a.moderation_status = 'visible'
                           and p.recruitment_type = 'interview'
                           and p.status not in ('draft', 'hidden', 'removed')

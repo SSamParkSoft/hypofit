@@ -1,6 +1,9 @@
 package com.contentruck.hypofit.applicant.service;
 
 import com.contentruck.hypofit.ai.service.AiSummaryEnqueueService;
+import com.contentruck.hypofit.applicant.repository.ApplicationSharingConsentRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.beans.factory.annotation.Value;
 import com.contentruck.hypofit.audit.service.AuditEventCommand;
 import com.contentruck.hypofit.audit.service.AuditWriteService;
 import com.contentruck.hypofit.chat.service.ApplicationChatLifecycleService;
@@ -11,7 +14,6 @@ import com.contentruck.hypofit.user.service.UserProfileMissingException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -36,6 +38,8 @@ public class ApplicationWorkflowService {
     private final AuditWriteService auditWriteService;
     private final AiSummaryEnqueueService aiSummaryEnqueueService;
     private final ApplicationWorkflowMetrics applicationWorkflowMetrics;
+    private final ApplicationSharingConsentRepository sharingConsentRepository;
+    private final boolean sharingConsentRequired;
 
     public ApplicationWorkflowService(
             ApplicationWorkflowRepository repository,
@@ -43,7 +47,9 @@ public class ApplicationWorkflowService {
             NotificationWriteService notificationWriteService,
             AuditWriteService auditWriteService,
             AiSummaryEnqueueService aiSummaryEnqueueService,
-            ApplicationWorkflowMetrics applicationWorkflowMetrics
+            ApplicationWorkflowMetrics applicationWorkflowMetrics,
+            ApplicationSharingConsentRepository sharingConsentRepository,
+            @Value("${hypofit.privacy.application-sharing-consent-required:false}") boolean sharingConsentRequired
     ) {
         this.repository = repository;
         this.chatLifecycleService = chatLifecycleService;
@@ -51,6 +57,8 @@ public class ApplicationWorkflowService {
         this.auditWriteService = auditWriteService;
         this.aiSummaryEnqueueService = aiSummaryEnqueueService;
         this.applicationWorkflowMetrics = applicationWorkflowMetrics;
+        this.sharingConsentRepository = sharingConsentRepository;
+        this.sharingConsentRequired = sharingConsentRequired;
     }
 
     @Transactional(readOnly = true)
@@ -73,10 +81,22 @@ public class ApplicationWorkflowService {
             java.util.Map<String, String> answers,
             java.util.List<String> availableTimes
     ) {
+        return createApplication(userId, interviewPostId, answers, availableTimes, null);
+    }
+
+    @Transactional
+    public ApplicationReadModel createApplication(
+            UUID userId,
+            UUID interviewPostId,
+            Map<String, String> answers,
+            List<String> availableTimes,
+            JsonNode sharingConsent
+    ) {
         requireActiveUser(userId);
 
         InterviewPostOwnership post = repository.findInterviewPost(interviewPostId)
                 .orElseThrow(() -> new ApplicationNotFoundException("Interview post not found"));
+        ApplicationSharingConsent.validate(sharingConsent, post.founderId(), sharingConsentRequired);
         ensureApplicationCreationSupported(post);
         if (!"open".equals(post.status())) {
             throw new ApplicationConflictException("Only open postings accept new applications");
@@ -91,25 +111,29 @@ public class ApplicationWorkflowService {
             throw new ApplicationConflictException("Already applied to this interview");
         }
 
+        ApplicationReadModel application;
         try {
-            ApplicationReadModel application = repository.createApplication(interviewPostId, userId, answers, availableTimes);
-            notificationWriteService.createNotification(
-                    post.founderId(),
-                    "application_created",
-                    "새 신청이 도착했어요",
-                    "지원 내용을 확인할 수 있어요.",
-                    "application",
-                    application.id(),
-                    Map.of(
-                            "interview_post_id", post.id().toString(),
-                            "interview_title", post.title()
-                    )
-            );
-            aiSummaryEnqueueService.enqueueApplicationSummary(application.id());
-            return application;
+            application = repository.createApplication(interviewPostId, userId, answers, availableTimes);
         } catch (DataIntegrityViolationException exception) {
             throw new ApplicationConflictException("Already applied to this interview");
         }
+        if (sharingConsent != null) {
+            sharingConsentRepository.record(application.id(), userId, post.founderId(), sharingConsent.get("source").textValue());
+        }
+        notificationWriteService.createNotification(
+                post.founderId(),
+                "application_created",
+                "새 신청이 도착했어요",
+                "지원 내용을 확인할 수 있어요.",
+                "application",
+                application.id(),
+                Map.of(
+                        "interview_post_id", post.id().toString(),
+                        "interview_title", post.title()
+                )
+        );
+        aiSummaryEnqueueService.enqueueApplicationSummary(application.id());
+        return application;
     }
 
     @Transactional
@@ -186,11 +210,14 @@ public class ApplicationWorkflowService {
     ) {
         requireActiveUser(userId);
 
-        ApplicationWorkflowContext context = loadApplicationContextForStatusChange(applicationId, nextStatus)
+        ApplicationWorkflowContext context = repository.lockVisibleApplicationContext(applicationId)
                 .orElseThrow(() -> new ApplicationNotFoundException("Application not found"));
         ensureApplicationWorkflowSupported(context.recruitmentType());
         if (!context.founderId().equals(userId)) {
             throw new ApplicationPermissionDeniedException("Forbidden");
+        }
+        if (sharingConsentRepository.isWithdrawn(applicationId)) {
+            throw new ApplicationNotFoundException("Application not found");
         }
 
         Set<String> allowedStatuses = switch (nextStatus) {
@@ -291,13 +318,6 @@ public class ApplicationWorkflowService {
             );
         }
         return application;
-    }
-
-    private Optional<ApplicationWorkflowContext> loadApplicationContextForStatusChange(UUID applicationId, String nextStatus) {
-        if ("selected".equals(nextStatus)) {
-            return repository.lockVisibleApplicationContext(applicationId);
-        }
-        return repository.findVisibleApplicationContext(applicationId);
     }
 
     private void ensureSelectionCapacityAvailable(ApplicationWorkflowContext context) {

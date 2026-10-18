@@ -79,10 +79,17 @@ public class ChatService {
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         ensureRoomAccess(room.getFounderId(), room.getRespondentId(), currentUserId);
 
+        if (room.getFounderId().equals(currentUserId) && chatRepository.findRoom(roomId, currentUserId).isEmpty()) {
+            throw notFound(NOT_FOUND_DETAIL);
+        }
+
         ChatWorkflowQueryRepository.ChatRoomWorkflowContextRecord context = workflowQueryRepository.findRoomWorkflowContext(roomId)
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         if (context.application() == null || context.interviewPostId() == null) {
             return closedWorkflow("진행 상태를 확인할 수 없어요");
+        }
+        if (workflowQueryRepository.findApplicationMessageability(room.getApplicationId(), false).isEmpty()) {
+            return closedWorkflow("개인정보 제공을 철회한 신청이에요");
         }
         ensureSelectedInterview(context.recruitmentType(), context.application().status());
 
@@ -369,6 +376,9 @@ public class ChatService {
         ChatRoomEntity room = chatRepository.findRoomEntity(roomId)
                 .orElseThrow(() -> notFound(NOT_FOUND_DETAIL));
         ensureRoomAccess(room.getFounderId(), room.getRespondentId(), currentUserId);
+        if (room.getFounderId().equals(currentUserId) && chatRepository.findRoom(roomId, currentUserId).isEmpty()) {
+            throw notFound(NOT_FOUND_DETAIL);
+        }
         ensureRoomReadable(room);
         return chatMessageRepository.findMessages(roomId, limit, before, beforeId)
                 .stream()
@@ -519,7 +529,7 @@ public class ChatService {
     }
 
     private void ensureRoomReadable(ChatRoomEntity room) {
-        workflowQueryRepository.findApplicationMessageability(room.getApplicationId())
+        workflowQueryRepository.findApplicationMessageability(room.getApplicationId(), false)
                 .ifPresent(application -> ensureSelectedInterview(application.recruitmentType(), application.status()));
     }
 
@@ -528,7 +538,7 @@ public class ChatService {
             throw conflict(ROOM_CLOSED_DETAIL);
         }
 
-        ChatWorkflowQueryRepository.ApplicationMessageabilityRecord application = workflowQueryRepository.findApplicationMessageability(room.getApplicationId())
+        ChatWorkflowQueryRepository.ApplicationMessageabilityRecord application = workflowQueryRepository.findApplicationMessageability(room.getApplicationId(), true)
                 .orElseThrow(() -> conflict(APPLICATION_NOT_MESSAGEABLE_DETAIL));
         ensureSelectedInterview(application.recruitmentType(), application.status());
         if (!List.of("applied", "selected", "completed").contains(application.status())) {

@@ -7,6 +7,8 @@ import java.util.UUID;
 
 public interface NotificationRepository {
 
+    boolean isSharingRestricted(UUID userId, String targetType, UUID targetId);
+
     NotificationReadModel createNotification(
             UUID userId,
             String type,

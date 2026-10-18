@@ -42,5 +42,19 @@ public interface SurveyParticipationJpaRepository extends JpaRepository<SurveyPa
 
     Optional<SurveyParticipationEntity> findByPostIdAndParticipantId(UUID postId, UUID participantId);
 
-    List<SurveyParticipationEntity> findAllByPostIdOrderByCreatedAtDesc(UUID postId);
+    @Query(value = """
+            select participation.*
+            from survey_participations participation
+            join interview_posts post on post.id = participation.post_id
+            where participation.post_id = :postId
+              and (post.entry_mode <> 'application_required' or not exists (
+                select 1
+                from applications application
+                where application.interview_post_id = participation.post_id
+                  and application.respondent_id = participation.participant_id
+                  and application.sharing_withdrawn_at is not null
+              ))
+            order by participation.created_at desc
+            """, nativeQuery = true)
+    List<SurveyParticipationEntity> findAllByPostIdOrderByCreatedAtDesc(@Param("postId") UUID postId);
 }

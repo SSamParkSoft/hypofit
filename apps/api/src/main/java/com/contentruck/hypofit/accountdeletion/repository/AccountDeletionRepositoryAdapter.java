@@ -8,6 +8,7 @@ import com.contentruck.hypofit.accountdeletion.service.AccountDeletionRepository
 import com.contentruck.hypofit.accountdeletion.service.AccountDeletionRequestReadModel;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -26,19 +27,22 @@ public class AccountDeletionRepositoryAdapter implements AccountDeletionReposito
     private final AccountDeletionPushDeviceJpaRepository pushDeviceJpaRepository;
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final EntityManager entityManager;
 
     public AccountDeletionRepositoryAdapter(
             AccountDeletionRequestJpaRepository requestJpaRepository,
             AccountDeletionUserJpaRepository userJpaRepository,
             AccountDeletionPushDeviceJpaRepository pushDeviceJpaRepository,
             NamedParameterJdbcTemplate jdbcTemplate,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            EntityManager entityManager
     ) {
         this.requestJpaRepository = requestJpaRepository;
         this.userJpaRepository = userJpaRepository;
         this.pushDeviceJpaRepository = pushDeviceJpaRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -48,7 +52,57 @@ public class AccountDeletionRepositoryAdapter implements AccountDeletionReposito
 
     @Override
     public Optional<AccountDeletionRequestRecord> findRequestForUpdate(UUID requestId) {
-        return requestJpaRepository.findForUpdateById(requestId).map(this::toRecord);
+        return requestJpaRepository.findForUpdateById(requestId).map(entity -> {
+            // A prior latest-request lookup may have cached state from before the lock wait.
+            entityManager.refresh(entity);
+            return toRecord(entity);
+        });
+    }
+
+    @Override
+    public List<UUID> findCleanupRetryCandidates(OffsetDateTime before, int limit) {
+        return jdbcTemplate.queryForList("""
+                select r.id from account_deletion_requests r
+                join app_users u on u.id = r.user_id
+                where r.status = 'completed'
+                  and r.result = 'account_deleted_and_direct_identifiers_anonymized'
+                  and (r.auth_user_delete_status in ('pending', 'failed_retryable', 'skipped_missing_config')
+                    or r.pending_profile_image_path is not null)
+                  and u.deleted_at is not null and u.deletion_completed_at is not null
+                  and r.updated_at < :before
+                order by r.updated_at, r.id
+                limit :limit
+                """, Map.of("before", before, "limit", limit), UUID.class);
+    }
+
+    @Override
+    public boolean claimCleanupRetry(UUID requestId, OffsetDateTime before, OffsetDateTime now) {
+        return jdbcTemplate.update("""
+                update account_deletion_requests r set updated_at = :now
+                where r.id = :requestId and r.updated_at < :before
+                  and r.status = 'completed'
+                  and r.result = 'account_deleted_and_direct_identifiers_anonymized'
+                  and (r.auth_user_delete_status in ('pending', 'failed_retryable', 'skipped_missing_config')
+                    or r.pending_profile_image_path is not null)
+                  and exists (select 1 from app_users u where u.id = r.user_id
+                    and u.deleted_at is not null and u.deletion_completed_at is not null)
+                """, Map.of("requestId", requestId, "before", before, "now", now)) == 1;
+    }
+
+    @Override
+    public void savePendingProfileImagePath(UUID requestId, String path) {
+        jdbcTemplate.update("""
+                update account_deletion_requests set pending_profile_image_path = :path
+                where id = :requestId
+                """, new MapSqlParameterSource("requestId", requestId).addValue("path", path));
+    }
+
+    @Override
+    public Optional<String> findPendingProfileImagePath(UUID requestId) {
+        return jdbcTemplate.queryForList("""
+                select pending_profile_image_path from account_deletion_requests
+                where id = :requestId and pending_profile_image_path is not null
+                """, Map.of("requestId", requestId), String.class).stream().findFirst();
     }
 
     @Override
@@ -90,6 +144,14 @@ public class AccountDeletionRepositoryAdapter implements AccountDeletionReposito
     @Override
     public Optional<UserAccountRecord> findUserAccount(UUID userId) {
         return userJpaRepository.findById(userId).map(this::toRecord);
+    }
+
+    @Override
+    public Optional<UserAccountRecord> findUserAccountForUpdate(UUID userId) {
+        return userJpaRepository.findForUpdateById(userId).map(entity -> {
+            entityManager.refresh(entity);
+            return toRecord(entity);
+        });
     }
 
     @Override
@@ -164,17 +226,22 @@ public class AccountDeletionRepositoryAdapter implements AccountDeletionReposito
 
     @Override
     public int disablePushDevices(UUID userId, OffsetDateTime disabledAt, String disabledReason, OffsetDateTime updatedAt) {
-        List<AccountDeletionPushDeviceEntity> devices = pushDeviceJpaRepository.findAllByUserIdAndEnabledTrue(userId);
+        List<AccountDeletionPushDeviceEntity> devices = pushDeviceJpaRepository.findAllByUserId(userId);
+        int disabledCount = 0;
         for (AccountDeletionPushDeviceEntity device : devices) {
-            device.setEnabled(false);
-            device.setDisabledAt(disabledAt);
-            device.setDisabledReason(disabledReason);
+            if (device.isEnabled()) {
+                disabledCount++;
+                device.setEnabled(false);
+                device.setDisabledAt(disabledAt);
+                device.setDisabledReason(disabledReason);
+            }
+            device.clearDeliveryIdentifiers();
             device.setUpdatedAt(updatedAt);
         }
         if (!devices.isEmpty()) {
             pushDeviceJpaRepository.saveAllAndFlush(devices);
         }
-        return devices.size();
+        return disabledCount;
     }
 
     @Override

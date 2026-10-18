@@ -87,6 +87,6 @@ public final class AccountDeletionCleanupPolicy {
     }
 
     static boolean successAuthCleanup(String status) {
-        return AUTH_USER_DELETE_SUCCESS_STATUSES.contains(status);
+        return status != null && AUTH_USER_DELETE_SUCCESS_STATUSES.contains(status);
     }
 }

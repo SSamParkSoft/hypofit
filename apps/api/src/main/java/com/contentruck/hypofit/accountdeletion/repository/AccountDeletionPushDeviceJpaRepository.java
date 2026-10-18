@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AccountDeletionPushDeviceJpaRepository extends JpaRepository<AccountDeletionPushDeviceEntity, UUID> {
 
-    List<AccountDeletionPushDeviceEntity> findAllByUserIdAndEnabledTrue(UUID userId);
+    List<AccountDeletionPushDeviceEntity> findAllByUserId(UUID userId);
 }

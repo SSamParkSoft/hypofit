@@ -87,6 +87,22 @@ public class SurveyParticipationRepositoryAdapter implements SurveyParticipation
     }
 
     @Override
+    public boolean hasWithdrawnApplicationForUpdate(UUID postId, UUID participantId) {
+        // Hold the same application row lock as sharing withdrawal until confirmation commits.
+        List<?> withdrawn = entityManager.createNativeQuery("""
+                        select sharing_withdrawn_at is not null
+                        from applications
+                        where interview_post_id = :postId
+                          and respondent_id = :participantId
+                        for update
+                        """)
+                .setParameter("postId", postId)
+                .setParameter("participantId", participantId)
+                .getResultList();
+        return withdrawn.contains(Boolean.TRUE);
+    }
+
+    @Override
     public SurveyParticipationReadModel createOpenedParticipation(UUID postId, UUID participantId, OffsetDateTime openedAt) {
         participationJpaRepository.insertOpenedIfAbsent(postId, participantId, openedAt);
         return participationJpaRepository.findForUpdate(postId, participantId)

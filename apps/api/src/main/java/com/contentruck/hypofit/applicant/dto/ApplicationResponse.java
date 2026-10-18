@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.OffsetDateTime;
 
 @Schema(name = "ApplicationResponse")
 public record ApplicationResponse(
@@ -22,7 +23,9 @@ public record ApplicationResponse(
         String rejectionReason,
         ApplicationRespondentResponse respondent,
         @JsonProperty("ai_summary")
-        ApplicantAiSummaryResponse aiSummary
+        ApplicantAiSummaryResponse aiSummary,
+        @JsonProperty("sharing_withdrawn_at")
+        OffsetDateTime sharingWithdrawnAt
 ) {
 
     public static ApplicationResponse from(ApplicationReadModel model) {
@@ -35,7 +38,8 @@ public record ApplicationResponse(
                 model.status(),
                 model.rejectionReason(),
                 ApplicationRespondentResponse.from(model.respondent()),
-                ApplicantAiSummaryResponse.from(model.aiSummary())
+                ApplicantAiSummaryResponse.from(model.aiSummary()),
+                model.sharingWithdrawnAt()
         );
     }
 }

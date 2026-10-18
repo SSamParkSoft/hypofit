@@ -21,6 +21,7 @@ public class NotificationWriteService {
         this.notificationOutboxPublisher = notificationOutboxPublisher;
     }
 
+    /** Returns null when delivery to the organizer is restricted by sharing withdrawal. */
     @Transactional
     public NotificationReadModel createNotification(
             UUID userId,
@@ -31,6 +32,9 @@ public class NotificationWriteService {
             UUID targetId,
             Map<String, Object> metadata
     ) {
+        if (notificationRepository.isSharingRestricted(userId, targetType, targetId)) {
+            return null;
+        }
         NotificationReadModel notification = notificationRepository.createNotification(
                 userId,
                 type,

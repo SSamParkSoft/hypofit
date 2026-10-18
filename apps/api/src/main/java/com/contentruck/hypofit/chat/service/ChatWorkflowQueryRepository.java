@@ -9,7 +9,7 @@ import java.util.UUID;
 /** Read-only data required to render the chat workflow state. */
 public interface ChatWorkflowQueryRepository {
 
-    Optional<ApplicationMessageabilityRecord> findApplicationMessageability(UUID applicationId);
+    Optional<ApplicationMessageabilityRecord> findApplicationMessageability(UUID applicationId, boolean lock);
 
     Optional<String> findLatestVisibleSessionStatus(UUID applicationId);
 

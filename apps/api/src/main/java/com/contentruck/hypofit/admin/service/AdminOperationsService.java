@@ -108,6 +108,11 @@ public class AdminOperationsService {
                 command.targetId(),
                 Map.of("source", "admin_test_notification")
         );
+        if (notification == null) {
+            throw new HypofitException(
+                    "notification_target_unavailable", "개인정보 제공을 철회한 대상에는 알림을 보낼 수 없습니다.",
+                    409, "Notification target is restricted by application sharing withdrawal");
+        }
 
         PushDispatchResultView dispatchResult = command.dispatch()
                 ? toDispatchResult(pushDispatchService.dispatchNotification(notification.id()))

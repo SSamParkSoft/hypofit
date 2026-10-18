@@ -5,6 +5,7 @@ import com.contentruck.hypofit.accountdeletion.service.AccountDeletionRepository
 import com.contentruck.hypofit.accountdeletion.service.AccountDeletionRepository.AccountDeletionRequestRecord;
 import com.contentruck.hypofit.accountdeletion.service.AccountDeletionRepository.UserAccountRecord;
 import com.contentruck.hypofit.accountdeletion.service.AccountDeletionRepository.UserDeletionMutation;
+import com.contentruck.hypofit.common.error.HypofitException;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -12,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,11 @@ public class AccountDeletionCompletionWriteService {
 
     public AccountDeletionCompletionWriteService(AccountDeletionRepository repository) {
         this.repository = repository;
+    }
+
+    @Transactional
+    public boolean claimCleanupRetry(UUID requestId, OffsetDateTime before) {
+        return repository.claimCleanupRetry(requestId, before, now());
     }
 
     @Transactional
@@ -75,12 +82,20 @@ public class AccountDeletionCompletionWriteService {
 
     @Transactional
     public InitialDeletionState commitInitialDeletionState(
-            UserAccountRecord user,
-            AccountDeletionRequestRecord request,
+            UserAccountRecord expectedUser,
+            AccountDeletionRequestRecord expectedRequest,
             String reason,
             String actorType,
             String emailHash
     ) {
+        // Keep request -> user -> device lock order consistent with verification writes.
+        AccountDeletionRequestRecord request = expectedRequest == null ? null : requireRequest(expectedRequest.id());
+        UserAccountRecord user = repository.findUserAccountForUpdate(expectedUser.id())
+                .orElseThrow(() -> new IllegalStateException("User account does not exist"));
+        if (user.deletedAt() != null || user.deactivatedAt() != null) {
+            throw new HypofitException(
+                    "conflict", "이미 처리된 요청이에요.", HttpStatus.CONFLICT.value(), "Account is already inactive");
+        }
         OffsetDateTime now = now();
         String profileImagePath = AccountDeletionCleanupPolicy.normalizeProfileImagePath(user.profileImagePath());
         String initialProfileImagePurgeStatus = profileImagePath == null
@@ -89,24 +104,6 @@ public class AccountDeletionCompletionWriteService {
         UUID requestId = request == null ? UUID.randomUUID() : request.id();
         OffsetDateTime requestCreatedAt = request == null ? now : request.createdAt();
         int disabledPushDevices = repository.disablePushDevices(user.id(), now, "account_deleted", now);
-
-        repository.saveUserDeletion(new UserDeletionMutation(
-                user.id(),
-                AccountDeletionCleanupPolicy.deletedUserEmail(user.id()),
-                AccountDeletionCleanupPolicy.DELETED_USER_NAME,
-                null,
-                null,
-                user.role(),
-                null,
-                null,
-                now,
-                now,
-                now,
-                user.deletionRequestedAt() == null ? now : user.deletionRequestedAt(),
-                now,
-                reason,
-                emailHash
-        ));
 
         repository.saveRequest(new AccountDeletionRequestMutation(
                 requestId,
@@ -139,6 +136,26 @@ public class AccountDeletionCompletionWriteService {
                 null,
                 requestCreatedAt,
                 now
+        ));
+
+        // Persist the cleanup target in this transaction before clearing the public profile reference.
+        repository.savePendingProfileImagePath(requestId, profileImagePath);
+        repository.saveUserDeletion(new UserDeletionMutation(
+                user.id(),
+                AccountDeletionCleanupPolicy.deletedUserEmail(user.id()),
+                AccountDeletionCleanupPolicy.DELETED_USER_NAME,
+                null,
+                null,
+                user.role(),
+                null,
+                null,
+                now,
+                now,
+                now,
+                user.deletionRequestedAt() == null ? now : user.deletionRequestedAt(),
+                now,
+                reason,
+                emailHash
         ));
 
         repository.recordAuditEvent(
@@ -185,6 +202,14 @@ public class AccountDeletionCompletionWriteService {
         }
 
         AccountDeletionRequestRecord request = requireRequest(requestId);
+        String pendingPath = repository.findPendingProfileImagePath(requestId).orElse(null);
+        if (pendingPath == null || !Objects.equals(pendingPath, profileImagePath)) {
+            return;
+        }
+        if ("deleted".equals(profileImagePurgeStatus) || "already_missing".equals(profileImagePurgeStatus)
+                || "no_profile_image".equals(profileImagePurgeStatus)) {
+            repository.savePendingProfileImagePath(requestId, null);
+        }
         OffsetDateTime now = now();
         repository.saveRequest(new AccountDeletionRequestMutation(
                 request.id(),
@@ -235,6 +260,9 @@ public class AccountDeletionCompletionWriteService {
     @Transactional
     public void persistCompletionAuthCleanupResult(UUID requestId, UUID actorUserId, AuthCleanupResult authCleanup) {
         AccountDeletionRequestRecord request = requireRequest(requestId);
+        if (AccountDeletionCleanupPolicy.successAuthCleanup(request.authUserDeleteStatus())) {
+            return;
+        }
         OffsetDateTime now = now();
         OffsetDateTime authDeletedAt = AccountDeletionCleanupPolicy.successAuthCleanup(authCleanup.status())
                 ? now
@@ -301,6 +329,9 @@ public class AccountDeletionCompletionWriteService {
     @Transactional
     public void persistRetryAuthCleanupResult(UUID requestId, UUID actorUserId, AuthCleanupResult authCleanup) {
         AccountDeletionRequestRecord request = requireRequest(requestId);
+        if (AccountDeletionCleanupPolicy.successAuthCleanup(request.authUserDeleteStatus())) {
+            return;
+        }
         OffsetDateTime now = now();
         OffsetDateTime authDeletedAt = AccountDeletionCleanupPolicy.successAuthCleanup(authCleanup.status())
                 ? now
@@ -372,7 +403,7 @@ public class AccountDeletionCompletionWriteService {
     }
 
     private AccountDeletionRequestRecord requireRequest(UUID requestId) {
-        return repository.findRequest(requestId)
+        return repository.findRequestForUpdate(requestId)
                 .orElseThrow(() -> new IllegalStateException("Account deletion request is missing after completion write"));
     }
 

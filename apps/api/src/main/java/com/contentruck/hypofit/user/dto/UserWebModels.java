@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 
 public final class UserWebModels {
 
@@ -14,6 +15,17 @@ public final class UserWebModels {
     @Schema(requiredProperties = {"name"})
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static final class UserSyncRequest {
+
+        @Valid
+        private LegalAcknowledgementsRequest legalAcknowledgements;
+
+        public LegalAcknowledgementsRequest getLegalAcknowledgements() {
+            return legalAcknowledgements;
+        }
+
+        public void setLegalAcknowledgements(LegalAcknowledgementsRequest legalAcknowledgements) {
+            this.legalAcknowledgements = legalAcknowledgements;
+        }
 
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minLength = 1, maxLength = 100)
         private String name;

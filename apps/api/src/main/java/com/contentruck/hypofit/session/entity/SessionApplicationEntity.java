@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.List;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -40,6 +41,9 @@ public class SessionApplicationEntity {
 
     @Column(name = "rejection_reason")
     private String rejectionReason;
+
+    @Column(name = "sharing_withdrawn_at")
+    private OffsetDateTime sharingWithdrawnAt;
 
     public UUID getId() {
         return id;

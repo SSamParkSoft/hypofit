@@ -5,6 +5,7 @@ import com.contentruck.hypofit.user.dto.UserWebModels;
 
 import com.contentruck.hypofit.user.service.UserQueryService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -35,14 +36,15 @@ public class MeController {
 
     @PostMapping("/sync")
     public UserMeResponse syncMe(
-            @RequestBody UserWebModels.UserSyncRequest request,
+            @Valid @RequestBody UserWebModels.UserSyncRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
         UUID userId = UUID.fromString(jwt.getSubject());
         return UserMeResponse.from(userQueryService.syncMe(
                 userId,
                 jwt.getClaimAsString("email"),
-                request.toCommand()
+                request.toCommand(),
+                request.getLegalAcknowledgements()
         ));
     }
 

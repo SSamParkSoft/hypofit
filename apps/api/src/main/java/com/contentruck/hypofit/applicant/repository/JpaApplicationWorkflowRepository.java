@@ -78,7 +78,8 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
                         from ApplicationRecordEntity a
                         join InterviewPostRecordEntity p on p.id = a.interviewPostId
                         where a.moderationStatus = :visible
-                          and (a.respondentId = :userId or p.founderId = :userId)
+                          and (a.respondentId = :userId
+                            or (p.founderId = :userId and a.sharingWithdrawnAt is null))
                         order by a.createdAt desc
                         """,
                         ApplicationRecordEntity.class
@@ -137,6 +138,7 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
                   a.respondent_id,
                   a.status,
                   a.rejection_reason,
+                  a.sharing_withdrawn_at,
                   u.id as respondent_user_id,
                   u.name as respondent_name,
                   u.bio as respondent_bio,
@@ -153,7 +155,8 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
                  and summary.summary_type = 'application'
                 where a.id = :application_id
                   and a.moderation_status = :visible
-                  and (a.respondent_id = :viewer_id or p.founder_id = :viewer_id)
+                  and (a.respondent_id = :viewer_id
+                    or (p.founder_id = :viewer_id and a.sharing_withdrawn_at is null))
                 """,
                 parameters.addValue("visible", VISIBLE),
                 (resultSet, rowNum) -> new ApplicationReadModel(
@@ -165,7 +168,8 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
                         resultSet.getString("status"),
                         resultSet.getString("rejection_reason"),
                         readRespondent(resultSet),
-                        readApplicantAiSummary(resultSet.getString("ai_summary_status"), resultSet.getString("ai_summary_result"), resultSet.getTimestamp("ai_summary_updated_at"))
+                        readApplicantAiSummary(resultSet.getString("ai_summary_status"), resultSet.getString("ai_summary_result"), resultSet.getTimestamp("ai_summary_updated_at")),
+                        toOffsetDateTime(resultSet.getTimestamp("sharing_withdrawn_at"))
                 )
         );
         return details.stream().findFirst();
@@ -393,7 +397,9 @@ public class JpaApplicationWorkflowRepository implements ApplicationWorkflowRepo
                 entity.getRespondentId(),
                 entity.getStatus(),
                 entity.getRejectionReason(),
-                respondent
+                respondent,
+                null,
+                entity.getSharingWithdrawnAt()
         );
     }
 

@@ -46,6 +46,9 @@ public class ApplicationRecordEntity {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "sharing_withdrawn_at")
+    private OffsetDateTime sharingWithdrawnAt;
+
     protected ApplicationRecordEntity() {
     }
 
@@ -104,5 +107,9 @@ public class ApplicationRecordEntity {
 
     public OffsetDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public OffsetDateTime getSharingWithdrawnAt() {
+        return sharingWithdrawnAt;
     }
 }
