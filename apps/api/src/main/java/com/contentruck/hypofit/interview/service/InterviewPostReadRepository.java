@@ -7,6 +7,8 @@ import java.util.UUID;
 public interface InterviewPostReadRepository {
     List<InterviewPostReadModel> findPosts(InterviewPostListCriteria criteria);
 
+    List<InterviewPostReadModel> findLocationCatalog(InterviewPostListCriteria criteria);
+
     Optional<InterviewPostReadModel> findVisiblePost(
             UUID postId,
             UUID viewerId,

@@ -18,8 +18,12 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import com.contentruck.hypofit.interview.service.InterviewPostValidationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -122,6 +126,23 @@ public class InterviewPostController {
                         supportsResearchRecruitment(featuresHeader)
                 )
         );
+    }
+
+    @GetMapping("/location-catalog")
+    @Operation(summary = "기기 내부 주변 검색용 공고 목록 (사용자 좌표 전송 없음)")
+    public ResponseEntity<List<InterviewPostResponse>> getLocationCatalog(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(name = "X-Hypofit-Features", required = false) String featuresHeader,
+            @RequestParam Map<String, String> parameters
+    ) {
+        if (!parameters.isEmpty()) {
+            throw new InterviewPostValidationException("Location catalog does not accept query parameters");
+        }
+        UUID viewerId = jwt == null ? null : UUID.fromString(jwt.getSubject());
+        List<InterviewPostResponse> posts = interviewPostQueryService.listLocationCatalog(
+                viewerId, supportsRecruitmentTypes(featuresHeader), supportsResearchRecruitment(featuresHeader))
+                .stream().map(InterviewPostResponse::from).toList();
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(posts);
     }
 
     @GetMapping("/creation-capabilities")

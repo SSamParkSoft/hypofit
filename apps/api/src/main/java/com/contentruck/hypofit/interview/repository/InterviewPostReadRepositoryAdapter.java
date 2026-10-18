@@ -52,7 +52,13 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
 
     @Override
     public List<InterviewPostReadModel> findPosts(InterviewPostListCriteria criteria) {
-        SqlFragments fragments = buildListSql(criteria);
+        SqlFragments fragments = buildListSql(criteria, false);
+        return jdbcTemplate.query(fragments.sql(), fragments.parameters(), interviewPostRowMapper(false));
+    }
+
+    @Override
+    public List<InterviewPostReadModel> findLocationCatalog(InterviewPostListCriteria criteria) {
+        SqlFragments fragments = buildListSql(criteria, true);
         return jdbcTemplate.query(fragments.sql(), fragments.parameters(), interviewPostRowMapper(false));
     }
 
@@ -67,11 +73,18 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
         return posts.stream().findFirst();
     }
 
-    private SqlFragments buildListSql(InterviewPostListCriteria criteria) {
+    private SqlFragments buildListSql(InterviewPostListCriteria criteria, boolean locationCatalog) {
         MapSqlParameterSource parameters = new MapSqlParameterSource();
         List<String> whereClauses = new ArrayList<>();
         String normalizedQuery = normalizeQuery(criteria.query());
         boolean distanceEnabled = criteria.latitude() != null && criteria.longitude() != null;
+
+        if (locationCatalog) {
+            whereClauses.add("p.recruitment_type in ('interview', 'survey', 'beta_test', 'research_experiment')");
+            whereClauses.add("p.interview_mode in ('offline', 'both')");
+            whereClauses.add("p.location_latitude between -90 and 90");
+            whereClauses.add("p.location_longitude between -180 and 180");
+        }
 
         if (criteria.status() != null && !criteria.status().isBlank()) {
             whereClauses.add("p.status = :status");
@@ -335,6 +348,9 @@ public class InterviewPostReadRepositoryAdapter implements InterviewPostReadRepo
     }
 
     private String distanceWithinClause() {
+        // Retained for released clients, not used by the device-local catalog.
+        // Do not wire new clients back here as an error fallback. Reintroduction
+        // requires a separate location/privacy and release decision.
         return """
                 extensions.ST_DWithin(
                   p.location_point,

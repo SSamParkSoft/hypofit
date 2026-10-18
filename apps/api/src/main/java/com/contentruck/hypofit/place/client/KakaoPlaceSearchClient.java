@@ -42,6 +42,8 @@ public class KakaoPlaceSearchClient implements PlaceSearchGateway {
                                 .path("/v2/local/search/keyword.json")
                                 .queryParam("query", query)
                                 .queryParam("size", Math.min(Math.max(limit, 1), 15));
+                        // Legacy bias is retained for existing clients. New device-local
+                        // discovery sends keywords only, never a GPS-derived center/radius.
                         if (latitude != null && longitude != null) {
                             uriBuilder.queryParam("x", longitude).queryParam("y", latitude);
                             if (radiusMeters != null) {
