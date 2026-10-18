@@ -195,7 +195,8 @@ public class AccountDeletionCompletionWriteService {
             UUID actorUserId,
             String profileImagePath,
             String initialProfileImagePurgeStatus,
-            String profileImagePurgeStatus
+            String profileImagePurgeStatus,
+            String actorType
     ) {
         if (Objects.equals(profileImagePurgeStatus, initialProfileImagePurgeStatus)) {
             return;
@@ -245,7 +246,7 @@ public class AccountDeletionCompletionWriteService {
         ));
         repository.recordAuditEvent(
                 actorUserId,
-                "system",
+                actorType,
                 "account_deletion_profile_image_purge_completed",
                 "account_deletion_request",
                 request.id(),

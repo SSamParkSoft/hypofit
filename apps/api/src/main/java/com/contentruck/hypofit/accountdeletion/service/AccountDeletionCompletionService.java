@@ -104,7 +104,8 @@ class AccountDeletionCompletionService {
                 initialState.userId(),
                 initialState.profileImagePath(),
                 initialState.initialProfileImagePurgeStatus(),
-                profileImagePurgeStatus
+                profileImagePurgeStatus,
+                "system"
         );
         AuthCleanupResult authCleanup = authCleanupGateway.deleteAuthUser(user.id());
         completionWriteService.persistCompletionAuthCleanupResult(initialState.requestId(), initialState.userId(), authCleanup);

@@ -18,15 +18,18 @@ public class AccountDeletionAdminService {
 
     private final AccountDeletionRepository repository;
     private final AccountDeletionAuthCleanupGateway authCleanupGateway;
+    private final AccountDeletionProfileImagePurgeGateway profileImagePurgeGateway;
     private final AccountDeletionCompletionWriteService completionWriteService;
 
     public AccountDeletionAdminService(
             AccountDeletionRepository repository,
             AccountDeletionAuthCleanupGateway authCleanupGateway,
+            AccountDeletionProfileImagePurgeGateway profileImagePurgeGateway,
             AccountDeletionCompletionWriteService completionWriteService
     ) {
         this.repository = repository;
         this.authCleanupGateway = authCleanupGateway;
+        this.profileImagePurgeGateway = profileImagePurgeGateway;
         this.completionWriteService = completionWriteService;
     }
 
@@ -57,6 +60,25 @@ public class AccountDeletionAdminService {
         completionWriteService.persistRetryAuthCleanupResult(request.id(), actorUserId, authCleanup);
         return repository.findRequest(requestId)
                 .map(this::toView)
+                .orElseThrow(() -> new IllegalStateException("Account deletion request is missing after retry"));
+    }
+
+    public AdminAccountDeletionRequestView retryProfileImageCleanup(UUID requestId, UUID actorUserId) {
+        AccountDeletionRequestRecord request = repository.findRequest(requestId)
+                .orElseThrow(() -> notFound("Account deletion request not found"));
+        if (!"completed".equals(request.status()) || request.userId() == null
+                || !repository.findUserAccount(request.userId())
+                        .map(user -> user.deletedAt() != null && user.deletionCompletedAt() != null).orElse(false)) {
+            throw conflict("Profile image cleanup requires a completed account deletion");
+        }
+        String path = repository.findPendingProfileImagePath(requestId)
+                .orElseThrow(() -> conflict("No pending profile image cleanup target"));
+
+        // The persisted target is server-owned; provider I/O must not hold a DB transaction.
+        String result = profileImagePurgeGateway.purgeProfileImage(path);
+        completionWriteService.persistProfileImagePurgeResult(
+                requestId, actorUserId, path, "pending_profile_image_purge", result, "operator");
+        return repository.findRequest(requestId).map(this::toView)
                 .orElseThrow(() -> new IllegalStateException("Account deletion request is missing after retry"));
     }
 

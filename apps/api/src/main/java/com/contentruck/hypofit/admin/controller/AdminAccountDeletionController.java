@@ -67,4 +67,17 @@ public class AdminAccountDeletionController {
                 )
         );
     }
+
+    @PostMapping("/account-deletion-requests/{request_id}/retry-profile-image-cleanup")
+    public AdminAccountDeletionWebModels.AdminAccountDeletionRequestResponse retryProfileImageCleanup(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(schema = @Schema(format = "uuid"))
+            @PathVariable("request_id") String requestId
+    ) {
+        AdminAccessService.CurrentAdmin admin = adminAccessService.requireAdmin(jwt);
+        return AdminAccountDeletionWebModels.AdminAccountDeletionRequestResponse.from(
+                accountDeletionAdminService.retryProfileImageCleanup(
+                        AdminAccountDeletionRequestParser.parseRequestId(requestId), admin.id())
+        );
+    }
 }

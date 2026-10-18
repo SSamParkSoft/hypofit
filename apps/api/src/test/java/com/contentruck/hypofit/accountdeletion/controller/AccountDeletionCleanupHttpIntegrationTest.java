@@ -315,6 +315,52 @@ class AccountDeletionCleanupHttpIntegrationTest {
         assertThat(STORAGE_CALLS.get()).isEqualTo(2);
     }
 
+    @Test
+    void adminImageRetryRequiresCompletedDeletionAndPreservesFailedTargetsWithoutRepeatingAuth() throws Exception {
+        UUID admin = seedUser();
+        UUID applicant = seedUser();
+        jdbc.update("insert into admin_users(user_id) values (?)", admin);
+        String unknown = "/api/v1/admin/account-deletion-requests/" + UUID.randomUUID() + "/retry-profile-image-cleanup";
+        assertThat(postApi(null, unknown, "{}").statusCode()).isEqualTo(401);
+        assertThat(postApi(applicant, unknown, "{}").statusCode()).isEqualTo(403);
+        assertThat(postApi(admin, unknown, "{}").statusCode()).isEqualTo(404);
+
+        JsonNode requested = accepted(post(applicant, "/me", "{}"), 201);
+        UUID pendingId = UUID.fromString(requested.path("id").asText());
+        assertThat(postApi(admin, "/api/v1/admin/account-deletion-requests/" + pendingId
+                + "/retry-profile-image-cleanup", "{}").statusCode()).isEqualTo(409);
+        assertThat(STORAGE_CALLS.get()).isZero();
+
+        AUTH_STATUS.set(403);
+        STORAGE_STATUS.set(500);
+        JsonNode verified = accepted(post(applicant, "/me/verify", "{\"request_id\":\"%s\",\"code\":\"%s\"}"
+                .formatted(pendingId, requested.path("debug_verification_code").asText())), 200);
+        accepted(post(applicant, "/me/confirm", confirmation(pendingId,
+                verified.path("deletion_authorization").asText())), 200);
+        UUID requestId = pendingId;
+        String path = "/api/v1/admin/account-deletion-requests/" + requestId + "/retry-profile-image-cleanup";
+        JsonNode failed = accepted(postApi(admin, path, "{}"), 200);
+        assertThat(failed.path("profile_image_cleanup_status").asText()).isEqualTo("delete_failed");
+        assertThat(failed.toString()).doesNotContain(applicant + "/avatar.jpg");
+        assertThat(jdbc.queryForObject("select pending_profile_image_path from account_deletion_requests where id=?",
+                String.class, requestId)).isEqualTo(applicant + "/avatar.jpg");
+
+        STORAGE_STATUS.set(404);
+        JsonNode recovered = accepted(postApi(admin, path, "{}"), 200);
+        assertThat(recovered.path("profile_image_cleanup_status").asText()).isEqualTo("already_missing");
+        assertThat(recovered.path("auth_user_delete_status").asText()).isEqualTo("failed_non_retryable");
+        assertThat(jdbc.queryForObject("select pending_profile_image_path from account_deletion_requests where id=?",
+                String.class, requestId)).isNull();
+        assertThat(jdbc.queryForObject("""
+                select count(*) from audit_events where target_id=? and actor_user_id=?
+                  and actor_type='operator' and event_type='account_deletion_profile_image_purge_completed'
+                """, Integer.class, requestId, admin)).isEqualTo(2);
+        assertThat(postApi(admin, path, "{}").statusCode()).isEqualTo(409);
+        assertThat(STORAGE_CALLS.get()).isEqualTo(3);
+        assertThat(AUTH_CALLS.get()).isEqualTo(1);
+        assertOrganizationUnchanged(admin);
+    }
+
     private UUID completeThroughHttp(UUID actor) throws Exception {
         JsonNode created = accepted(post(actor, "/me", "{}"), 201);
         UUID requestId = UUID.fromString(created.path("id").asText());

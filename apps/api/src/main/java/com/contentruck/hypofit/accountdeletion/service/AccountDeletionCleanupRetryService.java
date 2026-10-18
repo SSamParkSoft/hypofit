@@ -43,7 +43,7 @@ public class AccountDeletionCleanupRetryService {
                 String path = repository.findPendingProfileImagePath(requestId).orElse(null);
                 if (path != null) {
                     String result = profileImagePurgeGateway.purgeProfileImage(path);
-                    writeService.persistProfileImagePurgeResult(requestId, null, path, "pending_profile_image_purge", result);
+                    writeService.persistProfileImagePurgeResult(requestId, null, path, "pending_profile_image_purge", result, "system");
                 }
                 var request = repository.findRequest(requestId).orElseThrow();
                 String authStatus = request.authUserDeleteStatus();
