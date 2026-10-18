@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { RotateCw } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { adminApi } from "../../../shared/api/admin";
 import type { AdminAccountDeletionRequest } from "../../../shared/api/types";
@@ -30,6 +31,7 @@ export function AccountDeletionDetailPanel({
   request,
 }: AccountDeletionDetailPanelProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitting = useRef(false);
 
   if (!request) {
     return (
@@ -40,11 +42,15 @@ export function AccountDeletionDetailPanel({
   }
 
   const currentRequest = request;
+  const canRetryImage = currentRequest.status === "completed"
+    && ["pending_profile_image_purge", "delete_failed", "skipped_missing_storage_config"]
+      .includes(currentRequest.profile_image_cleanup_status ?? "");
 
   async function retryAuthCleanup() {
-    if (!currentRequest.auth_cleanup_retry_available) return;
+    if (submitting.current || !currentRequest.auth_cleanup_retry_available) return;
     if (!window.confirm("Supabase Auth 정리를 다시 시도할까요?")) return;
 
+    submitting.current = true;
     setIsSubmitting(true);
     try {
       await adminApi.retryAccountDeletionAuthCleanup(currentRequest.id, accessToken);
@@ -52,6 +58,26 @@ export function AccountDeletionDetailPanel({
     } catch (error) {
       onError(getErrorMessage(error, "Auth 정리를 다시 시도하지 못했습니다."));
     } finally {
+      submitting.current = false;
+      setIsSubmitting(false);
+    }
+  }
+
+  async function retryImageCleanup() {
+    if (submitting.current || !canRetryImage) return;
+    if (!window.confirm("탈퇴 계정의 프로필 이미지를 삭제할까요? 저장소에 남은 사진만 다시 처리합니다.")) return;
+
+    submitting.current = true;
+    setIsSubmitting(true);
+    try {
+      const updated = await adminApi.retryAccountDeletionProfileImageCleanup(currentRequest.id, accessToken);
+      onAction(["deleted", "already_missing"].includes(updated.profile_image_cleanup_status ?? "")
+        ? "프로필 이미지 삭제를 완료했습니다."
+        : "삭제 재시도 후에도 사진이 남아 있습니다. 처리 상태를 확인해 주세요.");
+    } catch (error) {
+      onError(getErrorMessage(error, "프로필 이미지 삭제를 다시 시도하지 못했습니다."));
+    } finally {
+      submitting.current = false;
       setIsSubmitting(false);
     }
   }
@@ -106,10 +132,20 @@ export function AccountDeletionDetailPanel({
             error_code: {currentRequest.auth_user_delete_error_code}
           </p>
         ) : null}
-        {currentRequest.auth_cleanup_retry_available ? (
-          <Button className="mt-4" disabled={isSubmitting} size="sm" variant="secondary" onClick={retryAuthCleanup}>
-            Auth 정리 다시 시도
-          </Button>
+        {currentRequest.auth_cleanup_retry_available || canRetryImage ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {currentRequest.auth_cleanup_retry_available ? (
+              <Button disabled={isSubmitting} size="sm" variant="secondary" onClick={retryAuthCleanup}>
+                Auth 정리 다시 시도
+              </Button>
+            ) : null}
+            {canRetryImage ? (
+              <Button disabled={isSubmitting} size="sm" variant="secondary" onClick={retryImageCleanup}>
+                <RotateCw aria-hidden="true" size={16} />
+                프로필 이미지 삭제 재시도
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </section>
 

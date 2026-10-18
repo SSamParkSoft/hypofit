@@ -138,6 +138,13 @@ export const adminApi = {
     );
   },
 
+  retryAccountDeletionProfileImageCleanup(requestId: string, accessToken?: string | null) {
+    return apiRequest<AdminAccountDeletionRequest>(
+      `/api/v1/admin/account-deletion-requests/${encodeURIComponent(requestId)}/retry-profile-image-cleanup`,
+      { accessToken, method: "POST" },
+    );
+  },
+
   dispatchPendingPushDeliveries(accessToken?: string | null) {
     return apiRequest<PushDispatchResult>("/api/v1/admin/push-deliveries/dispatch", {
       accessToken,
